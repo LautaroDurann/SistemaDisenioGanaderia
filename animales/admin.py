@@ -1,3 +1,6 @@
 from django.contrib import admin
+from .models import Parto, Animal, Preniez
 
-# Register your models here.
+admin.site.register(Parto)
+admin.site.register(Animal)
+admin.site.register(Preniez)

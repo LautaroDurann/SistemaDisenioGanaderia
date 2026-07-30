@@ -1,3 +1,10 @@
 from django.contrib import admin
 
-# Register your models here.
+from .models import Persona, Veterinario, Proveedor, Comprador, Usuario, RolEstablecimiento
+
+admin.site.register(Persona)
+admin.site.register(Veterinario)
+admin.site.register(Proveedor)
+admin.site.register(Comprador)
+admin.site.register(Usuario)
+admin.site.register(RolEstablecimiento)
