@@ -60,4 +60,4 @@ class RegistroAlimentacion(models.Model):
 
     def __str__(self):
         return f"Alimentación en {self.parcela} - {self.fecha}"
-    #ddd
+    #dd
