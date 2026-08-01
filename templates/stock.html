@@ -163,7 +163,7 @@
                         </select>
                       </div>
                       <div class="col-md-2">
-                        <label class="form-label small mb-1">Potrero</label>
+                        <label class="form-label small mb-1">Parcela</label>
                         <select id="f-potrero" class="form-select form-select-sm">
                           <option value="">Todos</option>
                           <option>Potrero 1</option>
@@ -226,7 +226,7 @@
                   </div>
                   <div class="card-body text-center">
                     <div class="vacapp-foto-animal mb-3" id="ficha-foto">
-                        <div class="placeholder-foto">
+                        <div class="placeholder-foto" id="ficha-foto-placeholder">
                             <i class="bi bi-image fs-1"></i>
                             <span>Sin imagen</span>
                         </div>
@@ -252,7 +252,7 @@
                           <span class="text-secondary">Peso</span><span id="ficha-peso">-</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
-                          <span class="text-secondary">Potrero</span><span id="ficha-potrero">-</span>
+                          <span class="text-secondary">Parcela</span><span id="ficha-potrero">-</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
                           <span class="text-secondary">Estado</span><span id="ficha-estado">-</span>
@@ -289,7 +289,7 @@
 
       <div class="modal fade" id="modalNuevoAnimal" tabindex="-1" aria-labelledby="modalNuevoAnimalTitulo" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
-          <form class="modal-content" id="form-nuevo-animal">
+          <form class="modal-content" id="form-nuevo-animal" enctype="multipart/form-data">
             <div class="modal-header">
               <h5 class="modal-title" id="modalNuevoAnimalTitulo"><i class="bi bi-cow me-2"></i>Nuevo animal</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
@@ -298,8 +298,8 @@
               <p class="text-secondary small">Los campos con <span class="text-danger">*</span> son obligatorios.</p>
               <div class="row g-3">
                 <div class="col-md-6">
-                  <label for="animal-caravana" class="form-label">Caravana SENASA <span class="text-danger">*</span></label>
-                  <input id="animal-caravana" name="id_senasa" type="number" min="1" class="form-control" required />
+                  <label for="animal-caravana" class="form-label">Caravana SENASA</label>
+                  <input id="animal-caravana" name="id_senasa" type="number" min="1" class="form-control" />
                 </div>
                 <div class="col-md-6">
                   <label for="animal-nombre" class="form-label">Nombre o identificación</label>
@@ -326,7 +326,7 @@
                   <input id="animal-fecha-nacimiento" name="fecha_nacimiento" type="date" class="form-control" />
                 </div>
                 <div class="col-md-6">
-                  <label for="animal-parcela" class="form-label">Potrero inicial</label>
+                  <label for="animal-parcela" class="form-label">Parcela inicial</label>
                   <select id="animal-parcela" name="parcela_id" class="form-select"><option value="">Sin asignar</option></select>
                 </div>
                 <div class="col-md-4">
@@ -379,6 +379,11 @@
                     <div class="form-check"><input id="animal-vivo" name="vivo" class="form-check-input" type="checkbox" checked><label class="form-check-label" for="animal-vivo">Animal vivo</label></div>
                     <div class="form-check"><input id="animal-enfermo" name="enfermo" class="form-check-input" type="checkbox"><label class="form-check-label" for="animal-enfermo">Animal enfermo</label></div>
                   </div>
+                </div>
+                <div class="col-12">
+                  <label for="animal-foto" class="form-label">Foto del animal</label>
+                  <input id="animal-foto" name="foto" type="file" accept="image/*" class="form-control" />
+                  <div id="foto-preview" class="mt-2 border rounded p-2 bg-body-tertiary d-none text-center"></div>
                 </div>
                 <div class="col-12">
                   <label for="animal-descripcion" class="form-label">Observaciones</label>

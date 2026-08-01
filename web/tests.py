@@ -1,5 +1,7 @@
+import base64
 from datetime import date
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
@@ -57,6 +59,22 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(animal.nombre, '')
         self.assertTrue(animal.vivo)
         self.assertEqual(str(animal.diametro_escrotal), '31.20')
+
+    def test_crear_animal_sin_id_senasa_y_con_foto(self):
+        foto = SimpleUploadedFile(
+            'animal.png',
+            base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQABAA0A5g4hBAAAAABJRU5ErkJggg=='),
+            content_type='image/png',
+        )
+        response = self.client.post(reverse('crear_animal'), {
+            'nombre': 'Mila', 'sexo': 'Hembra', 'tipo_animal': 'Bovino', 'vivo': 'on',
+            'peso_actual': '280.00', 'parcela_id': self.parcela.id,
+            'foto': foto,
+        })
+        self.assertEqual(response.status_code, 201)
+        animal = Animal.objects.get(nombre='Mila')
+        self.assertIsNone(animal.id_senasa)
+        self.assertTrue(animal.foto.name)
 
     def test_actualizar_y_eliminar_animal(self):
         response = self.client.post(reverse('actualizar_animal', args=[self.animal.id]), {

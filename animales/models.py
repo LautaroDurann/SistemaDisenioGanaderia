@@ -20,9 +20,10 @@ class Animal(models.Model):
         ('Hembra', 'Hembra'),
     ]
 
-    id_senasa = models.IntegerField(unique=True) # Clave Única (CU)
+    id_senasa = models.IntegerField(unique=True, null=True, blank=True) # Clave Única (CU)
     nombre = models.CharField(max_length=100, blank=True, default='')
     descripcion = models.TextField(blank=True, null=True)
+    foto = models.ImageField(upload_to='animales/', blank=True, null=True)
     
     # Pesos (permitimos que queden en blanco porque al nacer no tienen peso de destete)
     peso_al_nacer = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
@@ -59,7 +60,8 @@ class Animal(models.Model):
     venta = models.ForeignKey('finanzas.Venta', on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
-        return f"{self.nombre or 'S/N'} (SENASA: {self.id_senasa})"
+        caravana = self.id_senasa if self.id_senasa is not None else 'Sin caravana'
+        return f"{self.nombre or 'S/N'} (SENASA: {caravana})"
 
 # 3. Preñez (Evitamos usar la "ñ" en el nombre de la clase por buenas prácticas en programación)
 class Preniez(models.Model):
@@ -87,7 +89,8 @@ class Preniez(models.Model):
     mov_financiero = models.ForeignKey('finanzas.MovimientoFinanciero', on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
-        return f"Preñez {self.id} - Madre SENASA: {self.madre.id_senasa}"
+        caravana = self.madre.id_senasa if self.madre and self.madre.id_senasa is not None else 'Sin caravana'
+        return f"Preñez {self.id} - Madre SENASA: {caravana}"
 
 
 class Pesaje(models.Model):
@@ -101,7 +104,8 @@ class Pesaje(models.Model):
         ordering = ['fecha', 'id']
 
     def __str__(self):
-        return f"Pesaje {self.animal.id_senasa}: {self.peso} kg"
+        caravana = self.animal.id_senasa if self.animal and self.animal.id_senasa is not None else 'Sin caravana'
+        return f"Pesaje {caravana}: {self.peso} kg"
 
 
 class MovimientoAnimal(models.Model):
@@ -120,4 +124,5 @@ class MovimientoAnimal(models.Model):
         ordering = ['-fecha', '-id']
 
     def __str__(self):
-        return f"{self.tipo} - {self.animal.id_senasa} ({self.fecha})"
+        caravana = self.animal.id_senasa if self.animal and self.animal.id_senasa is not None else 'Sin caravana'
+        return f"{self.tipo} - {caravana} ({self.fecha})"

@@ -215,6 +215,16 @@
         document.getElementById('ficha-edad').textContent = a.edad;
         document.getElementById('ficha-peso').textContent = a.peso;
         document.getElementById('ficha-potrero').textContent = a.potrero;
+        const fichaFoto = document.getElementById('ficha-foto');
+        if (a.foto_url) {
+          fichaFoto.innerHTML = `<img src="${a.foto_url}" alt="Foto de ${a.nombre || 'animal'}" style="width: 100%; height: 100%; object-fit: contain;">`;
+        } else {
+          fichaFoto.innerHTML = `
+            <div class="placeholder-foto" id="ficha-foto-placeholder">
+              <i class="bi bi-image fs-1"></i>
+              <span>Sin imagen</span>
+            </div>`;
+        }
         document.getElementById('ficha-estado').innerHTML = `<span class="badge ${ESTADO_BADGE[a.estado] || 'text-bg-secondary'}">${a.estado}</span>`;
         document.getElementById('ficha-ingreso').textContent = a.ingreso;
         document.getElementById('ficha-notas').textContent = a.notas || 'Sin notas cargadas.';
@@ -257,6 +267,14 @@
         document.getElementById('animal-enfermo').checked = animal.enfermo;
         actualizarCampoDiametro();
         document.getElementById('animal-descripcion').value = animal.notas === '-' ? '' : animal.notas;
+        const preview = document.getElementById('foto-preview');
+        if (animal.foto_url) {
+          preview.innerHTML = `<img src="${animal.foto_url}" alt="Foto actual" class="img-fluid rounded" style="max-height: 180px; width: 100%; object-fit: contain;">`;
+          preview.classList.remove('d-none');
+        } else {
+          preview.innerHTML = '<div class="text-muted small">Sin imagen cargada</div>';
+          preview.classList.remove('d-none');
+        }
         bootstrap.Modal.getOrCreateInstance(document.getElementById('modalNuevoAnimal')).show();
       }
 

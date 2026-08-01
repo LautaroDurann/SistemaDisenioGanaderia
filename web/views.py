@@ -30,13 +30,18 @@ def _edad(animal):
     return f'{meses // 12} años' if meses >= 12 else f'{meses} meses'
 
 
+def _caravana_text(animal):
+    return str(animal.id_senasa) if animal.id_senasa is not None else 'Sin caravana'
+
+
 def _animal_data(animal):
     estado = 'Vendido' if animal.vendido else ('Muerto' if not animal.vivo else 'Activo')
     return {
-        'id': animal.id, 'caravana': str(animal.id_senasa), 'nombre': animal.nombre or 'S/N',
+        'id': animal.id, 'caravana': _caravana_text(animal), 'nombre': animal.nombre or 'S/N',
         'categoria': _categoria(animal), 'sexo': animal.sexo, 'raza': animal.raza or '-',
         'edad': _edad(animal), 'peso': f"{animal.peso_actual or 0} kg",
         'potrero': str(animal.parcela) if animal.parcela else 'Sin asignar',
+        'parcela': str(animal.parcela) if animal.parcela else 'Sin asignar',
         'parcela_id': animal.parcela_id,
         'estado': estado, 'ingreso': animal.fecha_nacimiento.isoformat() if animal.fecha_nacimiento else '-',
         'notas': animal.descripcion or '-',
@@ -50,6 +55,7 @@ def _animal_data(animal):
         'padre_id': animal.padre_id, 'padre': str(animal.padre) if animal.padre else 'No registrado',
         'compra_id': animal.compra_id, 'venta_id': animal.venta_id,
         'compra': str(animal.compra) if animal.compra else 'Sin compra asociada',
+        'foto_url': animal.foto.url if animal.foto else '',
         'venta': str(animal.venta) if animal.venta else 'Sin venta asociada',
     }
 
@@ -83,7 +89,7 @@ def stock(request):
         'animales': [_animal_data(a) for a in animales],
         'parcelas': [{'id': p.id, 'nombre': str(p)} for p in Parcela.objects.select_related('establecimiento')],
         'dietas': [{'id': d.id, 'nombre': str(d)} for d in Dieta.objects.all()],
-        'progenitores': [{'id': a.id, 'nombre': f'#{a.id_senasa} — {a.nombre or "S/N"}', 'sexo': a.sexo} for a in animales],
+        'progenitores': [{'id': a.id, 'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}', 'sexo': a.sexo} for a in animales],
         'compras': [{'id': c.id, 'nombre': str(c)} for c in Compra.objects.all()],
         'ventas': [{'id': v.id, 'nombre': str(v)} for v in Venta.objects.all()],
     })
@@ -157,7 +163,8 @@ def stock_api(request):
 
 def _asignar_campos_animal(animal, datos, es_alta=False):
     """Centraliza la asignación para que el alta y la edición tengan las mismas reglas."""
-    animal.id_senasa = int(datos['id_senasa'])
+    valor_senasa = datos.get('id_senasa', '').strip()
+    animal.id_senasa = int(valor_senasa) if valor_senasa else None
     animal.nombre = datos.get('nombre', '').strip()
     animal.tipo_animal = datos['tipo_animal']
     animal.sexo = datos['sexo']
@@ -191,6 +198,8 @@ def crear_animal(request):
     try:
         animal = Animal()
         _asignar_campos_animal(animal, request.POST, es_alta=True)
+        if 'foto' in request.FILES and request.FILES['foto']:
+            animal.foto = request.FILES['foto']
         animal.full_clean()
         animal.save()
     except (KeyError, ValueError, ValidationError):
@@ -210,6 +219,8 @@ def actualizar_animal(request, animal_id):
     animal = get_object_or_404(Animal, pk=animal_id)
     try:
         _asignar_campos_animal(animal, request.POST)
+        if 'foto' in request.FILES and request.FILES['foto']:
+            animal.foto = request.FILES['foto']
         animal.full_clean()
         animal.save()
     except (KeyError, ValueError, ValidationError):
