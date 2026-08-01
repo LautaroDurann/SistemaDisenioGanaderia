@@ -72,18 +72,11 @@
     
 
       // ------------------------------------------------------------------
-      // MOCK DATA: reemplazar por datos reales cuando se conecte con Django.
-      // Los valores de "actual" coinciden con los usados en el grafico de
-      // distribucion por potrero del Dashboard, para que los numeros no
-      // se contradigan entre paginas.
+      // Datos reales de Django. Si no hay datos cargados, se usa un fallback simple.
       // ------------------------------------------------------------------
       const POTREROS = window.GANASTOCK_DATA?.potreros ?? [
-        { nombre: 'Potrero 1', superficie: 45, capacidad: 100, actual: 70, pastura: 'Alfalfa', estado: 'Ocupado', fecha: '12/03/2021', responsable: 'Juan' },
-        { nombre: 'Potrero 2', superficie: 38, capacidad: 90, actual: 65, pastura: 'Grama', estado: 'Ocupado', fecha: '03/06/2021', responsable: 'Carlos' },
-        { nombre: 'Potrero 3', superficie: 30, capacidad: 80, actual: 60, pastura: 'Sorgo', estado: 'Ocupado', fecha: '20/01/2022', responsable: 'Maria' },
-        { nombre: 'Potrero 4', superficie: 42, capacidad: 90, actual: 65, pastura: 'Pastura natural', estado: 'Ocupado', fecha: '08/09/2022', responsable: 'Juan' },
-        { nombre: 'Potrero 5', superficie: 25, capacidad: 60, actual: 0, pastura: 'Alfalfa', estado: 'Disponible', fecha: '14/02/2023', responsable: 'Carlos' },
-        { nombre: 'Potrero 6', superficie: 20, capacidad: 50, actual: 0, pastura: 'Grama', estado: 'En mantenimiento', fecha: '30/11/2023', responsable: 'Maria' },
+        { nombre: 'Parcela 1', superficie: 0.02, actual: 0, estado: 'En pastoreo', fecha: '', responsable: '-' },
+        { nombre: 'Parcela 2', superficie: 0.03, actual: 0, estado: 'En descanso', fecha: '', responsable: '-' },
       ];
 
       const ANIMALES_POR_POTRERO = window.GANASTOCK_DATA?.animales_por_potrero ?? {
@@ -110,21 +103,15 @@
       };
 
       const ESTADO_BADGE = {
-        Disponible: 'text-bg-success',
-        Ocupado: 'text-bg-danger',
-        'En mantenimiento': 'text-bg-secondary',
+        'En pastoreo': 'text-bg-success',
+        'En descanso': 'text-bg-warning',
+        'Clausurado': 'text-bg-secondary',
       };
 
-      function ocupacionPct(p) {
-        return p.capacidad ? Math.round((p.actual / p.capacidad) * 100) : 0;
-      }
-
       function nivelOcupacion(p) {
-        if (p.estado === 'En mantenimiento') return 'mantenimiento';
-        const pct = ocupacionPct(p);
-        if (pct === 0) return 'baja';
-        if (pct < 75) return 'media';
-        return 'alta';
+        if (p.estado === 'Clausurado') return 'mantenimiento';
+        if (p.estado === 'En descanso') return 'media';
+        return 'baja';
       }
 
       let potreroSeleccionado = POTREROS[0].nombre;
@@ -134,30 +121,14 @@
       function aplicarFiltros() {
         const buscar = document.getElementById('f-buscar').value.trim().toLowerCase();
         const estado = document.getElementById('f-estado').value;
-        const pastura = document.getElementById('f-pastura').value;
-        const superficie = document.getElementById('f-superficie').value;
-        const ocupacion = document.getElementById('f-ocupacion').value;
-
         return POTREROS.filter((p) => {
           const matchBuscar = !buscar || p.nombre.toLowerCase().includes(buscar);
-          const matchSuperficie =
-            !superficie ||
-            (superficie === 'baja' && p.superficie < 30) ||
-            (superficie === 'media' && p.superficie >= 30 && p.superficie <= 40) ||
-            (superficie === 'alta' && p.superficie > 40);
-          return (
-            matchBuscar &&
-            matchSuperficie &&
-            (!estado || p.estado === estado) &&
-            (!pastura || p.pastura === pastura) &&
-            (!ocupacion || nivelOcupacion(p) === ocupacion)
-          );
+          return matchBuscar && (!estado || p.estado === estado);
         });
       }
 
       function renderMapa() {
         document.getElementById('mapa-potreros').innerHTML = POTREROS.map((p) => {
-          const pct = ocupacionPct(p);
           const nivel = nivelOcupacion(p);
           const seleccionado = p.nombre === potreroSeleccionado ? 'selected' : '';
           return `
@@ -165,7 +136,7 @@
             <h5>${p.nombre}</h5>
             <div class="small">${p.actual} animales</div>
             <div class="small">${p.superficie} ha</div>
-            <div class="small fw-semibold">${pct}% ocupacion</div>
+            <div class="small fw-semibold">${p.estado}</div>
           </div>`;
         }).join('');
 
@@ -188,20 +159,14 @@
 
         document.getElementById('tabla-potreros-body').innerHTML = pagina
           .map((p) => {
-            const pct = ocupacionPct(p);
             return `
           <tr>
             <td>${p.nombre}</td>
             <td>${p.superficie}</td>
-            <td>${p.capacidad}</td>
             <td>${p.actual}</td>
-            <td>${pct}%</td>
-            <td>${p.pastura}</td>
             <td><span class="badge ${ESTADO_BADGE[p.estado] || 'text-bg-secondary'}">${p.estado}</span></td>
             <td class="text-end">
               <button class="btn btn-sm btn-outline-secondary btn-ver-potrero" data-nombre="${p.nombre}" title="Ver detalle"><i class="bi bi-eye"></i></button>
-              <button class="btn btn-sm btn-outline-primary" title="Editar"><i class="bi bi-pencil"></i></button>
-              <button class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="bi bi-trash"></i></button>
             </td>
           </tr>`;
           })
@@ -247,18 +212,17 @@
 
       function actualizarKpis() {
         const total = POTREROS.length;
-        const ocupados = POTREROS.filter((p) => p.estado === 'Ocupado').length;
-        const libres = POTREROS.filter((p) => p.estado === 'Disponible').length;
-        const superficieTotal = POTREROS.reduce((acc, p) => acc + p.superficie, 0);
+        const ocupados = POTREROS.filter((p) => p.actual > 0).length;
+        const libres = total - ocupados;
+        const superficieTotal = POTREROS.reduce((acc, p) => acc + (p.superficie || 0), 0);
         const animalesTotal = POTREROS.reduce((acc, p) => acc + p.actual, 0);
-        const ocupacionProm = Math.round(POTREROS.reduce((acc, p) => acc + ocupacionPct(p), 0) / total);
 
         document.getElementById('kpi-total').textContent = total;
         document.getElementById('kpi-ocupados').textContent = ocupados;
         document.getElementById('kpi-libres').textContent = libres;
-        document.getElementById('kpi-superficie').textContent = superficieTotal;
+        document.getElementById('kpi-superficie').textContent = superficieTotal.toFixed(2);
         document.getElementById('kpi-animales').textContent = animalesTotal;
-        document.getElementById('kpi-ocupacion-promedio').textContent = `${ocupacionProm}%`;
+        document.getElementById('kpi-ocupacion-promedio').textContent = '—';
       }
 
       document.addEventListener('DOMContentLoaded', () => {
@@ -267,7 +231,7 @@
         renderTabla();
         renderDetalle();
 
-        ['f-buscar', 'f-estado', 'f-pastura', 'f-superficie', 'f-ocupacion'].forEach((id) => {
+        ['f-buscar', 'f-estado'].forEach((id) => {
           document.getElementById(id).addEventListener('input', () => {
             paginaActual = 1;
             renderTabla();
@@ -275,7 +239,7 @@
         });
 
         document.getElementById('f-limpiar').addEventListener('click', () => {
-          ['f-buscar', 'f-estado', 'f-pastura', 'f-superficie', 'f-ocupacion'].forEach((id) => {
+          ['f-buscar', 'f-estado'].forEach((id) => {
             document.getElementById(id).value = '';
           });
           paginaActual = 1;

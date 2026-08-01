@@ -106,9 +106,16 @@ def potreros(request):
         nombre = str(p)
         residentes = [_animal_data(a) for a in p.animal_set.filter(vivo=True, vendido=False)]
         animales[nombre] = residentes
-        datos.append({'nombre': nombre, 'superficie': float(p.ancho * p.largo), 'capacidad': 0,
-                      'actual': len(residentes), 'pastura': p.descripcion or '-',
-                      'estado': 'Ocupado' if residentes else 'Disponible', 'fecha': '', 'responsable': '-'})
+        datos.append({
+            'id': p.id,
+            'nombre': nombre,
+            'superficie': round(float(p.ancho * p.largo) / 10000, 2),
+            'actual': len(residentes),
+            'estado': p.estado,
+            'fecha': '',
+            'responsable': '-',
+            'descripcion': p.descripcion or '',
+        })
     return _page(request, 'potreros.html', 'potreros', {'potreros': datos, 'animales_por_potrero': animales})
 
 
@@ -249,10 +256,15 @@ def crear_potrero(request):
             establecimiento_id = Establecimiento.objects.values_list('id', flat=True).first()
         if not establecimiento_id:
             return JsonResponse({'error': 'Primero debés crear un establecimiento.'}, status=400)
+        descripcion = request.POST.get('descripcion', '').strip()
+        observaciones = request.POST.get('observaciones', '').strip()
+        texto_descripcion = ' / '.join([part for part in [descripcion, observaciones] if part]) or None
         parcela = Parcela.objects.create(
             establecimiento_id=establecimiento_id,
-            ancho=Decimal(request.POST['ancho']), largo=Decimal(request.POST['largo']),
-            descripcion=request.POST.get('descripcion', '').strip() or None,
+            ancho=Decimal(request.POST['ancho']),
+            largo=Decimal(request.POST['largo']),
+            descripcion=texto_descripcion,
+            estado=request.POST.get('estado', Parcela.ESTADO_EN_PASTOREO).strip() or Parcela.ESTADO_EN_PASTOREO,
         )
     except (KeyError, ValueError, ValidationError):
         return JsonResponse({'error': 'Completá correctamente el ancho y largo del potrero.'}, status=400)

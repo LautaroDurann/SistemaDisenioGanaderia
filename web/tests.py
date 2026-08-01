@@ -101,6 +101,9 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(MovimientoAnimal.objects.count(), 1)
 
     def test_crear_potrero(self):
-        response = self.client.post(reverse('crear_potrero'), {'ancho': '15', 'largo': '40', 'descripcion': 'Potrero nuevo'})
+        response = self.client.post(reverse('crear_potrero'), {
+            'ancho': '15', 'largo': '40', 'descripcion': 'Potrero nuevo', 'estado': 'En pastoreo',
+        })
         self.assertEqual(response.status_code, 201)
-        self.assertTrue(Parcela.objects.filter(descripcion='Potrero nuevo').exists())
+        parcela = Parcela.objects.get(descripcion='Potrero nuevo')
+        self.assertEqual(parcela.estado, 'En pastoreo')

@@ -136,48 +136,20 @@
               <div class="card-body">
                 <!--begin::Filtros-->
                 <div class="row g-2 align-items-end mb-3">
-                  <div class="col-md-3">
+                  <div class="col-md-4">
                     <label class="form-label small mb-1">Buscar</label>
-                    <input type="text" id="f-buscar" class="form-control form-control-sm" placeholder="Nombre del potrero..." />
+                    <input type="text" id="f-buscar" class="form-control form-control-sm" placeholder="Nombre de la parcela..." />
                   </div>
-                  <div class="col-md-2">
+                  <div class="col-md-4">
                     <label class="form-label small mb-1">Estado</label>
                     <select id="f-estado" class="form-select form-select-sm">
                       <option value="">Todos</option>
-                      <option>Disponible</option>
-                      <option>Ocupado</option>
-                      <option>En mantenimiento</option>
+                      <option>En pastoreo</option>
+                      <option>En descanso</option>
+                      <option>Clausurado</option>
                     </select>
                   </div>
-                  <div class="col-md-2">
-                    <label class="form-label small mb-1">Pastura</label>
-                    <select id="f-pastura" class="form-select form-select-sm">
-                      <option value="">Todas</option>
-                      <option>Alfalfa</option>
-                      <option>Grama</option>
-                      <option>Sorgo</option>
-                      <option>Pastura natural</option>
-                    </select>
-                  </div>
-                  <div class="col-md-2">
-                    <label class="form-label small mb-1">Superficie</label>
-                    <select id="f-superficie" class="form-select form-select-sm">
-                      <option value="">Todas</option>
-                      <option value="baja">Menor a 30 ha</option>
-                      <option value="media">30 a 40 ha</option>
-                      <option value="alta">Mayor a 40 ha</option>
-                    </select>
-                  </div>
-                  <div class="col-md-2">
-                    <label class="form-label small mb-1">Ocupacion</label>
-                    <select id="f-ocupacion" class="form-select form-select-sm">
-                      <option value="">Todas</option>
-                      <option value="baja">Baja</option>
-                      <option value="media">Media</option>
-                      <option value="alta">Alta</option>
-                    </select>
-                  </div>
-                  <div class="col-md-1">
+                  <div class="col-md-4">
                     <button id="f-limpiar" type="button" class="btn btn-outline-secondary btn-sm w-100" title="Limpiar filtros">
                       <i class="bi bi-x-lg"></i>
                     </button>
@@ -191,10 +163,7 @@
                       <tr>
                         <th>Nombre</th>
                         <th>Superficie (ha)</th>
-                        <th>Capacidad max.</th>
                         <th>Animales actuales</th>
-                        <th>Ocupacion</th>
-                        <th>Pastura</th>
                         <th>Estado</th>
                         <th class="text-end">Acciones</th>
                       </tr>
@@ -259,7 +228,7 @@
             <form id="form-nuevo-potrero">
               <div class="row g-2">
                 <div class="col-md-6">
-                  <label class="form-label small mb-1">Nombre</label>
+                  <label class="form-label small mb-1">Referencia</label>
                   <input type="text" name="descripcion" class="form-control" placeholder="Ej: Parcela 7" />
                 </div>
                 <div class="col-md-3">
@@ -271,25 +240,16 @@
                   <input type="number" name="largo" min="0.01" step="0.01" class="form-control" placeholder="Ej: 80" required />
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label small mb-1">Tipo de pastura</label>
-                  <select class="form-select">
-                    <option>Alfalfa</option>
-                    <option>Grama</option>
-                    <option>Sorgo</option>
-                    <option>Pastura natural</option>
-                  </select>
-                </div>
-                <div class="col-md-6">
                   <label class="form-label small mb-1">Estado</label>
-                  <select class="form-select">
-                    <option>Disponible</option>
-                    <option>Ocupado</option>
-                    <option>En mantenimiento</option>
+                  <select name="estado" class="form-select">
+                    <option value="En pastoreo">En pastoreo</option>
+                    <option value="En descanso">En descanso</option>
+                    <option value="Clausurado">Clausurado</option>
                   </select>
                 </div>
                 <div class="col-12">
                   <label class="form-label small mb-1">Observaciones</label>
-                  <textarea class="form-control" rows="3" placeholder="Opcional"></textarea>
+                  <textarea name="observaciones" class="form-control" rows="3" placeholder="Opcional"></textarea>
                 </div>
               </div>
             </form>
