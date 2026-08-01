@@ -110,9 +110,10 @@
       };
 
       function nivelEstado(p) {
-        if (p.estado === 'Clausurado') return 'mantenimiento';
-        if (p.estado === 'En descanso') return 'descanso';
-        return 'pastoreo';
+        const estado = (p.estado || 'En pastoreo').toString().trim();
+        if (estado === 'Clausurado') return { nivel: 'mantenimiento', color: '#6c757d' };
+        if (estado === 'En descanso') return { nivel: 'descanso', color: '#e0a800' };
+        return { nivel: 'pastoreo', color: '#198754' };
       }
 
       let potreroSeleccionado = POTREROS[0]?.nombre || '';
@@ -130,10 +131,10 @@
 
       function renderMapa() {
         document.getElementById('mapa-potreros').innerHTML = POTREROS.map((p) => {
-          const nivel = nivelEstado(p);
+          const estadoInfo = nivelEstado(p);
           const seleccionado = p.nombre === potreroSeleccionado ? 'selected' : '';
           return `
-          <div class="potrero-block ${nivel} ${seleccionado}" data-nombre="${p.nombre}">
+          <div class="potrero-block ${estadoInfo.nivel} ${seleccionado}" data-nombre="${p.nombre}" style="--potrero-color:${estadoInfo.color}">
             <h5>${p.nombre}</h5>
             <div class="small">${p.actual} animales</div>
             <div class="small">${p.superficie} ha</div>
