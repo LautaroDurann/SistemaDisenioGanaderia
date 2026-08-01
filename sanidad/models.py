@@ -11,12 +11,21 @@ class Enfermedad(models.Model):
 
 # 2. Diagnostico (Tabla intermedia para normalizar la relación)
 class Diagnostico(models.Model):
-    # Relaciones con otras apps usando strings
+    ESTADO_CHOICES = [
+        ('Curado', 'Curado'),
+        ('En tratamiento', 'En tratamiento'),
+        ('Crónico', 'Crónico'),
+    ]
+
     animal = models.ForeignKey('animales.Animal', on_delete=models.CASCADE)
     enfermedad = models.ForeignKey(Enfermedad, on_delete=models.CASCADE)
-    
     fecha_deteccion = models.DateField()
-    estado_actual = models.BooleanField(default=True) # True si sigue enfermo, False si se curó
+    
+    # --- CAMBIO AQUÍ ---
+    # Dejó de ser BooleanField y ahora es CharField usando el ENUM. 
+    # Le puse 'En tratamiento' por defecto porque tiene sentido al detectar una enfermedad.
+    estado_actual = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='En tratamiento')
+    
     observaciones = models.TextField(blank=True, null=True)
 
     def __str__(self):
@@ -31,7 +40,6 @@ class EventoSanitario(models.Model):
         ('Suplemento', 'Suplemento'),
     ]
 
-    medicamento = models.CharField(max_length=150)
     detalle = models.TextField(blank=True, null=True)
     tipo = models.CharField(max_length=50, choices=TIPO_CHOICES)
     fecha_aplicacion = models.DateField()
@@ -44,4 +52,4 @@ class EventoSanitario(models.Model):
     veterinario = models.ForeignKey('usuarios.Veterinario', on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
-        return f"{self.tipo} - {self.medicamento} ({self.fecha_aplicacion})"
+        return f"{self.tipo} ({self.fecha_aplicacion})"

@@ -3,6 +3,7 @@ from django.db import models
 # 1. Insumo
 class Insumo(models.Model):
     nombre = models.CharField(max_length=100)
+    unidad_de_medida = models.CharField(max_length=20, default='kg')
     fecha_vencimiento = models.DateField(null=True, blank=True)
     stock_actual = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
@@ -33,7 +34,6 @@ class Consumo(models.Model):
 # 4. Dieta
 class Dieta(models.Model):
     nombre = models.CharField(max_length=100)
-    ingredientes = models.TextField(blank=True, null=True)
     porcentaje_proteina = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     descripcion = models.TextField(blank=True, null=True)
 

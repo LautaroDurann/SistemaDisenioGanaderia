@@ -16,8 +16,8 @@ class Animal(models.Model):
         ('Ovino', 'Ovino'),
     ]
     SEXO_CHOICES = [
-        (0, 'Macho'),
-        (1, 'Hembra'),
+        ('Macho', 'Macho'),
+        ('Hembra', 'Hembra'),
     ]
 
     id_senasa = models.IntegerField(unique=True) # Clave Única (CU)
@@ -36,14 +36,14 @@ class Animal(models.Model):
     
     # Enums de Estrategia 3
     tipo_animal = models.CharField(max_length=10, choices=TIPO_CHOICES)
-    sexo = models.IntegerField(choices=SEXO_CHOICES) 
+    sexo = models.CharField(max_length=10, choices=SEXO_CHOICES) 
     
     raza = models.CharField(max_length=100, blank=True, null=True)
     costo_adquisicion = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     precio_venta = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     fecha_nacimiento = models.DateField(null=True, blank=True)
     color = models.CharField(max_length=100, blank=True, null=True)
-    valor_madre = models.CharField(max_length=100, blank=True, null=True)
+    #valor_madre = models.CharField(max_length=100, blank=True, null=True)
     diametro_escrotal = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     
     # --- RELACIONES (Claves Foráneas) ---
