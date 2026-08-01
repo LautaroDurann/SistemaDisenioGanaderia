@@ -294,6 +294,13 @@ def crear_potrero(request):
 
 
 @require_POST
+def eliminar_potrero(request, parcela_id):
+    parcela = get_object_or_404(Parcela, pk=parcela_id)
+    parcela.delete()
+    return JsonResponse({'ok': True})
+
+
+@require_POST
 def crear_pesaje(request):
     animal = get_object_or_404(Animal, pk=request.POST.get('animal_id'))
     peso = Decimal(request.POST['peso'])

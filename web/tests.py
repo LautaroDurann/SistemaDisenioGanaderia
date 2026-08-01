@@ -128,3 +128,8 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(self.parcela.estado, 'En descanso')
         self.assertEqual(self.parcela.ancho, Decimal('25'))
         self.assertEqual(self.parcela.largo, Decimal('50'))
+
+    def test_eliminar_potrero(self):
+        response = self.client.post(reverse('eliminar_potrero', args=[self.parcela.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Parcela.objects.filter(pk=self.parcela.id).exists())

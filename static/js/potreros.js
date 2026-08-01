@@ -168,6 +168,7 @@
             <td class="text-end">
               <button class="btn btn-sm btn-outline-secondary btn-ver-potrero" data-id="${p.id}" data-nombre="${p.nombre}" title="Ver detalle"><i class="bi bi-eye"></i></button>
               <button class="btn btn-sm btn-outline-primary btn-editar-potrero" data-id="${p.id}" data-nombre="${p.nombre}" title="Editar parcela"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger btn-eliminar-potrero" data-id="${p.id}" data-nombre="${p.nombre}" title="Eliminar parcela"><i class="bi bi-trash"></i></button>
             </td>
           </tr>`;
           })
@@ -201,6 +202,30 @@
             const parcela = POTREROS.find((p) => String(p.id) === String(btn.dataset.id));
             if (!parcela) return;
             abrirModalEdicion(parcela);
+          });
+        });
+
+        document.querySelectorAll('.btn-eliminar-potrero').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const parcela = POTREROS.find((p) => String(p.id) === String(btn.dataset.id));
+            if (!parcela || !window.confirm(`¿Eliminar definitivamente ${parcela.nombre}?`)) return;
+            const csrf = document.cookie.split('; ').find((row) => row.startsWith('csrftoken='))?.split('=')[1];
+            const response = await fetch(`/api/potreros/${parcela.id}/eliminar/`, {
+              method: 'POST', headers: { 'X-CSRFToken': csrf || '' },
+            });
+            if (!response.ok) {
+              alert('No se pudo eliminar la parcela.');
+              return;
+            }
+            POTREROS = POTREROS.filter((p) => String(p.id) !== String(parcela.id));
+            delete ANIMALES_POR_POTRERO[parcela.nombre];
+            if (potreroSeleccionado === parcela.nombre) {
+              potreroSeleccionado = POTREROS[0]?.nombre || '';
+            }
+            actualizarKpis();
+            renderMapa();
+            renderTabla();
+            renderDetalle();
           });
         });
       }
@@ -276,7 +301,25 @@
           renderTabla();
         });
 
-        document.getElementById('form-nuevo-potrero').addEventListener('submit', async (event) => {
+        const formNuevoPotrero = document.getElementById('form-nuevo-potrero');
+        const btnGuardarPotrero = document.getElementById('btn-guardar-potrero');
+
+        document.addEventListener('click', (event) => {
+          const target = event.target;
+          if (target instanceof HTMLElement && target.id === 'btn-guardar-potrero') {
+            event.preventDefault();
+            event.stopPropagation();
+            if (formNuevoPotrero) {
+              if (typeof formNuevoPotrero.requestSubmit === 'function') {
+                formNuevoPotrero.requestSubmit();
+              } else {
+                formNuevoPotrero.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+              }
+            }
+          }
+        });
+
+        formNuevoPotrero?.addEventListener('submit', async (event) => {
           event.preventDefault();
           const csrf = document.cookie.split('; ').find((row) => row.startsWith('csrftoken='))?.split('=')[1];
           const formData = new FormData(event.currentTarget);
@@ -285,13 +328,26 @@
           });
           if (response.ok) {
             const result = await response.json();
-            const parcela = result.parcela;
+            const parcela = result.parcela || {
+              id: result.id,
+              nombre: (formData.get('descripcion') || '').toString().trim() || 'Parcela nueva',
+              ancho: Number(formData.get('ancho')) || 0,
+              largo: Number(formData.get('largo')) || 0,
+              superficie: ((Number(formData.get('ancho')) || 0) * (Number(formData.get('largo')) || 0)) / 10000,
+              actual: 0,
+              estado: (formData.get('estado') || 'En pastoreo').toString().trim(),
+              fecha: '',
+              responsable: '-',
+              descripcion: (formData.get('observaciones') || '').toString().trim(),
+            };
             if (PARCELA_EDITANDO_ID) {
               POTREROS = POTREROS.map((p) => (String(p.id) === String(parcela.id) ? { ...p, ...parcela } : p));
             } else {
               POTREROS = [{ ...parcela, actual: 0, fecha: '', responsable: '-' }, ...POTREROS];
             }
             ANIMALES_POR_POTRERO[parcela.nombre] = ANIMALES_POR_POTRERO[parcela.nombre] || [];
+            window.GANASTOCK_DATA = window.GANASTOCK_DATA || {};
+            window.GANASTOCK_DATA.potreros = POTREROS;
             potreroSeleccionado = parcela.nombre;
             bootstrap.Modal.getOrCreateInstance(document.getElementById('modalNuevoPotrero')).hide();
             resetearFormulario();
@@ -299,6 +355,12 @@
             renderMapa();
             renderTabla();
             renderDetalle();
+            setTimeout(() => {
+              actualizarKpis();
+              renderMapa();
+              renderTabla();
+              renderDetalle();
+            }, 0);
           } else {
             const result = await response.json();
             alert(result.error || 'No se pudo guardar el potrero.');
