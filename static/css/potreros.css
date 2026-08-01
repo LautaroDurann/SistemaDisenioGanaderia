@@ -39,14 +39,11 @@
       .potrero-block.selected {
         border-color: var(--bs-body-color);
       }
-      .potrero-block.baja {
+      .potrero-block.pastoreo {
         background: #198754;
       }
-      .potrero-block.media {
+      .potrero-block.descanso {
         background: #e0a800;
-      }
-      .potrero-block.alta {
-        background: #dc3545;
       }
       .potrero-block.mantenimiento {
         background: #6c757d;

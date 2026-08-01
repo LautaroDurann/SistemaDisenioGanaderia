@@ -109,10 +109,10 @@
         'Clausurado': 'text-bg-secondary',
       };
 
-      function nivelOcupacion(p) {
+      function nivelEstado(p) {
         if (p.estado === 'Clausurado') return 'mantenimiento';
-        if (p.estado === 'En descanso') return 'media';
-        return 'baja';
+        if (p.estado === 'En descanso') return 'descanso';
+        return 'pastoreo';
       }
 
       let potreroSeleccionado = POTREROS[0]?.nombre || '';
@@ -130,7 +130,7 @@
 
       function renderMapa() {
         document.getElementById('mapa-potreros').innerHTML = POTREROS.map((p) => {
-          const nivel = nivelOcupacion(p);
+          const nivel = nivelEstado(p);
           const seleccionado = p.nombre === potreroSeleccionado ? 'selected' : '';
           return `
           <div class="potrero-block ${nivel} ${seleccionado}" data-nombre="${p.nombre}">
