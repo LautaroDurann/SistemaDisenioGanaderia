@@ -1,0 +1,68 @@
+      html {
+        scrollbar-gutter: stable;
+        overflow-y: scroll;
+      }
+
+      body {
+        font-size: 0.95rem;
+      }
+      .vacapp-card {
+        border: 0;
+        border-radius: 0.75rem;
+        box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
+      }
+      .table-vacapp thead th {
+        white-space: nowrap;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--bs-secondary-color);
+      }
+
+      /* Mapa del establecimiento */
+      .mapa-potreros {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 1rem;
+      }
+      .potrero-block {
+        border-radius: 0.75rem;
+        padding: 1rem;
+        color: #fff;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: transform 0.1s ease;
+      }
+      .potrero-block:hover {
+        transform: translateY(-2px);
+      }
+      .potrero-block.selected {
+        border-color: var(--bs-body-color);
+      }
+      .potrero-block.baja {
+        background: #198754;
+      }
+      .potrero-block.media {
+        background: #e0a800;
+      }
+      .potrero-block.alta {
+        background: #dc3545;
+      }
+      .potrero-block.mantenimiento {
+        background: #6c757d;
+      }
+      .potrero-block h5 {
+        margin-bottom: 0.5rem;
+        font-size: 1rem;
+      }
+      .potrero-block .small {
+        opacity: 0.9;
+      }
+
+      .leyenda-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+    

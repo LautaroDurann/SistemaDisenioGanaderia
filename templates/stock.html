@@ -1,0 +1,402 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/stock.css' %}">
+{% endblock %}
+
+
+      {% block content %}
+      <!--begin::App Main-->
+      <main class="app-main">
+        <!--begin::App Content Header-->
+        <div class="app-content-header">
+          <div class="container-fluid">
+            <div class="row align-items-center">
+              <div class="col-sm-6">
+                <h3 class="mb-0">Stock Ganadero</h3>
+                <p class="text-secondary mb-0">
+                  Administra y controla el inventario de animales del establecimiento.
+                </p>
+              </div>
+              <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevoAnimal">
+                  <i class="bi bi-plus-lg me-1"></i> Nuevo Animal
+                </button>
+                <button type="button" class="btn btn-outline-danger">
+                  <i class="bi bi-box-arrow-up me-1"></i> Registrar Salida
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!--end::App Content Header-->
+
+        <!--begin::App Content-->
+        <div class="app-content">
+          <div class="container-fluid">
+            <!--begin::Tarjetas de resumen-->
+            <div class="row g-3 mb-3">
+              <div class="col-xl-2 col-md-4 col-6">
+                <div class="card vacapp-card h-100">
+                  <div class="card-body d-flex align-items-center gap-3">
+                    <div class="text-bg-primary rounded-3 p-2">
+                      <i class="bi bi-cow fs-4"></i>
+                    </div>
+                    <div>
+                      <h4 class="mb-0" id="kpi-total">0</h4>
+                      <small class="text-secondary">Total de animales</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-xl-2 col-md-4 col-6">
+                <div class="card vacapp-card h-100">
+                  <div class="card-body d-flex align-items-center gap-3">
+                    <div class="text-bg-info rounded-3 p-2">
+                      <i class="bi bi-gender-male fs-4"></i>
+                    </div>
+                    <div>
+                      <h4 class="mb-0" id="kpi-machos">0</h4>
+                      <small class="text-secondary">Machos</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-xl-2 col-md-4 col-6">
+                <div class="card vacapp-card h-100">
+                  <div class="card-body d-flex align-items-center gap-3">
+                    <div class="text-bg-danger rounded-3 p-2">
+                      <i class="bi bi-gender-female fs-4"></i>
+                    </div>
+                    <div>
+                      <h4 class="mb-0" id="kpi-hembras">0</h4>
+                      <small class="text-secondary">Hembras</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-xl-2 col-md-4 col-6">
+                <div class="card vacapp-card h-100">
+                  <div class="card-body d-flex align-items-center gap-3">
+                    <div class="text-bg-warning rounded-3 p-2">
+                      <i class="bi bi-emoji-smile fs-4"></i>
+                    </div>
+                    <div>
+                      <h4 class="mb-0" id="kpi-terneros">0</h4>
+                      <small class="text-secondary">Terneros</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-xl-2 col-md-4 col-6">
+                <div class="card vacapp-card h-100">
+                  <div class="card-body d-flex align-items-center gap-3">
+                    <div class="text-bg-success rounded-3 p-2">
+                      <i class="bi bi-arrow-down-circle fs-4"></i>
+                    </div>
+                    <div>
+                      <h4 class="mb-0">6</h4>
+                      <small class="text-secondary">Ingresos del mes</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-xl-2 col-md-4 col-6">
+                <div class="card vacapp-card h-100">
+                  <div class="card-body d-flex align-items-center gap-3">
+                    <div class="text-bg-secondary rounded-3 p-2">
+                      <i class="bi bi-arrow-up-circle fs-4"></i>
+                    </div>
+                    <div>
+                      <h4 class="mb-0">3</h4>
+                      <small class="text-secondary">Salidas del mes</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!--end::Tarjetas de resumen-->
+
+            <!--begin::Tabla principal + Ficha del animal-->
+            <div class="row g-3 mb-3" id="fila-tabla-ficha">
+              <div class="col-lg-8">
+                <div class="card vacapp-card h-100">
+                  <div class="card-body">
+                    <!--begin::Filtros-->
+                    <div class="row g-2 align-items-end mb-3">
+                      <div class="col-md-3">
+                        <label class="form-label small mb-1">Buscar</label>
+                        <input
+                          type="text"
+                          id="f-buscar"
+                          class="form-control form-control-sm"
+                          placeholder="Caravana o nombre..."
+                        />
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label small mb-1">Categoria</label>
+                        <select id="f-categoria" class="form-select form-select-sm">
+                          <option value="">Todas</option>
+                          <option>Vaca</option>
+                          <option>Toro</option>
+                          <option>Novillo</option>
+                          <option>Vaquillona</option>
+                          <option>Ternero</option>
+                        </select>
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label small mb-1">Sexo</label>
+                        <select id="f-sexo" class="form-select form-select-sm">
+                          <option value="">Todos</option>
+                          <option>Macho</option>
+                          <option>Hembra</option>
+                        </select>
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label small mb-1">Estado</label>
+                        <select id="f-estado" class="form-select form-select-sm">
+                          <option value="">Todos</option>
+                          <option>Activo</option>
+                          <option>Vendido</option>
+                          <option>Muerto</option>
+                        </select>
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label small mb-1">Potrero</label>
+                        <select id="f-potrero" class="form-select form-select-sm">
+                          <option value="">Todos</option>
+                          <option>Potrero 1</option>
+                          <option>Potrero 2</option>
+                          <option>Potrero 3</option>
+                          <option>Potrero 4</option>
+                        </select>
+                      </div>
+                      <div class="col-md-1">
+                        <button
+                          id="f-limpiar"
+                          type="button"
+                          class="btn btn-outline-secondary btn-sm w-100"
+                          title="Limpiar filtros"
+                        >
+                          <i class="bi bi-x-lg"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <!--end::Filtros-->
+
+                    <!--begin::Tabla-->
+                    <div class="table-responsive">
+                      <table class="table table-hover table-vacapp table-vacapp-grande align-middle">
+                        <thead>
+                          <tr>
+                            <th>Caravana</th>
+                            <th>Nombre</th>
+                            <th>Categoria</th>
+                            <th>Sexo</th>
+                            <th>Raza</th>
+                            <th>Edad</th>
+                            <th>Peso</th>
+                            <th>Potrero</th>
+                            <th>Estado</th>
+                            <th>Ingreso</th>
+                            <th class="text-end">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody id="tabla-stock-body"></tbody>
+                      </table>
+                    </div>
+                    <!--end::Tabla-->
+
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                      <small class="text-secondary" id="tabla-info"></small>
+                      <nav>
+                        <ul class="pagination pagination-sm mb-0" id="tabla-paginacion"></ul>
+                      </nav>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-lg-4">
+                <div class="card vacapp-card h-100">
+                  <div class="card-header bg-transparent border-0 pb-0">
+                    <h3 class="card-title">Ficha del animal</h3>
+                    <p class="text-secondary small mb-0">Toca una fila de la tabla para ver su detalle.</p>
+                  </div>
+                  <div class="card-body text-center">
+                    <div class="vacapp-foto-animal mb-3" id="ficha-foto">
+                        <div class="placeholder-foto">
+                            <i class="bi bi-image fs-1"></i>
+                            <span>Sin imagen</span>
+                        </div>
+                    </div>
+                    <div class="vacapp-ficha-info">
+                      <h5 class="mb-0" id="ficha-nombre">-</h5>
+                      <p class="text-secondary small mb-3" id="ficha-caravana">-</p>
+
+                      <ul class="list-group list-group-flush text-start small mb-3">
+                        <li class="list-group-item d-flex justify-content-between">
+                          <span class="text-secondary">Categoria</span><span id="ficha-categoria">-</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                          <span class="text-secondary">Sexo</span><span id="ficha-sexo">-</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                          <span class="text-secondary">Raza</span><span id="ficha-raza">-</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                          <span class="text-secondary">Edad</span><span id="ficha-edad">-</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                          <span class="text-secondary">Peso</span><span id="ficha-peso">-</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                          <span class="text-secondary">Potrero</span><span id="ficha-potrero">-</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                          <span class="text-secondary">Estado</span><span id="ficha-estado">-</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                          <span class="text-secondary">Fecha de ingreso</span><span id="ficha-ingreso">-</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between"><span class="text-secondary">Tipo</span><span id="ficha-tipo">-</span></li>
+                        <li class="list-group-item d-flex justify-content-between"><span class="text-secondary">Peso al nacer / destete</span><span id="ficha-pesos-iniciales">-</span></li>
+                        <li class="list-group-item d-flex justify-content-between"><span class="text-secondary">Dieta</span><span id="ficha-dieta">-</span></li>
+                        <li class="list-group-item d-flex justify-content-between"><span class="text-secondary">Madre / padre</span><span id="ficha-progenitores">-</span></li>
+                        <li class="list-group-item d-flex justify-content-between"><span class="text-secondary">Condición</span><span id="ficha-condicion">-</span></li>
+                        <li class="list-group-item d-flex justify-content-between"><span class="text-secondary">Color</span><span id="ficha-color">-</span></li>
+                        <li class="list-group-item d-flex justify-content-between d-none" id="fila-ficha-diametro"><span class="text-secondary">Diámetro escrotal</span><span id="ficha-diametro">-</span></li>
+                        <li class="list-group-item d-flex justify-content-between"><span class="text-secondary">Costo / venta</span><span id="ficha-valores">-</span></li>
+                        <li class="list-group-item d-flex justify-content-between"><span class="text-secondary">Compra / venta asociada</span><span id="ficha-operaciones">-</span></li>
+                      </ul>
+
+                      <div class="text-start">
+                        <small class="text-secondary d-block mb-1">Notas / observaciones</small>
+                        <p class="mb-0" id="ficha-notas">-</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!--end::Tabla principal + Ficha del animal-->
+          </div>
+        </div>
+        <!--end::App Content-->
+      </main>
+      <!--end::App Main-->
+
+      <div class="modal fade" id="modalNuevoAnimal" tabindex="-1" aria-labelledby="modalNuevoAnimalTitulo" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+          <form class="modal-content" id="form-nuevo-animal">
+            <div class="modal-header">
+              <h5 class="modal-title" id="modalNuevoAnimalTitulo"><i class="bi bi-cow me-2"></i>Nuevo animal</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+              <p class="text-secondary small">Los campos con <span class="text-danger">*</span> son obligatorios.</p>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="animal-caravana" class="form-label">Caravana SENASA <span class="text-danger">*</span></label>
+                  <input id="animal-caravana" name="id_senasa" type="number" min="1" class="form-control" required />
+                </div>
+                <div class="col-md-6">
+                  <label for="animal-nombre" class="form-label">Nombre o identificación</label>
+                  <input id="animal-nombre" name="nombre" type="text" maxlength="100" class="form-control" placeholder="Opcional; se mostrará como S/N" />
+                </div>
+                <div class="col-md-4">
+                  <label for="animal-sexo" class="form-label">Sexo <span class="text-danger">*</span></label>
+                  <select id="animal-sexo" name="sexo" class="form-select" required><option value="">Seleccionar</option><option value="Hembra">Hembra</option><option value="Macho">Macho</option></select>
+                </div>
+                <div class="col-md-4">
+                  <label for="animal-tipo" class="form-label">Tipo de animal <span class="text-danger">*</span></label>
+                  <select id="animal-tipo" name="tipo_animal" class="form-select" required><option value="Bovino">Bovino</option><option value="Porcino">Porcino</option><option value="Ovino">Ovino</option></select>
+                </div>
+                <div class="col-md-4">
+                  <label for="animal-raza" class="form-label">Raza</label>
+                  <input id="animal-raza" name="raza" type="text" maxlength="100" class="form-control" placeholder="Ej.: Angus" />
+                </div>
+                <div class="col-md-4">
+                  <label for="animal-peso" class="form-label">Peso actual (kg)</label>
+                  <input id="animal-peso" name="peso_actual" type="number" min="0" step="0.01" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                  <label for="animal-fecha-nacimiento" class="form-label">Fecha de nacimiento</label>
+                  <input id="animal-fecha-nacimiento" name="fecha_nacimiento" type="date" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                  <label for="animal-parcela" class="form-label">Potrero inicial</label>
+                  <select id="animal-parcela" name="parcela_id" class="form-select"><option value="">Sin asignar</option></select>
+                </div>
+                <div class="col-md-4">
+                  <label for="animal-peso-nacer" class="form-label">Peso al nacer (kg)</label>
+                  <input id="animal-peso-nacer" name="peso_al_nacer" type="number" min="0" step="0.01" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                  <label for="animal-peso-destete" class="form-label">Peso al destete (kg)</label>
+                  <input id="animal-peso-destete" name="peso_al_destete" type="number" min="0" step="0.01" class="form-control" />
+                </div>
+                <div class="col-md-4" id="grupo-diametro-escrotal">
+                  <label for="animal-diametro" class="form-label">Diámetro escrotal (cm)</label>
+                  <input id="animal-diametro" name="diametro_escrotal" type="number" min="0" step="0.01" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                  <label for="animal-color" class="form-label">Color</label>
+                  <input id="animal-color" name="color" type="text" maxlength="100" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                  <label for="animal-dieta" class="form-label">Dieta</label>
+                  <select id="animal-dieta" name="dieta_id" class="form-select"><option value="">Sin dieta</option></select>
+                </div>
+                <div class="col-md-4">
+                  <label for="animal-madre" class="form-label">Madre</label>
+                  <select id="animal-madre" name="madre_id" class="form-select"><option value="">No registrada</option></select>
+                </div>
+                <div class="col-md-4">
+                  <label for="animal-padre" class="form-label">Padre</label>
+                  <select id="animal-padre" name="padre_id" class="form-select"><option value="">No registrado</option></select>
+                </div>
+                <div class="col-md-4">
+                  <label for="animal-compra" class="form-label">Compra asociada</label>
+                  <select id="animal-compra" name="compra_id" class="form-select"><option value="">Sin compra asociada</option></select>
+                </div>
+                <div class="col-md-4">
+                  <label for="animal-costo" class="form-label">Costo de adquisición ($)</label>
+                  <input id="animal-costo" name="costo_adquisicion" type="number" min="0" step="0.01" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                  <label for="animal-venta" class="form-label">Venta asociada</label>
+                  <select id="animal-venta" name="venta_id" class="form-select"><option value="">Sin venta asociada</option></select>
+                </div>
+                <div class="col-md-4">
+                  <label for="animal-precio-venta" class="form-label">Precio de venta ($)</label>
+                  <input id="animal-precio-venta" name="precio_venta" type="number" min="0" step="0.01" class="form-control" />
+                </div>
+                <div class="col-12">
+                  <div class="d-flex flex-wrap gap-4 p-2 border rounded bg-body-tertiary">
+                    <div class="form-check"><input id="animal-vendido" name="vendido" class="form-check-input" type="checkbox"><label class="form-check-label" for="animal-vendido">Animal vendido</label></div>
+                    <div class="form-check"><input id="animal-vivo" name="vivo" class="form-check-input" type="checkbox" checked><label class="form-check-label" for="animal-vivo">Animal vivo</label></div>
+                    <div class="form-check"><input id="animal-enfermo" name="enfermo" class="form-check-input" type="checkbox"><label class="form-check-label" for="animal-enfermo">Animal enfermo</label></div>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label for="animal-descripcion" class="form-label">Observaciones</label>
+                  <textarea id="animal-descripcion" name="descripcion" class="form-control" rows="3"></textarea>
+                </div>
+              </div>
+              <div id="animal-form-error" class="alert alert-danger mt-3 mb-0 d-none" role="alert"></div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button type="submit" class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Guardar animal</button>
+            </div>
+          </form>
+        </div>
+      </div>
+   
+      {% endblock %}
+
+ {% block page_js %}
+<script src="{% static 'js/stock.js' %}"></script>
+{% endblock %}

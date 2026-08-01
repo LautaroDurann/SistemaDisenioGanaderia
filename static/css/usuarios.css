@@ -1,0 +1,111 @@
+      html {
+        scrollbar-gutter: stable;
+        overflow-y: scroll;
+      }
+
+
+      body {
+        font-size: 0.95rem;
+      }
+      .vacapp-card {
+        border: 0;
+        border-radius: 0.75rem;
+        box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
+      }
+      .table-vacapp thead th {
+        white-space: nowrap;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--bs-secondary-color);
+      }
+
+      /* Avatares con iniciales (sin depender de fotos reales) */
+      .vacapp-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #fff;
+        flex-shrink: 0;
+      }
+      .vacapp-avatar-lg {
+        width: 88px;
+        height: 88px;
+        font-size: 1.85rem;
+      }
+      .vacapp-avatar-xl {
+        width: 128px;
+        height: 128px;
+        font-size: 2.5rem;
+      }
+
+      /* Tabla mas grande, para acompañar visualmente la altura del panel de perfil */
+      .table-vacapp-grande td,
+      .table-vacapp-grande th {
+        padding-top: 0.85rem;
+        padding-bottom: 0.85rem;
+        font-size: 0.95rem;
+      }
+
+      /* Lista de datos del panel de perfil, mas espaciada */
+      .vacapp-perfil-lista .list-group-item {
+        padding-top: 0.85rem;
+        padding-bottom: 0.85rem;
+        font-size: 0.95rem;
+      }
+
+      /* Indicador de "conectado" sobre el avatar de la tabla */
+      .vacapp-avatar-wrap {
+        position: relative;
+        display: inline-flex;
+      }
+      .vacapp-online-dot {
+        position: absolute;
+        bottom: -1px;
+        right: -1px;
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #198754;
+        border: 2px solid var(--bs-body-bg);
+      }
+
+      /* Matriz de roles y permisos */
+      .vacapp-permisos-table th,
+      .vacapp-permisos-table td {
+        text-align: center;
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+      .vacapp-permisos-table th:first-child,
+      .vacapp-permisos-table td:first-child {
+        text-align: left;
+      }
+
+      /* La fila de tabla + perfil ocupa toda la altura restante de la pagina.
+         La altura exacta la calcula el JS (ajustarAlturaFilaCompleta) segun
+         el alto disponible entre el encabezado y el footer. */
+      #perfil-usuario {
+        align-items: stretch;
+      }
+      #perfil-usuario .card {
+        display: flex;
+        flex-direction: column;
+      }
+      #perfil-usuario .card-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      #perfil-usuario .table-responsive {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+      }
+    

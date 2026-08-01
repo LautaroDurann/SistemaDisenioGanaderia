@@ -1,0 +1,273 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block extra_css%}
+<link rel="stylesheet" href="{% static 'css/usuarios.css' %}">
+{% endblock %}
+
+ {% block content %}
+    <div class="app-wrapper">
+      <!--begin::Header (se carga con include.js) -->
+      <div id="navbar-container"></div>
+      <!--end::Header-->
+
+      <!--begin::Sidebar (se carga con include.js) -->
+      <div id="sidebar-container"></div>
+      <!--end::Sidebar-->
+
+      <!--begin::App Main-->
+      <main class="app-main">
+        <!--begin::App Content Header-->
+        <div class="app-content-header">
+          <div class="container-fluid">
+            <div class="row align-items-center">
+              <div class="col-lg-5">
+                <h3 class="mb-0">Usuarios</h3>
+                <p class="text-secondary mb-0">Administra los usuarios, roles y permisos del sistema.</p>
+              </div>
+              <div class="col-lg-7 text-lg-end mt-3 mt-lg-0">
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
+                  <i class="bi bi-person-plus-fill me-1"></i> Nuevo Usuario
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!--end::App Content Header-->
+
+        <!--begin::App Content-->
+        <div class="app-content">
+          <div class="container-fluid">
+            <!--begin::Listado de usuarios y Perfil del usuario-->
+            <div class="row g-3 mb-3" id="perfil-usuario">
+              <div class="col-lg-8">
+                <div class="card vacapp-card h-100">
+                  <div class="card-header bg-transparent border-0 pb-0">
+                    <h3 class="card-title">Listado de usuarios</h3>
+                  </div>
+                  <div class="card-body">
+                    <!--begin::Filtros-->
+                    <div class="row g-2 mb-3">
+                      <div class="col-md-4">
+                        <input type="text" class="form-control" id="f-buscar" placeholder="Buscar por nombre o email..." />
+                      </div>
+                      <div class="col-md-4">
+                        <select class="form-select" id="f-rol">
+                          <option value="">Todos los roles</option>
+                          <option value="Administrador">Administrador</option>
+                          <option value="Encargado">Encargado</option>
+                          <option value="Veterinario">Veterinario</option>
+                          <option value="Operario">Operario</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4">
+                        <select class="form-select" id="f-estado">
+                          <option value="">Todos los estados</option>
+                          <option value="Activo">Activo</option>
+                          <option value="Inactivo">Inactivo</option>
+                          <option value="Bloqueado">Bloqueado</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4">
+                        <select class="form-select" id="f-ultimo-acceso">
+                          <option value="">Ultimo acceso: cualquiera</option>
+                          <option value="hoy">Hoy</option>
+                          <option value="semana">Esta semana</option>
+                          <option value="mes">Este mes</option>
+                          <option value="viejo">Hace mas de 30 dias</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4">
+                        <select class="form-select" id="f-antiguedad">
+                          <option value="">Antiguedad: cualquiera</option>
+                          <option value="nuevo">Menos de 30 dias</option>
+                          <option value="medio">1 a 6 meses</option>
+                          <option value="viejo">Mas de 6 meses</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 d-grid">
+                        <button type="button" class="btn btn-outline-secondary" id="btn-limpiar-filtros" title="Limpiar filtros">
+                          <i class="bi bi-x-circle me-1"></i>Limpiar filtros
+                        </button>
+                      </div>
+                    </div>
+                    <!--end::Filtros-->
+
+                    <div class="table-responsive">
+                      <table class="table table-vacapp table-vacapp-grande align-middle mb-0">
+                        <thead>
+                          <tr>
+                            <th>Foto</th>
+                            <th>Nombre</th>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th>Ultimo acceso</th>
+                            <th>Fecha de creacion</th>
+                            <th class="text-end">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody id="tabla-usuarios-body"></tbody>
+                      </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                      <small class="text-secondary" id="tabla-resumen"></small>
+                      <nav>
+                        <ul class="pagination pagination-sm mb-0" id="tabla-paginacion"></ul>
+                      </nav>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-lg-4">
+                <div class="card vacapp-card h-100">
+                  <div class="card-header bg-transparent border-0 pb-0">
+                    <h3 class="card-title">Perfil del usuario</h3>
+                  </div>
+                  <div class="card-body text-center py-4">
+                    <div class="vacapp-avatar vacapp-avatar-xl mx-auto mb-3" id="perfil-avatar">--</div>
+                    <h5 class="mb-0" id="perfil-nombre">-</h5>
+                    <p class="text-secondary small mb-4" id="perfil-cargo">-</p>
+                    <ul class="list-group list-group-flush text-start vacapp-perfil-lista">
+                      <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-secondary">Email</span><span id="perfil-email">-</span>
+                      </li>
+                      <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-secondary">Telefono</span><span id="perfil-telefono">-</span>
+                      </li>
+                      <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-secondary">Rol</span><span id="perfil-rol">-</span>
+                      </li>
+                      <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-secondary">Estado</span><span id="perfil-estado">-</span>
+                      </li>
+                      <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-secondary">Fecha de creacion</span><span id="perfil-creacion">-</span>
+                      </li>
+                      <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-secondary">Ultimo acceso</span><span id="perfil-acceso">-</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!--end::Listado de usuarios y Perfil del usuario-->
+          </div>
+        </div>
+        <!--end::App Content-->
+      </main>
+      <!--end::App Main-->
+
+      <!--begin::Footer (se carga con include.js) -->
+      <div id="footer-container"></div>
+      <!--end::Footer-->
+    </div>
+
+    <!--begin::Modal Nuevo Usuario-->
+    <div class="modal fade" id="modalNuevoUsuario" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <form id="form-nuevo-usuario">
+            <div class="modal-header">
+              <h5 class="modal-title">Nuevo Usuario</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label">Nombre</label>
+                  <input type="text" class="form-control" placeholder="Ej: Juan" required />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Apellido</label>
+                  <input type="text" class="form-control" placeholder="Ej: Fernandez" required />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Email</label>
+                  <input type="email" class="form-control" placeholder="usuario@vacapp.com" required />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Telefono</label>
+                  <input type="tel" class="form-control" placeholder="Ej: +54 9 3644 000000" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Usuario</label>
+                  <input type="text" class="form-control" placeholder="Nombre de usuario" required />
+                </div>
+                <div class="col-md-6"></div>
+                <div class="col-md-6">
+                  <label class="form-label">Contrasena</label>
+                  <input type="password" class="form-control" id="nu-password" required />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Confirmar contrasena</label>
+                  <input type="password" class="form-control" id="nu-password-confirm" required />
+                  <div class="invalid-feedback" id="nu-password-feedback">Las contrasenas no coinciden.</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Rol</label>
+                  <select class="form-select" required>
+                    <option value="" selected disabled>Seleccionar rol...</option>
+                    <option>Administrador</option>
+                    <option>Encargado</option>
+                    <option>Veterinario</option>
+                    <option>Operario</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Estado</label>
+                  <select class="form-select">
+                    <option selected>Activo</option>
+                    <option>Inactivo</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button type="submit" class="btn btn-success">Guardar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <!--end::Modal Nuevo Usuario-->
+
+    <!--begin::Modal Roles y permisos-->
+    <div class="modal fade" id="modalRolesPermisos" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Roles y permisos</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="table-responsive">
+              <table class="table table-vacapp vacapp-permisos-table mb-0">
+                <thead>
+                  <tr id="permisos-thead-row">
+                    <th>Modulo</th>
+                  </tr>
+                </thead>
+                <tbody id="permisos-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-success" id="btn-guardar-permisos">
+              <i class="bi bi-save me-1"></i> Guardar cambios
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+{% endblock %}
+
+{% block page_js%}
+    <script src="{% static 'js/usuarios.js' %}"></script>
+{% endblock %}
+
+         

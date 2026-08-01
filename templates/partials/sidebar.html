@@ -1,0 +1,86 @@
+{% load static %}
+<aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
+  <!--begin::Sidebar Brand-->
+  <div class="sidebar-brand">
+    <a href="{% url 'dashboard' %}" class="brand-link">
+      <img
+        src="{% static 'assets/img/AdminLTELogo.png' %}"
+        alt="GanaStock Logo"
+        class="brand-image opacity-75 shadow"
+      />
+      <span class="brand-text fw-light">GanaStock</span>
+    </a>
+  </div>
+  <!--end::Sidebar Brand-->
+  <!--begin::Sidebar Wrapper-->
+  <div class="sidebar-wrapper">
+    <nav class="mt-2" aria-label="Main navigation">
+      <!--begin::Sidebar Menu-->
+      <ul
+        class="nav sidebar-menu flex-column"
+        data-lte-toggle="treeview"
+        data-accordion="false"
+        id="navigation"
+      >
+        <li class="nav-item">
+          <a href="{% url 'dashboard' %}" class="nav-link" data-page="index.html">
+            <i class="nav-icon bi bi-speedometer"></i>
+            <p>Dashboard</p>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a href="{% url 'stock' %}" class="nav-link" data-page="stock.html">
+            <i class="nav-icon bi bi-box-seam-fill"></i>
+            <p>Stock Ganadero</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{% url 'movimientos' %}" class="nav-link" data-page="movimientos.html">
+            <i class="nav-icon bi bi-arrow-left-right"></i>
+            <p>Movimientos</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{% url 'potreros' %}" class="nav-link" data-page="potreros.html">
+            <i class="nav-icon bi bi-signpost-split"></i>
+            <p>Potreros</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{% url 'vacunacion' %}" class="nav-link" data-page="vacunacion.html">
+            <i class="nav-icon bi bi-shield-plus"></i>
+            <p>Vacunacion</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{% url 'pesajes' %}" class="nav-link" data-page="pesajes.html">
+            <i class="nav-icon bi bi-speedometer2"></i>
+            <p>Pesajes</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{% url 'alimentacion' %}" class="nav-link" data-page="alimentacion.html">
+            <i class="nav-icon bi bi-basket2-fill"></i>
+            <p>Alimentacion</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{% url 'usuarios' %}" class="nav-link" data-page="usuarios.html">
+            <i class="nav-icon bi bi-people-fill"></i>
+            <p>Usuarios</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{% url 'configuracion' %}" class="nav-link" data-page="configuracion.html">
+            <i class="nav-icon bi bi-gear-fill"></i>
+            <p>Configuracion</p>
+          </a>
+        </li>
+
+      </ul>
+      <!--end::Sidebar Menu-->
+    </nav>
+  </div>
+  <!--end::Sidebar Wrapper-->
+</aside>
