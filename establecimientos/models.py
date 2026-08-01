@@ -11,12 +11,23 @@ class Establecimiento(models.Model):
 
 # 2. Parcela
 class Parcela(models.Model):
-    # Usamos DecimalField para las medidas (ej: 150.50 metros). 
+    ESTADO_EN_PASTOREO = 'En pastoreo'
+    ESTADO_EN_DESCANSO = 'En descanso'
+    ESTADO_CLAUSURADO = 'Clausurado'
+
+    ESTADOS_PARCELA = [
+        (ESTADO_EN_PASTOREO, 'En pastoreo'),
+        (ESTADO_EN_DESCANSO, 'En descanso'),
+        (ESTADO_CLAUSURADO, 'Clausurado'),
+    ]
+
+    # Usamos DecimalField para las medidas (ej: 150.50 metros).
     # max_digits=8 y decimal_places=2 permite números de hasta 999999.99
     ancho = models.DecimalField(max_digits=8, decimal_places=2)
     largo = models.DecimalField(max_digits=8, decimal_places=2)
-    descripcion = models.TextField(blank=True, null=True) # TextField es mejor para textos largos que CharField
-    
+    descripcion = models.TextField(blank=True, null=True)  # TextField es mejor para textos largos que CharField
+    estado = models.CharField(max_length=20, choices=ESTADOS_PARCELA, default=ESTADO_EN_PASTOREO)
+
     # Clave Foránea (CF): Una parcela pertenece a un establecimiento
     # on_delete=models.CASCADE significa que si borras el establecimiento, se borran sus parcelas
     establecimiento = models.ForeignKey(Establecimiento, on_delete=models.CASCADE, related_name='parcelas')

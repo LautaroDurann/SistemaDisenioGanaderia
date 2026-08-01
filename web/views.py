@@ -34,6 +34,27 @@ def _caravana_text(animal):
     return str(animal.id_senasa) if animal.id_senasa is not None else 'Sin caravana'
 
 
+def _nombre_parcela(parcela):
+    if parcela.descripcion:
+        return parcela.descripcion.strip()
+    return f'Parcela {parcela.id}'
+
+
+def _parcela_data(parcela, actual=0):
+    return {
+        'id': parcela.id,
+        'nombre': _nombre_parcela(parcela),
+        'superficie': round(float(parcela.ancho * parcela.largo) / 10000, 2),
+        'ancho': float(parcela.ancho),
+        'largo': float(parcela.largo),
+        'actual': actual,
+        'estado': parcela.estado,
+        'fecha': '',
+        'responsable': '-',
+        'descripcion': parcela.descripcion or '',
+    }
+
+
 def _animal_data(animal):
     estado = 'Vendido' if animal.vendido else ('Muerto' if not animal.vivo else 'Activo')
     return {
@@ -103,12 +124,10 @@ def potreros(request):
     parcelas = Parcela.objects.select_related('establecimiento').prefetch_related('animal_set')
     datos, animales = [], {}
     for p in parcelas:
-        nombre = str(p)
+        nombre = _nombre_parcela(p)
         residentes = [_animal_data(a) for a in p.animal_set.filter(vivo=True, vendido=False)]
         animales[nombre] = residentes
-        datos.append({'nombre': nombre, 'superficie': float(p.ancho * p.largo), 'capacidad': 0,
-                      'actual': len(residentes), 'pastura': p.descripcion or '-',
-                      'estado': 'Ocupado' if residentes else 'Disponible', 'fecha': '', 'responsable': '-'})
+        datos.append(_parcela_data(p, actual=len(residentes)))
     return _page(request, 'potreros.html', 'potreros', {'potreros': datos, 'animales_por_potrero': animales})
 
 
@@ -239,24 +258,46 @@ def eliminar_animal(request, animal_id):
 
 @require_POST
 def crear_potrero(request):
+    es_edicion = bool(request.POST.get('id'))
+    parcela = None
     try:
+        if es_edicion:
+            parcela = get_object_or_404(Parcela, pk=request.POST['id'])
+        else:
+            parcela = Parcela()
+
         establecimiento_id = request.POST.get('establecimiento_id')
         if not establecimiento_id:
-            # En esta primera versión el potrero se asocia al primer
-            # establecimiento cargado. La configuración multiestablecimiento
-            # se resuelve al incorporar el selector global de establecimiento.
             from establecimientos.models import Establecimiento
-            establecimiento_id = Establecimiento.objects.values_list('id', flat=True).first()
-        if not establecimiento_id:
-            return JsonResponse({'error': 'Primero debés crear un establecimiento.'}, status=400)
-        parcela = Parcela.objects.create(
-            establecimiento_id=establecimiento_id,
-            ancho=Decimal(request.POST['ancho']), largo=Decimal(request.POST['largo']),
-            descripcion=request.POST.get('descripcion', '').strip() or None,
-        )
+            establecimiento = Establecimiento.objects.order_by('id').first()
+            if establecimiento is None:
+                establecimiento = Establecimiento.objects.create(
+                    nombre='Establecimiento principal',
+                    fecha_inicio=date.today(),
+                    ubicacion='Sin especificar',
+                )
+            establecimiento_id = establecimiento.id
+
+        descripcion = request.POST.get('descripcion', '').strip()
+        observaciones = request.POST.get('observaciones', '').strip()
+        texto_descripcion = ' / '.join([part for part in [descripcion, observaciones] if part]) or None
+        parcela.establecimiento_id = establecimiento_id
+        parcela.ancho = Decimal(request.POST['ancho'])
+        parcela.largo = Decimal(request.POST['largo'])
+        parcela.descripcion = texto_descripcion
+        parcela.estado = request.POST.get('estado', Parcela.ESTADO_EN_PASTOREO).strip() or Parcela.ESTADO_EN_PASTOREO
+        parcela.full_clean()
+        parcela.save()
     except (KeyError, ValueError, ValidationError):
         return JsonResponse({'error': 'Completá correctamente el ancho y largo del potrero.'}, status=400)
-    return JsonResponse({'id': parcela.id}, status=201)
+    return JsonResponse({'id': parcela.id, 'parcela': _parcela_data(parcela)}, status=200 if es_edicion else 201)
+
+
+@require_POST
+def eliminar_potrero(request, parcela_id):
+    parcela = get_object_or_404(Parcela, pk=parcela_id)
+    parcela.delete()
+    return JsonResponse({'ok': True})
 
 
 @require_POST

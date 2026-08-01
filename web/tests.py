@@ -1,5 +1,6 @@
 import base64
 from datetime import date
+from decimal import Decimal
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -101,6 +102,34 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(MovimientoAnimal.objects.count(), 1)
 
     def test_crear_potrero(self):
-        response = self.client.post(reverse('crear_potrero'), {'ancho': '15', 'largo': '40', 'descripcion': 'Potrero nuevo'})
+        response = self.client.post(reverse('crear_potrero'), {
+            'ancho': '15', 'largo': '40', 'descripcion': 'Potrero nuevo', 'estado': 'En pastoreo',
+        })
         self.assertEqual(response.status_code, 201)
-        self.assertTrue(Parcela.objects.filter(descripcion='Potrero nuevo').exists())
+        parcela = Parcela.objects.get(descripcion='Potrero nuevo')
+        self.assertEqual(parcela.estado, 'En pastoreo')
+
+    def test_crear_potrero_sin_establecimiento_crea_uno_por_defecto(self):
+        Establecimiento.objects.all().delete()
+        response = self.client.post(reverse('crear_potrero'), {
+            'ancho': '10', 'largo': '20', 'descripcion': 'Parcela nueva', 'estado': 'En descanso',
+        })
+        self.assertEqual(response.status_code, 201)
+        parcela = Parcela.objects.get(descripcion='Parcela nueva')
+        self.assertEqual(parcela.estado, 'En descanso')
+        self.assertTrue(Establecimiento.objects.filter(nombre='Establecimiento principal').exists())
+
+    def test_actualizar_potrero(self):
+        response = self.client.post(reverse('crear_potrero'), {
+            'id': self.parcela.id, 'ancho': '25', 'largo': '50', 'descripcion': 'Parcela editada', 'estado': 'En descanso',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.parcela.refresh_from_db()
+        self.assertEqual(self.parcela.estado, 'En descanso')
+        self.assertEqual(self.parcela.ancho, Decimal('25'))
+        self.assertEqual(self.parcela.largo, Decimal('50'))
+
+    def test_eliminar_potrero(self):
+        response = self.client.post(reverse('eliminar_potrero', args=[self.parcela.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Parcela.objects.filter(pk=self.parcela.id).exists())

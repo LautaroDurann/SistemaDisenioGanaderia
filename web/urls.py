@@ -19,4 +19,5 @@ urlpatterns = [
     path('api/pesajes/', views.crear_pesaje, name='crear_pesaje'),
     path('api/movimientos/', views.crear_movimiento, name='crear_movimiento'),
     path('api/potreros/', views.crear_potrero, name='crear_potrero'),
+    path('api/potreros/<int:parcela_id>/eliminar/', views.eliminar_potrero, name='eliminar_potrero'),
 ]
