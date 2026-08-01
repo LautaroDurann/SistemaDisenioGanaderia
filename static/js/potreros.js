@@ -74,12 +74,13 @@
       // ------------------------------------------------------------------
       // Datos reales de Django. Si no hay datos cargados, se usa un fallback simple.
       // ------------------------------------------------------------------
-      const POTREROS = window.GANASTOCK_DATA?.potreros ?? [
+      let POTREROS = window.GANASTOCK_DATA?.potreros ?? [
         { nombre: 'Parcela 1', superficie: 0.02, actual: 0, estado: 'En pastoreo', fecha: '', responsable: '-' },
         { nombre: 'Parcela 2', superficie: 0.03, actual: 0, estado: 'En descanso', fecha: '', responsable: '-' },
       ];
+      let PARCELA_EDITANDO_ID = null;
 
-      const ANIMALES_POR_POTRERO = window.GANASTOCK_DATA?.animales_por_potrero ?? {
+      let ANIMALES_POR_POTRERO = window.GANASTOCK_DATA?.animales_por_potrero ?? {
         'Potrero 1': [
           { caravana: '0231', nombre: 'Luna', categoria: 'Vaca', sexo: 'Hembra', peso: '480 kg' },
           { caravana: '0412', nombre: 'S/N', categoria: 'Ternero', sexo: 'Hembra', peso: '95 kg' },
@@ -114,7 +115,7 @@
         return 'baja';
       }
 
-      let potreroSeleccionado = POTREROS[0].nombre;
+      let potreroSeleccionado = POTREROS[0]?.nombre || '';
       const FILAS_POR_PAGINA = 5;
       let paginaActual = 1;
 
@@ -162,11 +163,11 @@
             return `
           <tr>
             <td>${p.nombre}</td>
-            <td>${p.superficie}</td>
             <td>${p.actual}</td>
             <td><span class="badge ${ESTADO_BADGE[p.estado] || 'text-bg-secondary'}">${p.estado}</span></td>
             <td class="text-end">
-              <button class="btn btn-sm btn-outline-secondary btn-ver-potrero" data-nombre="${p.nombre}" title="Ver detalle"><i class="bi bi-eye"></i></button>
+              <button class="btn btn-sm btn-outline-secondary btn-ver-potrero" data-id="${p.id}" data-nombre="${p.nombre}" title="Ver detalle"><i class="bi bi-eye"></i></button>
+              <button class="btn btn-sm btn-outline-primary btn-editar-potrero" data-id="${p.id}" data-nombre="${p.nombre}" title="Editar parcela"><i class="bi bi-pencil"></i></button>
             </td>
           </tr>`;
           })
@@ -194,6 +195,14 @@
             renderDetalle();
           });
         });
+
+        document.querySelectorAll('.btn-editar-potrero').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const parcela = POTREROS.find((p) => String(p.id) === String(btn.dataset.id));
+            if (!parcela) return;
+            abrirModalEdicion(parcela);
+          });
+        });
       }
 
       function renderDetalle() {
@@ -210,17 +219,38 @@
           : `<tr><td colspan="5" class="text-secondary">Sin animales en este potrero.</td></tr>`;
       }
 
+      function abrirModalEdicion(parcela) {
+        const modal = document.getElementById('modalNuevoPotrero');
+        const title = document.getElementById('modalNuevoPotreroTitle');
+        const form = document.getElementById('form-nuevo-potrero');
+        document.getElementById('form-potrero-id').value = parcela.id || '';
+        form.querySelector('[name="descripcion"]').value = parcela.descripcion || parcela.nombre || '';
+        form.querySelector('[name="ancho"]').value = parcela.ancho ?? '';
+        form.querySelector('[name="largo"]').value = parcela.largo ?? '';
+        form.querySelector('[name="estado"]').value = parcela.estado || 'En pastoreo';
+        form.querySelector('[name="observaciones"]').value = '';
+        title.textContent = 'Editar Parcela';
+        PARCELA_EDITANDO_ID = parcela.id;
+        bootstrap.Modal.getOrCreateInstance(modal).show();
+      }
+
+      function resetearFormulario() {
+        const form = document.getElementById('form-nuevo-potrero');
+        form.reset();
+        document.getElementById('form-potrero-id').value = '';
+        document.getElementById('modalNuevoPotreroTitle').textContent = 'Nueva Parcela';
+        PARCELA_EDITANDO_ID = null;
+      }
+
       function actualizarKpis() {
         const total = POTREROS.length;
         const ocupados = POTREROS.filter((p) => p.actual > 0).length;
         const libres = total - ocupados;
-        const superficieTotal = POTREROS.reduce((acc, p) => acc + (p.superficie || 0), 0);
         const animalesTotal = POTREROS.reduce((acc, p) => acc + p.actual, 0);
 
         document.getElementById('kpi-total').textContent = total;
         document.getElementById('kpi-ocupados').textContent = ocupados;
         document.getElementById('kpi-libres').textContent = libres;
-        document.getElementById('kpi-superficie').textContent = superficieTotal.toFixed(2);
         document.getElementById('kpi-animales').textContent = animalesTotal;
         document.getElementById('kpi-ocupacion-promedio').textContent = '—';
       }
@@ -249,14 +279,38 @@
         document.getElementById('form-nuevo-potrero').addEventListener('submit', async (event) => {
           event.preventDefault();
           const csrf = document.cookie.split('; ').find((row) => row.startsWith('csrftoken='))?.split('=')[1];
+          const formData = new FormData(event.currentTarget);
           const response = await fetch('/api/potreros/', {
-            method: 'POST', headers: { 'X-CSRFToken': csrf || '' }, body: new FormData(event.currentTarget),
+            method: 'POST', headers: { 'X-CSRFToken': csrf || '' }, body: formData,
           });
-          if (response.ok) window.location.reload();
-          else {
+          if (response.ok) {
+            const result = await response.json();
+            const parcela = result.parcela;
+            if (PARCELA_EDITANDO_ID) {
+              POTREROS = POTREROS.map((p) => (String(p.id) === String(parcela.id) ? { ...p, ...parcela } : p));
+            } else {
+              POTREROS = [{ ...parcela, actual: 0, fecha: '', responsable: '-' }, ...POTREROS];
+            }
+            ANIMALES_POR_POTRERO[parcela.nombre] = ANIMALES_POR_POTRERO[parcela.nombre] || [];
+            potreroSeleccionado = parcela.nombre;
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalNuevoPotrero')).hide();
+            resetearFormulario();
+            actualizarKpis();
+            renderMapa();
+            renderTabla();
+            renderDetalle();
+          } else {
             const result = await response.json();
             alert(result.error || 'No se pudo guardar el potrero.');
           }
+        });
+
+        document.querySelector('[data-bs-target="#modalNuevoPotrero"]').addEventListener('click', () => {
+          resetearFormulario();
+        });
+
+        document.getElementById('modalNuevoPotrero').addEventListener('hidden.bs.modal', () => {
+          resetearFormulario();
         });
       });
     
