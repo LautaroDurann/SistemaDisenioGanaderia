@@ -32,6 +32,8 @@
         cursor: pointer;
         border: 2px solid transparent;
         transition: transform 0.1s ease;
+        background-color: var(--potrero-color, #198754);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
       }
       .potrero-block:hover {
         transform: translateY(-2px);
@@ -39,14 +41,11 @@
       .potrero-block.selected {
         border-color: var(--bs-body-color);
       }
-      .potrero-block.baja {
+      .potrero-block.pastoreo {
         background: #198754;
       }
-      .potrero-block.media {
+      .potrero-block.descanso {
         background: #e0a800;
-      }
-      .potrero-block.alta {
-        background: #dc3545;
       }
       .potrero-block.mantenimiento {
         background: #6c757d;
