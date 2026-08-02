@@ -1,0 +1,539 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/alimentacion.css' %}">
+{% endblock %}
+
+
+
+ {%block content %}
+    <div class="app-wrapper">
+      <!--begin::Header (se carga con include.js) -->
+      <div id="navbar-container"></div>
+      <!--end::Header-->
+
+      <!--begin::Sidebar (se carga con include.js) -->
+      <div id="sidebar-container"></div>
+      <!--end::Sidebar-->
+
+      <!--begin::App Main-->
+      <main class="app-main">
+        <!--begin::App Content Header-->
+        <div class="app-content-header">
+          <div class="container-fluid">
+            <div class="row align-items-center">
+              <div class="col-lg-5">
+                <h3 class="mb-0">Alimentacion</h3>
+                <p class="text-secondary mb-0">
+                  Administra el stock de alimentos y controla el consumo del establecimiento.
+                </p>
+              </div>
+              <div class="col-lg-7 mt-3 mt-lg-0">
+                <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2">
+                  <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalRegistrarConsumo">
+                    <i class="bi bi-dash-circle me-1"></i> Registrar Consumo
+                  </button>
+                  <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalRegistrarCompra">
+                    <i class="bi bi-cart-plus me-1"></i> Registrar Compra
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalNuevoAlimento">
+                    <i class="bi bi-plus-lg me-1"></i> Nuevo Alimento
+                  </button>
+                  <div class="btn-group">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                      <i class="bi bi-download me-1"></i> Exportar
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                      <li><a class="dropdown-item" href="#"><i class="bi bi-file-earmark-pdf me-2"></i>Exportar PDF</a></li>
+                      <li><a class="dropdown-item" href="#"><i class="bi bi-file-earmark-excel me-2"></i>Exportar Excel</a></li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!--end::App Content Header-->
+
+        <!--begin::App Content-->
+        <div class="app-content">
+          <div class="container-fluid">
+            <!--begin::KPIs-->
+            <div class="row g-3 mb-3">
+              <div class="col-xl-2 col-md-4 col-6">
+                <div class="card vacapp-card h-100">
+                  <div class="card-body d-flex align-items-center gap-3">
+                    <div class="text-bg-primary rounded-3 p-2"><i class="bi bi-basket fs-4"></i></div>
+                    <div>
+                      <h4 class="mb-0" id="kpi-alimentos">0</h4>
+                      <small class="text-secondary d-block">Alimentos registrados</small>
+                      <span class="kpi-variacion up"><i class="bi bi-arrow-up-short"></i>2 vs mes anterior</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-xl-2 col-md-4 col-6">
+                <div class="card vacapp-card h-100">
+                  <div class="card-body d-flex align-items-center gap-3">
+                    <div class="text-bg-info rounded-3 p-2"><i class="bi bi-boxes fs-4"></i></div>
+                    <div>
+                      <h4 class="mb-0">18.4 t</h4>
+                      <small class="text-secondary d-block">Stock disponible</small>
+                      <span class="kpi-variacion down"><i class="bi bi-arrow-down-short"></i>3% vs mes anterior</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-xl-2 col-md-4 col-6">
+                <div class="card vacapp-card h-100">
+                  <div class="card-body d-flex align-items-center gap-3">
+                    <div class="text-bg-warning rounded-3 p-2"><i class="bi bi-graph-down-arrow fs-4"></i></div>
+                    <div>
+                      <h4 class="mb-0">12.6 t</h4>
+                      <small class="text-secondary d-block">Consumo del mes</small>
+                      <span class="kpi-variacion up"><i class="bi bi-arrow-up-short"></i>5% vs mes anterior</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-xl-2 col-md-4 col-6">
+                <div class="card vacapp-card h-100">
+                  <div class="card-body d-flex align-items-center gap-3">
+                    <div class="text-bg-success rounded-3 p-2"><i class="bi bi-cart-check fs-4"></i></div>
+                    <div>
+                      <h4 class="mb-0">$ 1.85M</h4>
+                      <small class="text-secondary d-block">Compras del mes</small>
+                      <span class="kpi-variacion up"><i class="bi bi-arrow-up-short"></i>8% vs mes anterior</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-xl-2 col-md-4 col-6">
+                <div class="card vacapp-card h-100">
+                  <div class="card-body d-flex align-items-center gap-3">
+                    <div class="text-bg-danger rounded-3 p-2"><i class="bi bi-exclamation-triangle fs-4"></i></div>
+                    <div>
+                      <h4 class="mb-0" id="kpi-stock-bajo">0</h4>
+                      <small class="text-secondary d-block">Stock bajo / agotado</small>
+                      <span class="kpi-variacion up"><i class="bi bi-arrow-up-short"></i>1 vs mes anterior</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-xl-2 col-md-4 col-6">
+                <div class="card vacapp-card h-100">
+                  <div class="card-body d-flex align-items-center gap-3">
+                    <div class="text-bg-secondary rounded-3 p-2"><i class="bi bi-cash-coin fs-4"></i></div>
+                    <div>
+                      <h4 class="mb-0">$ 2.34M</h4>
+                      <small class="text-secondary d-block">Gasto mensual</small>
+                      <span class="kpi-variacion up"><i class="bi bi-arrow-up-short"></i>4% vs mes anterior</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!--end::KPIs-->
+
+            <!--begin::Graficos-->
+            <div class="row g-3 mb-3">
+              <div class="col-lg-7">
+                <div class="card vacapp-card h-100">
+                  <div class="card-header bg-transparent border-0 pb-0">
+                    <h3 class="card-title">Consumo mensual (ultimos 12 meses)</h3>
+                  </div>
+                  <div class="card-body">
+                    <div id="chart-consumo-mensual"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-lg-5">
+                <div class="card vacapp-card h-100">
+                  <div class="card-header bg-transparent border-0 pb-0">
+                    <h3 class="card-title">Distribucion del consumo</h3>
+                  </div>
+                  <div class="card-body">
+                    <div id="chart-distribucion-consumo"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!--end::Graficos-->
+
+            <!--begin::Tabla principal-->
+            <div class="card vacapp-card mb-3">
+              <div class="card-header bg-transparent border-0 pb-0">
+                <h3 class="card-title">Stock de alimentos</h3>
+              </div>
+              <div class="card-body">
+                <!--begin::Filtros-->
+                <div class="row g-2 align-items-end mb-3">
+                  <div class="col-md-4">
+                    <label class="form-label small mb-1">Buscar</label>
+                    <input type="text" id="f-buscar" class="form-control form-control-sm" placeholder="Nombre del alimento..." />
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label small mb-1">Categoria</label>
+                    <select id="f-categoria" class="form-select form-select-sm">
+                      <option value="">Todas</option>
+                      <option>Balanceado</option>
+                      <option>Maiz</option>
+                      <option>Rollos</option>
+                      <option>Silaje</option>
+                      <option>Pastura</option>
+                      <option>Suplementos</option>
+                      <option>Otros</option>
+                    </select>
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label small mb-1">Estado</label>
+                    <select id="f-estado" class="form-select form-select-sm">
+                      <option value="">Todos</option>
+                      <option>Disponible</option>
+                      <option>Stock Bajo</option>
+                      <option>Agotado</option>
+                      <option>Proximo a vencer</option>
+                    </select>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label small mb-1">Unidad</label>
+                    <select id="f-unidad" class="form-select form-select-sm">
+                      <option value="">Todas</option>
+                      <option>kg</option>
+                      <option>rollos</option>
+                      <option>ha</option>
+                    </select>
+                  </div>
+                  <div class="col-md-1">
+                    <button id="f-limpiar" type="button" class="btn btn-outline-secondary btn-sm w-100" title="Limpiar filtros">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  </div>
+                </div>
+                <!--end::Filtros-->
+
+                <!--begin::Tabla-->
+                <div class="table-responsive">
+                  <table class="table table-hover table-vacapp align-middle">
+                    <thead>
+                      <tr>
+                        <th>Alimento</th>
+                        <th>Categoria</th>
+                        <th>Stock disponible</th>
+                        <th>Unidad</th>
+                        <th>Consumo mensual</th>
+                        <th>Stock minimo</th>
+                        <th>Ultima compra</th>
+                        <th>Estado</th>
+                        <th class="text-end">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tabla-alimentos-body"></tbody>
+                  </table>
+                </div>
+                <!--end::Tabla-->
+
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                  <small class="text-secondary" id="tabla-info"></small>
+                  <nav>
+                    <ul class="pagination pagination-sm mb-0" id="tabla-paginacion"></ul>
+                  </nav>
+                </div>
+              </div>
+            </div>
+            <!--end::Tabla principal-->
+
+            <!--begin::Plan de alimentacion-->
+            <div class="card vacapp-card mb-3">
+              <div class="card-header bg-transparent border-0 pb-0">
+                <h3 class="card-title">Plan de alimentacion</h3>
+                <p class="text-secondary small mb-0">Raciones asignadas por categoria de animales y potrero.</p>
+              </div>
+              <div class="card-body py-4">
+                <div class="table-responsive">
+                  <table class="table table-vacapp align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th>Categoria de animales</th>
+                        <th>Potrero</th>
+                        <th>Alimento</th>
+                        <th>Cantidad diaria</th>
+                        <th>Horario</th>
+                        <th>Responsable</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tabla-plan-body"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <!--end::Plan de alimentacion-->
+          </div>
+        </div>
+        <!--end::App Content-->
+      </main>
+      <!--end::App Main-->
+
+      <!--begin::Footer (se carga con include.js) -->
+      <div id="footer-container"></div>
+      <!--end::Footer-->
+    </div>
+
+    <!--begin::Modal Registrar Consumo-->
+    <div class="modal fade" id="modalRegistrarConsumo" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-dash-circle me-2"></i>Registrar Consumo</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="form-registrar-consumo">
+              <h6 class="text-secondary text-uppercase small mb-2">Informacion general</h6>
+              <div class="row g-2 mb-3">
+                <div class="col-md-6">
+                  <label class="form-label small mb-1">Fecha</label>
+                  <input type="date" id="consumo-fecha" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small mb-1">Hora</label>
+                  <input type="time" id="consumo-hora" class="form-control form-control-sm" />
+                </div>
+              </div>
+
+              <h6 class="text-secondary text-uppercase small mb-2">Alimento</h6>
+              <div class="row g-2 mb-3">
+                <div class="col-12">
+                  <label class="form-label small mb-1">Seleccionar alimento</label>
+                  <select id="consumo-alimento" class="form-select form-select-sm"></select>
+                  <small class="text-secondary" id="consumo-alimento-stock"></small>
+                </div>
+              </div>
+
+              <h6 class="text-secondary text-uppercase small mb-2">Destino</h6>
+              <div class="row g-2 mb-3">
+                <div class="col-md-6">
+                  <label class="form-label small mb-1">Potrero</label>
+                  <select id="consumo-potrero" class="form-select form-select-sm">
+                    <option>Potrero 1</option>
+                    <option>Potrero 2</option>
+                    <option>Potrero 3</option>
+                    <option>Potrero 4</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small mb-1">Categoria de animales</label>
+                  <select id="consumo-categoria-animales" class="form-select form-select-sm">
+                    <option>Vacas</option>
+                    <option>Toros</option>
+                    <option>Novillos</option>
+                    <option>Vaquillonas</option>
+                    <option>Terneros</option>
+                  </select>
+                </div>
+              </div>
+
+              <h6 class="text-secondary text-uppercase small mb-2">Consumo</h6>
+              <div class="row g-2 mb-3">
+                <div class="col-md-4">
+                  <label class="form-label small mb-1">Cantidad</label>
+                  <input type="number" id="consumo-cantidad" class="form-control form-control-sm" placeholder="Ej: 150" />
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small mb-1">Unidad</label>
+                  <input type="text" id="consumo-unidad" class="form-control form-control-sm" readonly />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small mb-1">Responsable</label>
+                  <select id="consumo-responsable" class="form-select form-select-sm">
+                    <option>Juan</option>
+                    <option>Maria</option>
+                    <option>Carlos</option>
+                  </select>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small mb-1">Observaciones</label>
+                  <textarea id="consumo-observaciones" class="form-control form-control-sm" rows="2"></textarea>
+                </div>
+              </div>
+
+              <div class="border rounded-3 p-2 text-center">
+                <small class="text-secondary d-block">Stock resultante luego del consumo</small>
+                <span class="fw-semibold" id="consumo-calc-resultante">-</span>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-success" id="btn-guardar-consumo">
+              <i class="bi bi-check-lg me-1"></i> Guardar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--end::Modal Registrar Consumo-->
+
+    <!--begin::Modal Registrar Compra-->
+    <div class="modal fade" id="modalRegistrarCompra" tabindex="-1">
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-cart-plus me-2"></i>Registrar Compra</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="form-registrar-compra">
+              <div class="row g-2 mb-3">
+                <div class="col-md-6">
+                  <label class="form-label small mb-1">Fecha</label>
+                  <input type="date" id="compra-fecha" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small mb-1">Proveedor</label>
+                  <input type="text" id="compra-proveedor" class="form-control form-control-sm" placeholder="Ej: Cooperativa Norte" />
+                </div>
+                <div class="col-12">
+                  <label class="form-label small mb-1">Alimento</label>
+                  <select id="compra-alimento" class="form-select form-select-sm"></select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small mb-1">Cantidad</label>
+                  <input type="number" id="compra-cantidad" class="form-control form-control-sm" placeholder="Ej: 2000" />
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small mb-1">Precio unitario</label>
+                  <input type="number" id="compra-precio-unitario" class="form-control form-control-sm" placeholder="Ej: 450" />
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small mb-1">Precio total</label>
+                  <input type="text" id="compra-precio-total" class="form-control form-control-sm" readonly />
+                </div>
+                <div class="col-12">
+                  <label class="form-label small mb-1">Observaciones</label>
+                  <textarea id="compra-observaciones" class="form-control form-control-sm" rows="2"></textarea>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="btn-guardar-compra">
+              <i class="bi bi-check-lg me-1"></i> Guardar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--end::Modal Registrar Compra-->
+
+    <!--begin::Modal Nuevo Alimento-->
+    <div class="modal fade" id="modalNuevoAlimento" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-plus-lg me-2"></i>Nuevo Alimento</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="form-nuevo-alimento">
+              <div class="row g-2">
+                <div class="col-12">
+                  <label class="form-label small mb-1">Nombre</label>
+                  <input type="text" class="form-control form-control-sm" placeholder="Ej: Balanceado Terminacion" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small mb-1">Categoria</label>
+                  <select class="form-select form-select-sm">
+                    <option>Balanceado</option>
+                    <option>Maiz</option>
+                    <option>Rollos</option>
+                    <option>Silaje</option>
+                    <option>Pastura</option>
+                    <option>Suplementos</option>
+                    <option>Otros</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small mb-1">Unidad</label>
+                  <select class="form-select form-select-sm">
+                    <option>kg</option>
+                    <option>rollos</option>
+                    <option>ha</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small mb-1">Stock inicial</label>
+                  <input type="number" class="form-control form-control-sm" placeholder="Ej: 1000" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small mb-1">Stock minimo</label>
+                  <input type="number" class="form-control form-control-sm" placeholder="Ej: 300" />
+                </div>
+                <div class="col-12">
+                  <label class="form-label small mb-1">Precio unitario</label>
+                  <input type="number" class="form-control form-control-sm" placeholder="Ej: 450" />
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-success" data-bs-dismiss="modal">
+              <i class="bi bi-check-lg me-1"></i> Guardar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--end::Modal Nuevo Alimento-->
+
+    <!--begin::Modal Ver Detalle-->
+    <div class="modal fade" id="modalDetalleAlimento" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i><span id="detalle-alimento-nombre"></span></h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row g-2 small mb-3" id="detalle-alimento-info"></div>
+
+            <h6 class="text-secondary text-uppercase small mb-2">Evolucion del stock</h6>
+            <div id="detalle-alimento-chart" class="mb-3"></div>
+
+            <h6 class="text-secondary text-uppercase small mb-2">Historial de movimientos</h6>
+            <div class="table-responsive">
+              <table class="table table-sm table-vacapp align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Cantidad</th>
+                    <th>Responsable</th>
+                    <th>Observaciones</th>
+                  </tr>
+                </thead>
+                <tbody id="detalle-alimento-movimientos"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+            <button type="button" class="btn btn-primary"><i class="bi bi-pencil me-1"></i> Editar alimento</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--end::Modal Ver Detalle-->
+{% endblock %}
+
+{% block page_js%}  
+
+    <script src="{% static 'js/alimentacion.js' %} "></script>
+
+{% endblock%}
+    
+ 
+

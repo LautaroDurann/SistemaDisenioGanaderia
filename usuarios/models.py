@@ -12,6 +12,19 @@ class Persona(models.Model):
     def __str__(self):
         return f"{self.nombre} {self.apellido}"
 
+
+class Telefono(models.Model):
+    # En Django, usar IntegerField es equivalente a tu INT
+    cod_area = models.IntegerField()
+    numero = models.IntegerField()
+    
+    # Clave Foránea (CF): Conecta el teléfono con la persona.
+    # on_delete=models.CASCADE significa que si se borra la persona, se borran sus teléfonos.
+    persona = models.ForeignKey(Persona, on_delete=models.CASCADE, related_name='telefonos')
+
+    def __str__(self):
+        return f"{self.cod_area} - {self.numero} ({self.persona.nombre})"
+
 # 2. Clases que heredan de Persona (Estrategia 1 de tu modelo)
 # Al heredar de Persona, Django crea automáticamente la tabla y la relación (OneToOne)
 class Veterinario(Persona):

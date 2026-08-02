@@ -1,0 +1,739 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block extra_css%}
+<link rel="stylesheet" href="{% static 'css/configuracion.css' %}">
+{% endblock %}
+
+
+{% block content %}
+    <div class="app-wrapper">
+      <!--begin::Header (se carga con include.js) -->
+      <div id="navbar-container"></div>
+      <!--end::Header-->
+
+      <!--begin::Sidebar (se carga con include.js) -->
+      <div id="sidebar-container"></div>
+      <!--end::Sidebar-->
+
+      <!--begin::App Main-->
+      <main class="app-main">
+        <!--begin::App Content Header-->
+        <div class="app-content-header">
+          <div class="container-fluid">
+            <h3 class="mb-0">Configuracion</h3>
+            <p class="text-secondary mb-0">Personaliza el funcionamiento general del sistema.</p>
+          </div>
+        </div>
+        <!--end::App Content Header-->
+
+        <!--begin::App Content-->
+        <div class="app-content">
+          <div class="container-fluid">
+            <div class="row g-3">
+              <!--begin::Nav lateral-->
+              <div class="col-lg-3">
+                <div class="card vacapp-card">
+                  <div class="card-body p-2">
+                    <div class="nav nav-pills flex-column vacapp-config-nav" id="config-tabs" role="tablist" aria-orientation="vertical">
+                      <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-empresa" type="button">
+                        <i class="bi bi-building"></i> Empresa
+                      </button>
+                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-establecimiento" type="button">
+                        <i class="bi bi-geo-alt"></i> Establecimiento
+                      </button>
+                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-categorias" type="button">
+                        <i class="bi bi-tags"></i> Categorias
+                      </button>
+                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-razas" type="button">
+                        <i class="bi bi-bookmark-star"></i> Razas
+                      </button>
+                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-vacunas" type="button">
+                        <i class="bi bi-shield-plus"></i> Vacunas
+                      </button>
+                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-potreros" type="button">
+                        <i class="bi bi-signpost-split"></i> Potreros
+                      </button>
+                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-usuarios-roles" type="button">
+                        <i class="bi bi-people"></i> Usuarios y Roles
+                      </button>
+                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-notificaciones" type="button">
+                        <i class="bi bi-bell"></i> Notificaciones
+                      </button>
+                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-seguridad" type="button">
+                        <i class="bi bi-lock"></i> Seguridad
+                      </button>
+                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-apariencia" type="button">
+                        <i class="bi bi-palette"></i> Apariencia
+                      </button>
+                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-basededatos" type="button">
+                        <i class="bi bi-hdd-stack"></i> Base de datos
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!--end::Nav lateral-->
+
+              <!--begin::Contenido de pestañas-->
+              <div class="col-lg-9">
+                <div class="tab-content" id="config-tabs-content">
+                  <!--begin::Empresa-->
+                  <div class="tab-pane fade show active" id="tab-empresa">
+                    <div class="card vacapp-card">
+                      <div class="card-header bg-transparent border-0 pb-0">
+                        <h3 class="card-title">Empresa</h3>
+                      </div>
+                      <div class="card-body">
+                        <form id="form-empresa">
+                          <div class="d-flex align-items-center gap-3 mb-4">
+                            <div class="vacapp-logo-preview" id="empresa-logo-preview"><i class="bi bi-image"></i></div>
+                            <div>
+                              <label class="form-label mb-1">Logo</label>
+                              <input type="file" class="form-control form-control-sm" accept="image/*" id="empresa-logo-input" />
+                              <small class="text-secondary">PNG o JPG, fondo transparente recomendado.</small>
+                            </div>
+                          </div>
+                          <div class="row g-3">
+                            <div class="col-md-6">
+                              <label class="form-label">Nombre de la empresa</label>
+                              <input type="text" class="form-control" value="GanaStock S.A." />
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label">Razon social</label>
+                              <input type="text" class="form-control" value="GanaStock Sociedad Anonima" />
+                            </div>
+                            <div class="col-md-4">
+                              <label class="form-label">CUIT</label>
+                              <input type="text" class="form-control" value="30-71234567-8" />
+                            </div>
+                            <div class="col-md-8">
+                              <label class="form-label">Direccion</label>
+                              <input type="text" class="form-control" value="Ruta Provincial 4, Km 12" />
+                            </div>
+                            <div class="col-md-4">
+                              <label class="form-label">Ciudad</label>
+                              <input type="text" class="form-control" value="Presidencia Roque Saenz Peña" />
+                            </div>
+                            <div class="col-md-4">
+                              <label class="form-label">Provincia</label>
+                              <input type="text" class="form-control" value="Chaco" />
+                            </div>
+                            <div class="col-md-4">
+                              <label class="form-label">Pais</label>
+                              <input type="text" class="form-control" value="Argentina" />
+                            </div>
+                            <div class="col-md-4">
+                              <label class="form-label">Telefono</label>
+                              <input type="tel" class="form-control" value="+54 9 3644 500000" />
+                            </div>
+                            <div class="col-md-4">
+                              <label class="form-label">Email</label>
+                              <input type="email" class="form-control" value="contacto@ganastock.com" />
+                            </div>
+                            <div class="col-md-4">
+                              <label class="form-label">Sitio web</label>
+                              <input type="text" class="form-control" value="www.ganastock.com" />
+                            </div>
+                          </div>
+                          <button type="submit" class="btn btn-success mt-4">
+                            <i class="bi bi-check2 me-1"></i> Guardar cambios
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                  <!--end::Empresa-->
+
+                  <!--begin::Establecimiento-->
+                  <div class="tab-pane fade" id="tab-establecimiento">
+                    <div class="card vacapp-card">
+                      <div class="card-header bg-transparent border-0 pb-0">
+                        <h3 class="card-title">Establecimiento</h3>
+                      </div>
+                      <div class="card-body">
+                        <form id="form-establecimiento">
+                          <div class="row g-3">
+                            <div class="col-md-6">
+                              <label class="form-label">Nombre del establecimiento</label>
+                              <input type="text" class="form-control" value="Estancia Los Alamos" />
+                            </div>
+                            <div class="col-md-3">
+                              <label class="form-label">Superficie (ha)</label>
+                              <input type="number" class="form-control" value="1250" />
+                            </div>
+                            <div class="col-md-3">
+                              <label class="form-label">Responsable</label>
+                              <input type="text" class="form-control" value="Juan Fernandez" />
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label">Ubicacion</label>
+                              <input type="text" class="form-control" value="Zona rural, Presidencia Roque Saenz Peña, Chaco" />
+                            </div>
+                            <div class="col-md-3">
+                              <label class="form-label">Latitud <span class="text-secondary">(opcional)</span></label>
+                              <input type="text" class="form-control" placeholder="-26.7852" />
+                            </div>
+                            <div class="col-md-3">
+                              <label class="form-label">Longitud <span class="text-secondary">(opcional)</span></label>
+                              <input type="text" class="form-control" placeholder="-60.4388" />
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label">Moneda</label>
+                              <select class="form-select">
+                                <option selected>Peso argentino (ARS)</option>
+                                <option>Dolar estadounidense (USD)</option>
+                                <option>Real brasileño (BRL)</option>
+                              </select>
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label">Zona horaria</label>
+                              <select class="form-select">
+                                <option selected>America/Argentina/Buenos_Aires (GMT-3)</option>
+                                <option>America/Santiago (GMT-4)</option>
+                                <option>America/Sao_Paulo (GMT-3)</option>
+                              </select>
+                            </div>
+                          </div>
+                          <button type="submit" class="btn btn-success mt-4">
+                            <i class="bi bi-check2 me-1"></i> Guardar cambios
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                  <!--end::Establecimiento-->
+
+                  <!--begin::Categorias-->
+                  <div class="tab-pane fade" id="tab-categorias">
+                    <div class="card vacapp-card">
+                      <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
+                        <div>
+                          <h3 class="card-title mb-0">Categorias de animales</h3>
+                          <p class="text-secondary small mb-0">Se usan en Stock, Pesajes y Vacunacion.</p>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-success" onclick="abrirModalListaSimple('categoria')">
+                          <i class="bi bi-plus-lg me-1"></i> Agregar
+                        </button>
+                      </div>
+                      <div class="card-body">
+                        <div class="table-responsive">
+                          <table class="table table-vacapp align-middle mb-0">
+                            <thead>
+                              <tr>
+                                <th>Nombre</th>
+                                <th class="text-end">Acciones</th>
+                              </tr>
+                            </thead>
+                            <tbody id="tabla-categorias"></tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <!--end::Categorias-->
+
+                  <!--begin::Razas-->
+                  <div class="tab-pane fade" id="tab-razas">
+                    <div class="card vacapp-card">
+                      <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
+                        <div>
+                          <h3 class="card-title mb-0">Razas</h3>
+                          <p class="text-secondary small mb-0">Disponibles al cargar un animal en Stock.</p>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-success" onclick="abrirModalListaSimple('raza')">
+                          <i class="bi bi-plus-lg me-1"></i> Agregar
+                        </button>
+                      </div>
+                      <div class="card-body">
+                        <div class="table-responsive">
+                          <table class="table table-vacapp align-middle mb-0">
+                            <thead>
+                              <tr>
+                                <th>Nombre</th>
+                                <th class="text-end">Acciones</th>
+                              </tr>
+                            </thead>
+                            <tbody id="tabla-razas"></tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <!--end::Razas-->
+
+                  <!--begin::Vacunas-->
+                  <div class="tab-pane fade" id="tab-vacunas">
+                    <div class="card vacapp-card">
+                      <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
+                        <h3 class="card-title mb-0">Vacunas</h3>
+                        <button type="button" class="btn btn-sm btn-success" onclick="abrirModalVacuna()">
+                          <i class="bi bi-plus-lg me-1"></i> Agregar
+                        </button>
+                      </div>
+                      <div class="card-body">
+                        <div class="table-responsive">
+                          <table class="table table-vacapp align-middle mb-0">
+                            <thead>
+                              <tr>
+                                <th>Nombre</th>
+                                <th>Laboratorio</th>
+                                <th>Tipo</th>
+                                <th>Dosis recomendada</th>
+                                <th>Frecuencia</th>
+                                <th class="text-end">Acciones</th>
+                              </tr>
+                            </thead>
+                            <tbody id="tabla-vacunas"></tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <!--end::Vacunas-->
+
+                  <!--begin::Potreros-->
+                  <div class="tab-pane fade" id="tab-potreros">
+                    <div class="card vacapp-card mb-3">
+                      <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
+                        <div>
+                          <h3 class="card-title mb-0">Tipos de pastura</h3>
+                          <p class="text-secondary small mb-0">Disponibles al configurar un potrero.</p>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-success" onclick="abrirModalListaSimple('pastura')">
+                          <i class="bi bi-plus-lg me-1"></i> Agregar
+                        </button>
+                      </div>
+                      <div class="card-body">
+                        <div class="table-responsive">
+                          <table class="table table-vacapp align-middle mb-0">
+                            <thead>
+                              <tr>
+                                <th>Nombre</th>
+                                <th class="text-end">Acciones</th>
+                              </tr>
+                            </thead>
+                            <tbody id="tabla-pasturas"></tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="card vacapp-card">
+                      <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
+                        <div>
+                          <h3 class="card-title mb-0">Estados del potrero</h3>
+                          <p class="text-secondary small mb-0">Color con el que se ve cada estado en el mapa de potreros.</p>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-success" onclick="abrirModalEstadoPotrero()">
+                          <i class="bi bi-plus-lg me-1"></i> Agregar
+                        </button>
+                      </div>
+                      <div class="card-body">
+                        <div class="table-responsive">
+                          <table class="table table-vacapp align-middle mb-0">
+                            <thead>
+                              <tr>
+                                <th>Color</th>
+                                <th>Estado</th>
+                                <th class="text-end">Acciones</th>
+                              </tr>
+                            </thead>
+                            <tbody id="tabla-estados-potrero"></tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <!--end::Potreros-->
+
+                  <!--begin::Usuarios y Roles-->
+                  <div class="tab-pane fade" id="tab-usuarios-roles">
+                    <div class="card vacapp-card">
+                      <div class="card-header bg-transparent border-0 pb-0">
+                        <h3 class="card-title">Usuarios y Roles</h3>
+                      </div>
+                      <div class="card-body d-flex align-items-center gap-3">
+                        <div class="text-bg-primary rounded-3 p-3"><i class="bi bi-people-fill fs-2"></i></div>
+                        <div class="flex-grow-1">
+                          <p class="mb-1">
+                            Los usuarios, los roles y la matriz de permisos por modulo se administran desde la seccion
+                            <strong>Usuarios</strong>, para evitar tener dos lugares distintos donde tocar lo mismo.
+                          </p>
+                          <a href="./usuarios.html" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-box-arrow-up-right me-1"></i> Ir a Usuarios
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <!--end::Usuarios y Roles-->
+
+                  <!--begin::Notificaciones-->
+                  <div class="tab-pane fade" id="tab-notificaciones">
+                    <div class="card vacapp-card">
+                      <div class="card-header bg-transparent border-0 pb-0">
+                        <h3 class="card-title">Notificaciones</h3>
+                      </div>
+                      <div class="card-body">
+                        <div class="list-group list-group-flush">
+                          <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <div>
+                              <div class="fw-semibold">Recordatorio de vacunas</div>
+                              <small class="text-secondary">Avisar cuando se acerque la fecha de una proxima dosis.</small>
+                            </div>
+                            <div class="form-check form-switch">
+                              <input class="form-check-input" type="checkbox" role="switch" checked />
+                            </div>
+                          </div>
+                          <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <div>
+                              <div class="fw-semibold">Recordatorio de pesajes</div>
+                              <small class="text-secondary">Avisar sobre animales sin pesaje reciente.</small>
+                            </div>
+                            <div class="form-check form-switch">
+                              <input class="form-check-input" type="checkbox" role="switch" checked />
+                            </div>
+                          </div>
+                          <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <div>
+                              <div class="fw-semibold">Alertas de stock</div>
+                              <small class="text-secondary">Avisar ante bajas de stock de insumos o alimento.</small>
+                            </div>
+                            <div class="form-check form-switch">
+                              <input class="form-check-input" type="checkbox" role="switch" checked />
+                            </div>
+                          </div>
+                          <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <div>
+                              <div class="fw-semibold">Alertas sanitarias</div>
+                              <small class="text-secondary">Avisar ante perdida de peso o animales sin control sanitario.</small>
+                            </div>
+                            <div class="form-check form-switch">
+                              <input class="form-check-input" type="checkbox" role="switch" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <!--end::Notificaciones-->
+
+                  <!--begin::Seguridad-->
+                  <div class="tab-pane fade" id="tab-seguridad">
+                    <div class="card vacapp-card mb-3">
+                      <div class="card-header bg-transparent border-0 pb-0">
+                        <h3 class="card-title">Cambiar contraseña</h3>
+                      </div>
+                      <div class="card-body">
+                        <form id="form-password" class="row g-3">
+                          <div class="col-md-4">
+                            <label class="form-label">Contraseña actual</label>
+                            <input type="password" class="form-control" required />
+                          </div>
+                          <div class="col-md-4">
+                            <label class="form-label">Nueva contraseña</label>
+                            <input type="password" class="form-control" id="seg-nueva-pass" required />
+                          </div>
+                          <div class="col-md-4">
+                            <label class="form-label">Confirmar contraseña</label>
+                            <input type="password" class="form-control" id="seg-confirmar-pass" required />
+                            <div class="invalid-feedback" id="seg-pass-feedback">Las contraseñas no coinciden.</div>
+                          </div>
+                          <div class="col-12">
+                            <button type="submit" class="btn btn-success">
+                              <i class="bi bi-check2 me-1"></i> Actualizar contraseña
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                    <div class="card vacapp-card">
+                      <div class="card-header bg-transparent border-0 pb-0">
+                        <h3 class="card-title">Preferencias de seguridad</h3>
+                      </div>
+                      <div class="card-body">
+                        <div class="row g-3 mb-3">
+                          <div class="col-md-6">
+                            <label class="form-label">Tiempo de sesion</label>
+                            <select class="form-select">
+                              <option>15 minutos</option>
+                              <option selected>30 minutos</option>
+                              <option>1 hora</option>
+                              <option>4 horas</option>
+                              <option>No cerrar sesion automaticamente</option>
+                            </select>
+                          </div>
+                          <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check form-switch mb-2">
+                              <input class="form-check-input" type="checkbox" role="switch" disabled />
+                              <label class="form-check-label">
+                                Autenticacion en dos pasos
+                                <span class="badge text-bg-secondary ms-1">Proximamente</span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                        <hr />
+                        <h6 class="mb-2">Politica de contraseñas</h6>
+                        <div class="list-group list-group-flush">
+                          <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span>Minimo 8 caracteres</span>
+                            <div class="form-check form-switch">
+                              <input class="form-check-input" type="checkbox" role="switch" checked disabled />
+                            </div>
+                          </div>
+                          <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span>Requerir mayusculas y minusculas</span>
+                            <div class="form-check form-switch">
+                              <input class="form-check-input" type="checkbox" role="switch" checked />
+                            </div>
+                          </div>
+                          <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span>Requerir al menos un numero</span>
+                            <div class="form-check form-switch">
+                              <input class="form-check-input" type="checkbox" role="switch" checked />
+                            </div>
+                          </div>
+                          <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span>Requerir al menos un simbolo</span>
+                            <div class="form-check form-switch">
+                              <input class="form-check-input" type="checkbox" role="switch" />
+                            </div>
+                          </div>
+                        </div>
+                        <button type="button" class="btn btn-success mt-3" id="btn-guardar-seguridad">
+                          <i class="bi bi-check2 me-1"></i> Guardar cambios
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <!--end::Seguridad-->
+
+                  <!--begin::Apariencia-->
+                  <div class="tab-pane fade" id="tab-apariencia">
+                    <div class="card vacapp-card">
+                      <div class="card-header bg-transparent border-0 pb-0">
+                        <h3 class="card-title">Apariencia</h3>
+                      </div>
+                      <div class="card-body">
+                        <label class="form-label">Tema</label>
+                        <div class="d-flex gap-3 mb-4">
+                          <div class="vacapp-theme-option" id="tema-opcion-light" onclick="elegirTema('light')">
+                            <i class="bi bi-sun fs-3"></i>
+                            <div class="mt-1">Tema claro</div>
+                          </div>
+                          <div class="vacapp-theme-option" id="tema-opcion-dark" onclick="elegirTema('dark')">
+                            <i class="bi bi-moon-stars fs-3"></i>
+                            <div class="mt-1">Tema oscuro</div>
+                          </div>
+                        </div>
+
+                        <label class="form-label">Color principal</label>
+                        <div class="d-flex gap-2 mb-4" id="apariencia-colores">
+                          <span class="vacapp-color-swatch active" style="background:#0d6efd" data-color="#0d6efd" onclick="elegirColor(this)"></span>
+                          <span class="vacapp-color-swatch" style="background:#198754" data-color="#198754" onclick="elegirColor(this)"></span>
+                          <span class="vacapp-color-swatch" style="background:#dc3545" data-color="#dc3545" onclick="elegirColor(this)"></span>
+                          <span class="vacapp-color-swatch" style="background:#6f42c1" data-color="#6f42c1" onclick="elegirColor(this)"></span>
+                          <span class="vacapp-color-swatch" style="background:#fd7e14" data-color="#fd7e14" onclick="elegirColor(this)"></span>
+                        </div>
+
+                        <label class="form-label">Idioma</label>
+                        <select class="form-select mb-4" style="max-width: 320px">
+                          <option selected>Español</option>
+                          <option disabled>Ingles (proximamente)</option>
+                          <option disabled>Portugues (proximamente)</option>
+                        </select>
+
+                        <label class="form-label d-block">Vista previa</label>
+                        <div class="border rounded-3 p-3">
+                          <div class="d-flex align-items-center gap-2 mb-2">
+                            <button type="button" class="btn btn-sm" id="preview-btn" style="background:#0d6efd;color:#fff">Boton principal</button>
+                            <span class="badge" id="preview-badge" style="background:#0d6efd">Badge</span>
+                          </div>
+                          <p class="mb-0 small text-secondary">
+                            Asi se veran los botones y elementos destacados de VacApp con el color y tema elegidos.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <!--end::Apariencia-->
+
+                  <!--begin::Base de datos-->
+                  <div class="tab-pane fade" id="tab-basededatos">
+                    <div class="card vacapp-card">
+                      <div class="card-header bg-transparent border-0 pb-0">
+                        <h3 class="card-title">Base de datos</h3>
+                      </div>
+                      <div class="card-body">
+                        <ul class="list-group list-group-flush mb-3">
+                          <li class="list-group-item d-flex justify-content-between">
+                            <span class="text-secondary">Motor de base de datos</span><span>PostgreSQL 16.2</span>
+                          </li>
+                          <li class="list-group-item d-flex justify-content-between">
+                            <span class="text-secondary">Tamaño de la base</span><span>238 MB</span>
+                          </li>
+                          <li class="list-group-item d-flex justify-content-between">
+                            <span class="text-secondary">Ultimo respaldo</span><span>14/07/2026 03:00</span>
+                          </li>
+                          <li class="list-group-item d-flex justify-content-between">
+                            <span class="text-secondary">Estado del sistema</span>
+                            <span class="badge text-bg-success">Operativo</span>
+                          </li>
+                        </ul>
+                        <div class="d-flex flex-wrap gap-2">
+                          <button type="button" class="btn btn-outline-primary" id="btn-crear-respaldo">
+                            <i class="bi bi-cloud-arrow-up me-1"></i> Crear respaldo
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-outline-warning"
+                            onclick="confirmarAccion('Restaurar respaldo', 'Esto reemplazara los datos actuales por los del ultimo respaldo. Esta accion no se puede deshacer. ¿Deseas continuar?', () => mostrarExito('btn-restaurar-respaldo', 'Respaldo restaurado'))"
+                            id="btn-restaurar-respaldo"
+                          >
+                            <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar respaldo
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-outline-secondary"
+                            onclick="confirmarAccion('Optimizar base de datos', 'El sistema puede quedar lento por unos minutos mientras se optimiza la base de datos. ¿Deseas continuar?', () => mostrarExito('btn-optimizar-db', 'Base optimizada'))"
+                            id="btn-optimizar-db"
+                          >
+                            <i class="bi bi-speedometer me-1"></i> Optimizar base de datos
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <!--end::Base de datos-->
+                </div>
+              </div>
+              <!--end::Contenido de pestañas-->
+            </div>
+          </div>
+        </div>
+        <!--end::App Content-->
+      </main>
+      <!--end::App Main-->
+
+      <!--begin::Footer (se carga con include.js) -->
+      <div id="footer-container"></div>
+      <!--end::Footer-->
+    </div>
+
+    <!--begin::Modal generico agregar/editar elemento de lista simple-->
+    <div class="modal fade" id="modalListaSimple" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="ls-modal-titulo">Nuevo elemento</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <label class="form-label">Nombre</label>
+            <input type="text" class="form-control" id="ls-modal-input" />
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-success" onclick="guardarListaSimple()">Guardar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--end::Modal generico agregar/editar elemento de lista simple-->
+
+    <!--begin::Modal Vacuna-->
+    <div class="modal fade" id="modalVacuna" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="vac-modal-titulo">Nueva vacuna</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label">Nombre</label>
+                <input type="text" class="form-control" id="vac-nombre" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Laboratorio</label>
+                <input type="text" class="form-control" id="vac-laboratorio" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Tipo</label>
+                <select class="form-select" id="vac-tipo">
+                  <option>Viral</option>
+                  <option>Bacteriana</option>
+                  <option>Parasitaria</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Dosis recomendada</label>
+                <input type="text" class="form-control" id="vac-dosis" placeholder="Ej: 2 ml" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Frecuencia</label>
+                <input type="text" class="form-control" id="vac-frecuencia" placeholder="Ej: Anual" />
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-success" onclick="guardarVacuna()">Guardar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--end::Modal Vacuna-->
+
+    <!--begin::Modal Estado de potrero-->
+    <div class="modal fade" id="modalEstadoPotrero" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="est-modal-titulo">Nuevo estado</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body row g-3">
+            <div class="col-8">
+              <label class="form-label">Nombre del estado</label>
+              <input type="text" class="form-control" id="est-nombre" />
+            </div>
+            <div class="col-4">
+              <label class="form-label">Color</label>
+              <input type="color" class="form-control form-control-color w-100" id="est-color" value="#0d6efd" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-success" onclick="guardarEstadoPotrero()">Guardar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--end::Modal Estado de potrero-->
+
+    <!--begin::Modal de confirmacion generico-->
+    <div class="modal fade" id="modalConfirmar" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="confirmar-titulo">Confirmar accion</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0" id="confirmar-mensaje">¿Deseas continuar?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-danger" id="confirmar-btn-aceptar">Confirmar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+{% endblock %}
+ 
+{% block page_js %}
+    <script src="{% static 'js/configuracion.js' %}"></script>
+{% endblock %}

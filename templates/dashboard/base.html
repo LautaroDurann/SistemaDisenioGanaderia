@@ -1,0 +1,77 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}VacApp{% endblock %}</title>
+
+    <script>
+      (() => {
+        'use strict';
+        const STORAGE_KEY = 'lte-theme';
+        let stored = null;
+        try {
+          stored = localStorage.getItem(STORAGE_KEY);
+        } catch {}
+        const prefersDark = globalThis.matchMedia('(prefers-color-scheme: dark)').matches;
+        let resolved = 'light';
+        if (stored === 'dark' || stored === 'light') resolved = stored;
+        else if (prefersDark) resolved = 'dark';
+        document.documentElement.setAttribute('data-bs-theme', resolved);
+        document.documentElement.style.colorScheme = resolved;
+      })();
+    </script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.0.12/index.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/styles/overlayscrollbars.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/apexcharts@3.37.1/dist/apexcharts.css">
+
+    <link rel="stylesheet" href="{% static 'css/adminlte.css' %}">
+    <link rel="stylesheet" href="{% static 'css/index.css' %}">
+
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+
+<div class="app-wrapper">
+
+    {% include 'partials/navbar.html' %}
+
+    {% include 'partials/sidebar.html' %}
+
+    <main class="app-main">
+
+        {% block content %}
+        {% endblock %}
+
+    </main>
+
+    {% include 'partials/footer.html' %}
+
+</div>
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/browser/overlayscrollbars.browser.es6.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.min.js"></script>
+<script src="{% static 'js/adminlte.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.37.1/dist/apexcharts.min.js"></script>
+
+{% endblock %}
+
+<!--se agrega este bloque vacio para que no choque con los de las paginas que heredan-->
+{% if page_data %}
+  {{ page_data|json_script:"ganastock-page-data" }}
+  <script>
+    window.GANASTOCK_DATA = JSON.parse(document.getElementById('ganastock-page-data').textContent);
+  </script>
+{% endif %}
+
+{% block page_js %}
+{% endblock %}
+
+</body>
+</html>
