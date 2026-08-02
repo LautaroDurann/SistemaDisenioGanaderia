@@ -13,12 +13,12 @@ class Establecimiento(models.Model):
 class Parcela(models.Model):
     ESTADO_EN_PASTOREO = 'En pastoreo'
     ESTADO_EN_DESCANSO = 'En descanso'
-    ESTADO_CLAUSURADO = 'Clausurado'
+    ESTADO_EN_MANTENIMIENTO = 'En mantenimiento'
 
     ESTADOS_PARCELA = [
         (ESTADO_EN_PASTOREO, 'En pastoreo'),
         (ESTADO_EN_DESCANSO, 'En descanso'),
-        (ESTADO_CLAUSURADO, 'Clausurado'),
+        (ESTADO_EN_MANTENIMIENTO, 'En mantenimiento'),
     ]
 
     # Usamos DecimalField para las medidas (ej: 150.50 metros).

@@ -90,6 +90,10 @@
         { caravana: '0263', nombre: 'Rocio', categoria: 'Vaca', sexo: 'Hembra', raza: 'Braford', edad: '5 años', peso: '495 kg', potrero: 'Potrero 2', estado: 'Activo', ingreso: '07/06/2021', notas: 'Pendiente de proximo control de peso, sin pesaje reciente.' },
         { caravana: '0329', nombre: 'S/N', categoria: 'Novillo', sexo: 'Macho', raza: 'Hereford', edad: '2 años', peso: '410 kg', potrero: 'Potrero 1', estado: 'Vendido', ingreso: '02/02/2024', notas: 'Vendido por baja administrativa junto con el lote de novillos.' },
       ];
+      ANIMALES.forEach((animal) => {
+        animal.parcela ??= animal.potrero ?? 'Sin asignar';
+        animal.tipo_animal ??= 'Bovino';
+      });
 
       const ESTADO_BADGE = {
         Activo: 'text-bg-success',
@@ -104,10 +108,11 @@
 
       function aplicarFiltros() {
         const buscar = document.getElementById('f-buscar').value.trim().toLowerCase();
+        const tipoAnimal = document.getElementById('f-tipo-animal').value;
         const categoria = document.getElementById('f-categoria').value;
         const sexo = document.getElementById('f-sexo').value;
         const estado = document.getElementById('f-estado').value;
-        const potrero = document.getElementById('f-potrero').value;
+        const parcela = document.getElementById('f-parcela').value;
 
         return ANIMALES.filter((a) => {
           const matchBuscar =
@@ -116,10 +121,11 @@
             a.nombre.toLowerCase().includes(buscar);
           return (
             matchBuscar &&
+            (!tipoAnimal || a.tipo_animal === tipoAnimal) &&
             (!categoria || a.categoria === categoria) &&
             (!sexo || a.sexo === sexo) &&
             (!estado || a.estado === estado) &&
-            (!potrero || a.potrero === potrero)
+            (!parcela || a.parcela === parcela)
           );
         });
       }
@@ -139,12 +145,13 @@
           <tr data-caravana="${a.caravana}" class="${a.caravana === caravanaSeleccionada ? 'table-active' : ''}">
             <td>#${a.caravana}</td>
             <td>${a.nombre}</td>
-            <td>${a.categoria}</td>
+            <td>${a.tipo_animal}</td>
             <td>${a.sexo}</td>
+            <td><span class="badge ${a.castrado ? 'text-bg-success' : 'text-bg-secondary'}">${a.castrado ? 'Sí' : 'No'}</span></td>
             <td>${a.raza}</td>
             <td>${a.edad}</td>
             <td>${a.peso}</td>
-            <td>${a.potrero}</td>
+            <td>${a.parcela}</td>
             <td><span class="badge ${ESTADO_BADGE[a.estado] || 'text-bg-secondary'}">${a.estado}</span></td>
             <td>${a.ingreso}</td>
             <td class="text-end">
@@ -181,9 +188,9 @@
 
       function actualizarKpis(datos) {
         document.getElementById('kpi-total').textContent = ANIMALES.length;
-        document.getElementById('kpi-machos').textContent = ANIMALES.filter((a) => a.sexo === 'Macho').length;
-        document.getElementById('kpi-hembras').textContent = ANIMALES.filter((a) => a.sexo === 'Hembra').length;
-        document.getElementById('kpi-terneros').textContent = ANIMALES.filter((a) => a.categoria === 'Ternero').length;
+        document.getElementById('kpi-bovinos').textContent = ANIMALES.filter((a) => a.tipo_animal === 'Bovino').length;
+        document.getElementById('kpi-ovinos').textContent = ANIMALES.filter((a) => a.tipo_animal === 'Ovino').length;
+        document.getElementById('kpi-porcinos').textContent = ANIMALES.filter((a) => a.tipo_animal === 'Porcino').length;
       }
 
       // ------------------------------------------------------------------
@@ -214,7 +221,8 @@
         document.getElementById('ficha-raza').textContent = a.raza;
         document.getElementById('ficha-edad').textContent = a.edad;
         document.getElementById('ficha-peso').textContent = a.peso;
-        document.getElementById('ficha-potrero').textContent = a.potrero;
+        document.getElementById('ficha-potrero').textContent = a.parcela;
+        document.getElementById('ficha-categoria').closest('li').classList.toggle('d-none', a.tipo_animal !== 'Bovino');
         const fichaFoto = document.getElementById('ficha-foto');
         if (a.foto_url) {
           fichaFoto.innerHTML = `<img src="${a.foto_url}" alt="Foto de ${a.nombre || 'animal'}" style="width: 100%; height: 100%; object-fit: contain;">`;
@@ -233,6 +241,7 @@
         document.getElementById('ficha-dieta').textContent = a.dieta;
         document.getElementById('ficha-progenitores').textContent = `${a.madre} / ${a.padre}`;
         document.getElementById('ficha-condicion').textContent = [a.vivo ? 'Vivo' : 'Muerto', a.vendido ? 'Vendido' : 'No vendido', a.enfermo ? 'Enfermo' : 'Sano'].join(' · ');
+        document.getElementById('ficha-castrado').textContent = a.castrado ? 'Sí' : 'No';
         document.getElementById('ficha-color').textContent = a.color || '-';
         document.getElementById('ficha-valores').textContent = `$${a.costo_adquisicion || '-'} / $${a.precio_venta || '-'}`;
         document.getElementById('ficha-operaciones').textContent = `${a.compra} / ${a.venta}`;
@@ -265,6 +274,7 @@
         document.getElementById('animal-vendido').checked = animal.vendido;
         document.getElementById('animal-vivo').checked = animal.vivo;
         document.getElementById('animal-enfermo').checked = animal.enfermo;
+        document.getElementById('animal-castrado').checked = animal.castrado;
         actualizarCampoDiametro();
         document.getElementById('animal-descripcion').value = animal.notas === '-' ? '' : animal.notas;
         const preview = document.getElementById('foto-preview');
@@ -345,7 +355,7 @@
           }
         });
 
-        ['f-buscar', 'f-categoria', 'f-sexo', 'f-estado', 'f-potrero'].forEach((id) => {
+        ['f-buscar', 'f-tipo-animal', 'f-categoria', 'f-sexo', 'f-estado', 'f-parcela'].forEach((id) => {
           document.getElementById(id).addEventListener('input', () => {
             paginaActual = 1;
             renderTabla();
@@ -354,10 +364,20 @@
 
         document.getElementById('f-limpiar').addEventListener('click', () => {
           document.getElementById('f-buscar').value = '';
+          document.getElementById('f-tipo-animal').value = '';
           document.getElementById('f-categoria').value = '';
           document.getElementById('f-sexo').value = '';
           document.getElementById('f-estado').value = '';
-          document.getElementById('f-potrero').value = '';
+          document.getElementById('f-parcela').value = '';
+          document.getElementById('grupo-f-categoria').classList.add('d-none');
+          paginaActual = 1;
+          renderTabla();
+        });
+
+        document.getElementById('f-tipo-animal').addEventListener('change', (event) => {
+          const esBovino = event.target.value === 'Bovino';
+          document.getElementById('grupo-f-categoria').classList.toggle('d-none', !esBovino);
+          if (!esBovino) document.getElementById('f-categoria').value = '';
           paginaActual = 1;
           renderTabla();
         });
@@ -366,6 +386,10 @@
         (window.GANASTOCK_DATA?.parcelas || []).forEach((parcela) => {
           const option = new Option(parcela.nombre, parcela.id);
           selectParcela.add(option);
+        });
+        const filtroParcela = document.getElementById('f-parcela');
+        (window.GANASTOCK_DATA?.parcelas || []).forEach((parcela) => {
+          filtroParcela.add(new Option(parcela.nombre, parcela.nombre));
         });
         agregarOpciones('animal-dieta', window.GANASTOCK_DATA?.dietas || [], (dieta) => dieta.nombre);
         agregarOpciones('animal-compra', window.GANASTOCK_DATA?.compras || [], (compra) => compra.nombre);

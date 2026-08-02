@@ -106,12 +106,12 @@
       const ESTADO_BADGE = {
         'En pastoreo': 'text-bg-success',
         'En descanso': 'text-bg-warning',
-        'Clausurado': 'text-bg-secondary',
+        'En mantenimiento': 'text-bg-danger',
       };
 
       function nivelEstado(p) {
         const estado = (p.estado || 'En pastoreo').toString().trim();
-        if (estado === 'Clausurado') return { nivel: 'mantenimiento', color: '#6c757d' };
+        if (estado === 'En mantenimiento') return { nivel: 'mantenimiento', color: '#dc3545' };
         if (estado === 'En descanso') return { nivel: 'descanso', color: '#e0a800' };
         return { nivel: 'pastoreo', color: '#198754' };
       }
@@ -147,6 +147,7 @@
             potreroSeleccionado = block.dataset.nombre;
             renderMapa();
             renderDetalle();
+            document.getElementById('detalle-parcela').scrollIntoView({ behavior: 'smooth', block: 'start' });
           });
         });
       }

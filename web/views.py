@@ -1,3 +1,4 @@
+import calendar
 from datetime import date
 from decimal import Decimal
 
@@ -18,9 +19,24 @@ from usuarios.models import RolEstablecimiento, Usuario
 
 
 def _categoria(animal):
-    if animal.sexo == 'Macho':
-        return 'Toro' if animal.fecha_nacimiento and (date.today() - animal.fecha_nacimiento).days > 900 else 'Ternero'
-    return 'Vaca' if animal.fecha_nacimiento and (date.today() - animal.fecha_nacimiento).days > 900 else 'Ternero'
+    """Clasificación exclusiva de bovinos para el filtro de stock."""
+    if animal.tipo_animal != 'Bovino':
+        return ''
+
+    peso = animal.peso_actual
+    if _es_ternero(animal) and peso is not None and peso <= 400:
+        return 'Ternero'
+    return 'Toro' if animal.sexo == 'Macho' else 'Vaca'
+
+
+def _es_ternero(animal):
+    if not animal.fecha_nacimiento:
+        return False
+    mes_limite = animal.fecha_nacimiento.month + 6
+    anio_limite = animal.fecha_nacimiento.year + (mes_limite - 1) // 12
+    mes_limite = (mes_limite - 1) % 12 + 1
+    dia_limite = min(animal.fecha_nacimiento.day, calendar.monthrange(anio_limite, mes_limite)[1])
+    return date.today() <= date(anio_limite, mes_limite, dia_limite)
 
 
 def _edad(animal):
@@ -61,14 +77,13 @@ def _animal_data(animal):
         'id': animal.id, 'caravana': _caravana_text(animal), 'nombre': animal.nombre or 'S/N',
         'categoria': _categoria(animal), 'sexo': animal.sexo, 'raza': animal.raza or '-',
         'edad': _edad(animal), 'peso': f"{animal.peso_actual or 0} kg",
-        'potrero': str(animal.parcela) if animal.parcela else 'Sin asignar',
         'parcela': str(animal.parcela) if animal.parcela else 'Sin asignar',
         'parcela_id': animal.parcela_id,
         'estado': estado, 'ingreso': animal.fecha_nacimiento.isoformat() if animal.fecha_nacimiento else '-',
         'notas': animal.descripcion or '-',
         'tipo_animal': animal.tipo_animal, 'peso_al_nacer': str(animal.peso_al_nacer or ''),
         'peso_al_destete': str(animal.peso_al_destete or ''), 'peso_actual_valor': str(animal.peso_actual or ''),
-        'vendido': animal.vendido, 'vivo': animal.vivo, 'enfermo': animal.enfermo,
+        'vendido': animal.vendido, 'vivo': animal.vivo, 'enfermo': animal.enfermo, 'castrado': animal.castrado,
         'costo_adquisicion': str(animal.costo_adquisicion or ''), 'precio_venta': str(animal.precio_venta or ''),
         'color': animal.color or '', 'diametro_escrotal': str(animal.diametro_escrotal or ''),
         'dieta_id': animal.dieta_id, 'dieta': str(animal.dieta) if animal.dieta else 'Sin dieta',
@@ -194,6 +209,7 @@ def _asignar_campos_animal(animal, datos, es_alta=False):
     animal.vendido = datos.get('vendido') == 'on'
     animal.vivo = datos.get('vivo') == 'on' if 'vivo' in datos else es_alta
     animal.enfermo = datos.get('enfermo') == 'on'
+    animal.castrado = datos.get('castrado') == 'on'
     animal.color = datos.get('color', '').strip() or None
     animal.parcela_id = datos.get('parcela_id') or None
     animal.dieta_id = datos.get('dieta_id') or None
