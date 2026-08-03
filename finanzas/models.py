@@ -42,11 +42,15 @@ class Compra(models.Model):
 class Venta(models.Model):
     tipo = models.CharField(max_length=100)
     fecha = models.DateField()
+    # El peso se conserva en la venta para que el comprobante no cambie si el
+    # animal recibe nuevos pesajes luego de haber sido vendido.
+    peso_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    precio_por_kg = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     monto_total = models.DecimalField(max_digits=12, decimal_places=2)
     detalle = models.TextField(blank=True, null=True)
     
     # Claves Foráneas
-    comprador = models.ForeignKey('usuarios.Comprador', on_delete=models.SET_NULL, null=True)
+    comprador = models.ForeignKey('usuarios.Comprador', on_delete=models.SET_NULL, null=True, blank=True)
     mov_financiero = models.OneToOneField(MovimientoFinanciero, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):

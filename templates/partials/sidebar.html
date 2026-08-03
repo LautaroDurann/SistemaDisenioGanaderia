@@ -36,10 +36,14 @@
           </a>
         </li>
         <li class="nav-item">
-          <a href="{% url 'movimientos' %}" class="nav-link" data-page="movimientos.html">
-            <i class="nav-icon bi bi-arrow-left-right"></i>
-            <p>Movimientos</p>
+          <a href="{% url 'finanzas' %}" class="nav-link" data-lte-toggle="treeview">
+            <i class="nav-icon bi bi-cash-stack"></i>
+            <p>Finanzas <i class="nav-arrow bi bi-chevron-right"></i></p>
           </a>
+          <ul class="nav nav-treeview">
+            <li class="nav-item"><a href="{% url 'ventas' %}" class="nav-link"><i class="nav-icon bi bi-receipt"></i><p>Ventas</p></a></li>
+            <li class="nav-item"><a href="{% url 'compras' %}" class="nav-link"><i class="nav-icon bi bi-cart"></i><p>Compras</p></a></li>
+          </ul>
         </li>
         <li class="nav-item">
           <a href="{% url 'potreros' %}" class="nav-link" data-page="potreros.html">

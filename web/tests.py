@@ -8,6 +8,7 @@ from django.urls import reverse
 
 from animales.models import Animal, MovimientoAnimal, Pesaje
 from establecimientos.models import Establecimiento, Parcela
+from finanzas.models import MovimientoFinanciero, Venta
 
 
 class WebIntegrationTests(TestCase):
@@ -133,3 +134,36 @@ class WebIntegrationTests(TestCase):
         response = self.client.post(reverse('eliminar_potrero', args=[self.parcela.id]))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Parcela.objects.filter(pk=self.parcela.id).exists())
+
+    def test_registrar_venta_crea_ingreso_y_actualiza_animales(self):
+        self.animal.peso_actual = Decimal('300.00')
+        self.animal.save(update_fields=['peso_actual'])
+        segundo = Animal.objects.create(
+            id_senasa=54321, nombre='Toro', tipo_animal='Bovino', sexo='Macho',
+            peso_actual=Decimal('500.00'), parcela=self.parcela, vivo=True,
+        )
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-03', 'tipo': 'Venta de hacienda', 'precio_por_kg': '2500.50',
+            'detalle': 'Venta de prueba', 'animales': [self.animal.id, segundo.id],
+        })
+        self.assertEqual(response.status_code, 201)
+        venta = Venta.objects.get(pk=response.json()['id'])
+        self.assertEqual(venta.peso_total, Decimal('800.00'))
+        self.assertEqual(venta.monto_total, Decimal('2000400.00'))
+        self.assertEqual(venta.mov_financiero.tipo, 'Ingreso')
+        self.assertEqual(venta.mov_financiero.fecha.isoformat(), '2026-08-03')
+        self.assertEqual(MovimientoFinanciero.objects.count(), 1)
+        self.animal.refresh_from_db()
+        segundo.refresh_from_db()
+        self.assertTrue(self.animal.vendido)
+        self.assertEqual(self.animal.venta, venta)
+        self.assertEqual(self.animal.precio_venta, Decimal('1000200.00'))
+        self.assertTrue(segundo.vendido)
+
+        response = self.client.post(reverse('eliminar_venta', args=[venta.id]))
+        self.assertEqual(response.status_code, 200)
+        self.animal.refresh_from_db()
+        self.assertFalse(self.animal.vendido)
+        self.assertIsNone(self.animal.venta)
+        self.assertFalse(Venta.objects.exists())
+        self.assertFalse(MovimientoFinanciero.objects.exists())

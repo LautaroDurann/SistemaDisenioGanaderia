@@ -3,6 +3,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.db.models import Avg, Count, Sum
+from django.db import transaction
 from django.http import JsonResponse
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
@@ -15,7 +16,7 @@ from establecimientos.models import Parcela
 from finanzas.models import Compra, MovimientoFinanciero, Venta
 from inventario.models import Dieta, Insumo
 from sanidad.models import EventoSanitario
-from usuarios.models import RolEstablecimiento, Usuario
+from usuarios.models import Comprador, RolEstablecimiento, Usuario
 
 
 def _categoria(animal):
@@ -131,8 +132,47 @@ def stock(request):
     })
 
 
-def movimientos(request):
-    return _page(request, 'movimientos.html', 'movimientos', {'movimientos': _movimientos_data()})
+def _venta_data(venta):
+    animales = list(venta.animal_set.all())
+    return {
+        'id': venta.id, 'tipo': venta.tipo, 'fecha': venta.fecha.isoformat(),
+        'peso_total': str(venta.peso_total), 'precio_por_kg': str(venta.precio_por_kg),
+        'monto_total': str(venta.monto_total), 'detalle': venta.detalle or '',
+        'comprador_id': venta.comprador_id,
+        'comprador': str(venta.comprador) if venta.comprador else 'Sin comprador',
+        'animales': [_animal_data(a) for a in animales],
+    }
+
+
+def _movimientos_financieros_data():
+    return [{
+        'id': m.id, 'fecha': m.fecha.isoformat(), 'tipo': m.tipo, 'nombre': m.nombre,
+        'detalle': m.detalle or '', 'monto_total': str(m.monto_total),
+    } for m in MovimientoFinanciero.objects.order_by('-fecha', '-id')]
+
+
+def finanzas(request):
+    return _page(request, 'finanzas.html', 'finanzas', {
+        'movimientos': _movimientos_financieros_data(),
+    })
+
+
+def ventas(request):
+    animales = Animal.objects.filter(vivo=True, vendido=False).select_related('parcela')
+    ventas_registradas = Venta.objects.select_related('comprador').prefetch_related('animal_set').order_by('-fecha', '-id')
+    return _page(request, 'ventas.html', 'ventas', {
+        'animales': [_animal_data(a) for a in animales],
+        'ventas': [_venta_data(v) for v in ventas_registradas],
+        'compradores': [{'id': c.id, 'nombre': str(c)} for c in Comprador.objects.all()],
+    })
+
+
+def compras(request):
+    compras_registradas = Compra.objects.select_related('proveedor').order_by('-fecha', '-id')
+    return _page(request, 'compras.html', 'compras', {'compras': [{
+        'id': c.id, 'tipo': c.tipo, 'fecha': c.fecha.isoformat(), 'monto_total': str(c.monto_total),
+        'proveedor': str(c.proveedor) if c.proveedor else 'Sin proveedor', 'detalle': c.detalle or '',
+    } for c in compras_registradas]})
 
 
 def potreros(request):
@@ -339,3 +379,97 @@ def crear_movimiento(request):
         animal.parcela_id = movimiento.destino_id
         animal.save(update_fields=['parcela'])
     return JsonResponse({'id': movimiento.id})
+
+
+def _registrar_venta(venta, datos):
+    """Guarda una venta y todos sus efectos como una única transacción."""
+    try:
+        precio_por_kg = Decimal(datos['precio_por_kg'])
+        animales_ids = [int(animal_id) for animal_id in datos.getlist('animales')]
+    except (KeyError, ValueError, ArithmeticError):
+        raise ValueError('Indicá un precio por kilo válido y al menos un animal.')
+    if precio_por_kg <= 0 or not animales_ids or len(animales_ids) != len(set(animales_ids)):
+        raise ValueError('Indicá un precio por kilo válido y al menos un animal.')
+
+    animales = list(Animal.objects.select_for_update().filter(pk__in=animales_ids, vivo=True, vendido=False))
+    if len(animales) != len(animales_ids):
+        raise ValueError('Uno o más animales ya no están disponibles para la venta.')
+    if any(animal.peso_actual is None or animal.peso_actual <= 0 for animal in animales):
+        raise ValueError('Todos los animales seleccionados deben tener un peso actual mayor a cero.')
+
+    peso_total = sum((animal.peso_actual for animal in animales), Decimal('0'))
+    monto_total = (peso_total * precio_por_kg).quantize(Decimal('0.01'))
+    venta.tipo = datos.get('tipo', 'Venta de animales').strip() or 'Venta de animales'
+    venta.fecha = datos.get('fecha') or date.today()
+    venta.comprador_id = datos.get('comprador_id') or None
+    venta.detalle = datos.get('detalle', '').strip() or None
+    venta.peso_total = peso_total
+    venta.precio_por_kg = precio_por_kg
+    venta.monto_total = monto_total
+    venta.full_clean()
+    venta.save()
+
+    movimiento, _ = MovimientoFinanciero.objects.update_or_create(
+        pk=venta.mov_financiero_id,
+        defaults={
+            'tipo': 'Ingreso', 'nombre': f'Venta #{venta.id}', 'monto_total': monto_total,
+            'fecha': venta.fecha, 'detalle': venta.detalle or f'Venta de {len(animales)} animal(es).',
+        },
+    )
+    if venta.mov_financiero_id != movimiento.id:
+        venta.mov_financiero = movimiento
+        venta.save(update_fields=['mov_financiero'])
+
+    precio_promedio = monto_total / len(animales)
+    for animal in animales:
+        animal.vendido = True
+        animal.venta = venta
+        animal.precio_venta = precio_promedio
+        animal.save(update_fields=['vendido', 'venta', 'precio_venta'])
+        MovimientoAnimal.objects.create(
+            animal=animal, fecha=venta.fecha, tipo='Venta', origen=animal.parcela,
+            observaciones=f'Venta #{venta.id}.',
+        )
+
+
+def _revertir_venta(venta):
+    """Deshace los efectos sobre animales para poder editar o eliminar una venta."""
+    animales = Animal.objects.select_for_update().filter(venta=venta)
+    animales.update(vendido=False, venta=None, precio_venta=None)
+    MovimientoAnimal.objects.filter(animal__in=animales, tipo='Venta', fecha=venta.fecha,
+                                    observaciones=f'Venta #{venta.id}.').delete()
+
+
+@require_POST
+def crear_venta(request):
+    try:
+        with transaction.atomic():
+            venta = Venta()
+            _registrar_venta(venta, request.POST)
+    except (ValueError, ValidationError, IntegrityError, ArithmeticError) as error:
+        return JsonResponse({'error': str(error) or 'No se pudo registrar la venta.'}, status=400)
+    return JsonResponse({'id': venta.id, 'venta': _venta_data(venta)}, status=201)
+
+
+@require_POST
+def actualizar_venta(request, venta_id):
+    try:
+        with transaction.atomic():
+            venta = get_object_or_404(Venta.objects.select_for_update(), pk=venta_id)
+            _revertir_venta(venta)
+            _registrar_venta(venta, request.POST)
+    except (ValueError, ValidationError, IntegrityError, ArithmeticError) as error:
+        return JsonResponse({'error': str(error) or 'No se pudo actualizar la venta.'}, status=400)
+    return JsonResponse({'venta': _venta_data(venta)})
+
+
+@require_POST
+def eliminar_venta(request, venta_id):
+    with transaction.atomic():
+        venta = get_object_or_404(Venta.objects.select_for_update(), pk=venta_id)
+        movimiento_id = venta.mov_financiero_id
+        _revertir_venta(venta)
+        venta.delete()
+        if movimiento_id:
+            MovimientoFinanciero.objects.filter(pk=movimiento_id).delete()
+    return JsonResponse({'ok': True})
