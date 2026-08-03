@@ -34,6 +34,8 @@ class Animal(models.Model):
     vendido = models.BooleanField(default=False)
     vivo = models.BooleanField(default=True)
     enfermo = models.BooleanField(default=False)
+    # Se actualiza automáticamente al registrar un evento sanitario de castración.
+    castrado = models.BooleanField(default=False)
     
     # Enums de Estrategia 3
     tipo_animal = models.CharField(max_length=10, choices=TIPO_CHOICES)

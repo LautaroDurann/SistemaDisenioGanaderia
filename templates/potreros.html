@@ -6,17 +6,6 @@
 {% endblock %}
 
 {% block content %}
-    <div class="app-wrapper">
-      <!--begin::Header (se carga con include.js) -->
-      <div id="navbar-container"></div>
-      <!--end::Header-->
-
-      <!--begin::Sidebar (se carga con include.js) -->
-      <div id="sidebar-container"></div>
-      <!--end::Sidebar-->
-
-      <!--begin::App Main-->
-      <main class="app-main">
         <!--begin::App Content Header-->
         <div class="app-content-header">
           <div class="container-fluid">
@@ -110,7 +99,7 @@
                 <div class="small text-secondary d-flex gap-3">
                   <span><span class="leyenda-dot" style="background:#198754"></span> En pastoreo</span>
                   <span><span class="leyenda-dot" style="background:#e0a800"></span> En descanso</span>
-                  <span><span class="leyenda-dot" style="background:#6c757d"></span> Mantenimiento</span>
+                  <span><span class="leyenda-dot" style="background:#dc3545"></span> En mantenimiento</span>
                 </div>
               </div>
               <div class="card-body">
@@ -134,7 +123,7 @@
                       <option value="">Todos</option>
                       <option>En pastoreo</option>
                       <option>En descanso</option>
-                      <option>Clausurado</option>
+                      <option>En mantenimiento</option>
                     </select>
                   </div>
                   <div class="col-md-4">
@@ -169,8 +158,8 @@
             </div>
             <!--end::Tabla principal-->
 
-            <!--begin::Animales presentes en el potrero seleccionado-->
-            <div class="card vacapp-card">
+            <!--begin::Animales presentes en la parcela seleccionada-->
+            <div class="card vacapp-card" id="detalle-parcela">
               <div class="card-header bg-transparent border-0 pb-0">
                 <h3 class="card-title">Animales presentes en <span id="detalle-nombre">Parcela 1</span></h3>
               </div>
@@ -191,18 +180,10 @@
                 </div>
               </div>
             </div>
-            <!--end::Animales presentes en el potrero seleccionado-->
+            <!--end::Animales presentes en la parcela seleccionada-->
           </div>
         </div>
         <!--end::App Content-->
-      </main>
-      <!--end::App Main-->
-
-      <!--begin::Footer (se carga con include.js) -->
-      <div id="footer-container"></div>
-      <!--end::Footer-->
-    </div>
-
     <!--begin::Modal Nuevo Potrero-->
     <div class="modal fade" id="modalNuevoPotrero" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -232,7 +213,7 @@
                   <select name="estado" class="form-select">
                     <option value="En pastoreo">En pastoreo</option>
                     <option value="En descanso">En descanso</option>
-                    <option value="Clausurado">Clausurado</option>
+                    <option value="En mantenimiento">En mantenimiento</option>
                   </select>
                 </div>
                 <div class="col-12">

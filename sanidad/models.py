@@ -38,6 +38,7 @@ class EventoSanitario(models.Model):
         ('Desparasitación', 'Desparasitación'),
         ('Antibiótico', 'Antibiótico'),
         ('Suplemento', 'Suplemento'),
+        ('Castración', 'Castración'),
     ]
 
     detalle = models.TextField(blank=True, null=True)
@@ -53,3 +54,10 @@ class EventoSanitario(models.Model):
 
     def __str__(self):
         return f"{self.tipo} ({self.fecha_aplicacion})"
+
+    def save(self, *args, **kwargs):
+        """Refleja la castración realizada en el estado persistente del animal."""
+        super().save(*args, **kwargs)
+        if self.tipo == 'Castración' and not self.animal.castrado:
+            self.animal.castrado = True
+            self.animal.save(update_fields=['castrado'])
