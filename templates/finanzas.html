@@ -2,9 +2,156 @@
 {% load static %}
 
 {% block title %}Finanzas | GanaStock{% endblock %}
+{% block extra_css %}
+	<link rel="stylesheet" href="{% static 'css/finanzas.css' %}">
+{% endblock %}
 {% block content %}
-<div class="app-content-header"><div class="container-fluid"><div class="d-flex justify-content-between align-items-center"><div><h3 class="mb-0">Finanzas</h3><p class="text-secondary mb-0">Últimos ingresos y egresos del establecimiento.</p></div><a class="btn btn-success" href="{% url 'ventas' %}"><i class="bi bi-plus-lg me-1"></i>Registrar venta</a></div></div></div>
-<div class="app-content"><div class="container-fluid"><div class="card"><div class="card-body"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th>Detalle</th><th class="text-end">Monto</th></tr></thead><tbody>
-{% for movimiento in page_data.movimientos %}<tr><td>{{ movimiento.fecha }}</td><td><span class="badge {% if movimiento.tipo == 'Ingreso' %}text-bg-success{% else %}text-bg-danger{% endif %}">{{ movimiento.tipo }}</span></td><td>{{ movimiento.nombre }}</td><td>{{ movimiento.detalle|default:'-' }}</td><td class="text-end">$ {{ movimiento.monto_total }}</td></tr>{% empty %}<tr><td colspan="5" class="text-center text-secondary py-4">Todavía no hay movimientos financieros.</td></tr>{% endfor %}
-</tbody></table></div></div></div></div></div>
+	<div class="app-content-header">
+		<div class="container-fluid">
+			<div class="d-flex justify-content-between align-items-center">
+				<div>
+					<h3 class="mb-0">Finanzas</h3>
+					<p class="text-secondary mb-0">Resumen financiero del establecimiento.</p>
+				</div>
+				<div>
+					<button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalRegistrarMovimientoFinanciero"><i class="bi bi-plus-lg me-1"></i>Registrar movimiento</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="app-content">
+		<div class="container-fluid">
+			<div class="row g-3 mb-3">
+				<div class="col-md-3">
+					<div class="card vacapp-card h-100">
+						<div class="card-body">
+							<small class="text-secondary">Movimientos (mes)</small>
+							<h4 class="mb-0">{{ page_data.kpis.total_movimientos_mes }}</h4>
+						</div>
+					</div>
+				</div>
+				<div class="col-md-3">
+					<div class="card vacapp-card h-100">
+						<div class="card-body">
+							<small class="text-secondary">Ingresos (mes)</small>
+							<h4 class="mb-0">$ {{ page_data.kpis.ingresos_mes }}</h4>
+						</div>
+					</div>
+				</div>
+				<div class="col-md-3">
+					<div class="card vacapp-card h-100">
+						<div class="card-body">
+							<small class="text-secondary">Egresos (mes)</small>
+							<h4 class="mb-0">$ {{ page_data.kpis.egresos_mes }}</h4>
+						</div>
+					</div>
+				</div>
+				<div class="col-md-3">
+					<div class="card vacapp-card h-100">
+						<div class="card-body">
+							<small class="text-secondary">Balance (mes)</small>
+							<h4 class="mb-0">$ {{ page_data.kpis.balance_mes }}</h4>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="card mb-3">
+				<div class="card-body">
+					<div id="chart-finanzas" style="height:320px"></div>
+				</div>
+			</div>
+
+			<div class="card mb-3">
+				<div class="card-body">
+					<div class="table-responsive">
+						<table class="table table-hover align-middle mb-0">
+							<thead>
+								<tr>
+									<th>Fecha</th>
+									<th>Tipo</th>
+									<th>Concepto</th>
+									<th>Detalle</th>
+									<th class="text-end">Monto</th>
+									<th class="text-end">Acciones</th>
+								</tr>
+							</thead>
+							<tbody id="tabla-finanzas-body">
+								{% for movimiento in page_data.movimientos %}
+									<tr data-id="{{ movimiento.id }}">
+										<td>{{ movimiento.fecha }}</td>
+										<td><span class="badge {% if movimiento.tipo == 'Ingreso' %}text-bg-success{% else %}text-bg-danger{% endif %}">{{ movimiento.tipo }}</span></td>
+										<td>{{ movimiento.nombre }}</td>
+										<td>{{ movimiento.detalle|default:'-' }}</td>
+										<td class="text-end">$ {{ movimiento.monto_total }}</td>
+										<td class="text-end"><button class="btn btn-sm btn-outline-danger btn-eliminar" data-id="{{ movimiento.id }}">Eliminar</button></td>
+									</tr>
+								{% empty %}
+									<tr><td colspan="6" class="text-center text-secondary py-4">No hay movimientos financieros registrados.</td></tr>
+								{% endfor %}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Modal Registrar Movimiento Financiero -->
+	<div class="modal fade" id="modalRegistrarMovimientoFinanciero" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-lg modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">Registrar movimiento financiero</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<form id="form-registrar-mov-financiero">
+					<div class="modal-body">
+						<div class="row g-2">
+							<div class="col-md-4">
+								<label class="form-label small">Fecha</label>
+								<input type="date" name="fecha" class="form-control" required />
+							</div>
+							<div class="col-md-4">
+								<label class="form-label small">Tipo</label>
+								<select name="tipo" class="form-select" required>
+									<option value="Ingreso">Ingreso</option>
+									<option value="Egreso">Egreso</option>
+								</select>
+							</div>
+							<div class="col-md-4">
+								<label class="form-label small">Monto</label>
+								<input type="number" step="0.01" name="monto_total" class="form-control" required />
+							</div>
+						</div>
+						<div class="row g-2 mt-3">
+							<div class="col-md-6">
+								<label class="form-label small">Concepto</label>
+								<input type="text" name="nombre" class="form-control" required />
+							</div>
+							<div class="col-md-6">
+								<label class="form-label small">Detalle</label>
+								<input type="text" name="detalle" class="form-control" />
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+						<button type="submit" class="btn btn-success">Guardar</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+{% endblock %}
+
+{% block page_js %}
+	<script>
+		const CHART_LABELS = JSON.parse('{{ page_data.chart.labels_json|escapejs }}');
+		const CHART_INGRESOS = JSON.parse('{{ page_data.chart.ingresos_json|escapejs }}');
+		const CHART_EGRESOS = JSON.parse('{{ page_data.chart.egresos_json|escapejs }}');
+	</script>
+	<script src="{% static 'js/finanzas.js' %}"></script>
 {% endblock %}

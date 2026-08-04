@@ -1,8 +1,9 @@
 import calendar
+import json
 from datetime import date
 from decimal import Decimal
 
-from django.db.models import Avg, Count, Sum
+from django.db.models import Avg, Count, Sum, Q
 from django.db import transaction
 from django.http import JsonResponse
 from django.db import IntegrityError
@@ -132,15 +133,35 @@ def stock(request):
     })
 
 
+def _to_iso_date(value):
+    if value is None:
+        return ''
+    if hasattr(value, 'isoformat'):
+        return value.isoformat()
+    return str(value)
+
+
 def _venta_data(venta):
     animales = list(venta.animal_set.all())
     return {
-        'id': venta.id, 'tipo': venta.tipo, 'fecha': venta.fecha.isoformat(),
+        'id': venta.id, 'tipo': venta.tipo, 'fecha': _to_iso_date(venta.fecha),
         'peso_total': str(venta.peso_total), 'precio_por_kg': str(venta.precio_por_kg),
         'monto_total': str(venta.monto_total), 'detalle': venta.detalle or '',
         'comprador_id': venta.comprador_id,
         'comprador': str(venta.comprador) if venta.comprador else 'Sin comprador',
         'animales': [_animal_data(a) for a in animales],
+    }
+
+
+def _comprador_data(comprador):
+    return {
+        'id': comprador.id,
+        'nombre': comprador.nombre,
+        'apellido': comprador.apellido,
+        'dni': comprador.dni,
+        'correo': comprador.correo_electronico,
+        'telefono': comprador.telefono or '',
+        'fecha_nacimiento': _to_iso_date(comprador.fecha_nacimiento),
     }
 
 
@@ -152,18 +173,130 @@ def _movimientos_financieros_data():
 
 
 def finanzas(request):
+    # Pantalla central de Finanzas: métricas, gráfico y listado CRUD de movimientos financieros.
+    today = date.today()
+    anio = today.year
+    mes = today.month
+
+    movimientos_mes = MovimientoFinanciero.objects.filter(fecha__year=anio, fecha__month=mes)
+    kpi_total = movimientos_mes.count()
+    kpi_ingresos = movimientos_mes.filter(tipo='Ingreso').aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+    kpi_egresos = movimientos_mes.filter(tipo='Egreso').aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+    kpi_balance = kpi_ingresos - kpi_egresos
+
+    # Datos mensuales para gráfico (últimos 6 meses)
+    meses = []
+    ingresos_series = []
+    egresos_series = []
+    for i in range(5, -1, -1):
+        m = (today.month - i - 1) % 12 + 1
+        y = today.year + ((today.month - i - 1) // 12)
+        meses.append(f"{y}-{m:02d}")
+        qs = MovimientoFinanciero.objects.filter(fecha__year=y, fecha__month=m)
+        ingresos_series.append(float(qs.filter(tipo='Ingreso').aggregate(total=Sum('monto_total'))['total'] or 0))
+        egresos_series.append(float(qs.filter(tipo='Egreso').aggregate(total=Sum('monto_total'))['total'] or 0))
+
+    import json
     return _page(request, 'finanzas.html', 'finanzas', {
-        'movimientos': _movimientos_financieros_data(),
+        'kpis': {
+            'total_movimientos_mes': kpi_total,
+            'ingresos_mes': float(kpi_ingresos),
+            'egresos_mes': float(kpi_egresos),
+            'balance_mes': float(kpi_balance),
+        },
+        'movimientos': _movimientos_financieros_data()[:50],
+        'chart': {
+            'labels_json': json.dumps(meses),
+            'ingresos_json': json.dumps(ingresos_series),
+            'egresos_json': json.dumps(egresos_series),
+        }
     })
+
+
+def _parse_decimal(value):
+    return Decimal(str(value)) if value is not None and str(value).strip() != '' else None
+
+
+def finanzas_api_list_create(request):
+    """GET: lista movimientos (JSON). POST: crear movimiento financiero."""
+    if request.method == 'GET':
+        return JsonResponse({'movimientos': _movimientos_financieros_data()})
+
+    if request.method == 'POST':
+        try:
+            fecha = request.POST.get('fecha')
+            tipo = request.POST.get('tipo')
+            nombre = request.POST.get('nombre')
+            detalle = request.POST.get('detalle')
+            monto = request.POST.get('monto_total')
+            if not fecha or not tipo or not nombre or not monto:
+                return JsonResponse({'error': 'Faltan campos obligatorios.'}, status=400)
+            movimiento = MovimientoFinanciero.objects.create(
+                fecha=fecha, tipo=tipo, nombre=nombre, detalle=detalle or '', monto_total=_parse_decimal(monto)
+            )
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+        return JsonResponse({'movimiento': {
+            'id': movimiento.id, 'fecha': movimiento.fecha.isoformat(), 'tipo': movimiento.tipo,
+            'nombre': movimiento.nombre, 'detalle': movimiento.detalle or '', 'monto_total': str(movimiento.monto_total),
+        }}, status=201)
+
+
+@require_POST
+def actualizar_movimiento_financiero(request, movimiento_id):
+    try:
+        movimiento = get_object_or_404(MovimientoFinanciero.objects.select_for_update(), pk=movimiento_id)
+        movimiento.fecha = request.POST.get('fecha') or movimiento.fecha
+        movimiento.tipo = request.POST.get('tipo') or movimiento.tipo
+        movimiento.nombre = request.POST.get('nombre') or movimiento.nombre
+        movimiento.detalle = request.POST.get('detalle') or movimiento.detalle
+        monto = request.POST.get('monto_total')
+        movimiento.monto_total = _parse_decimal(monto) if monto is not None else movimiento.monto_total
+        movimiento.save()
+    except (ValueError, ValidationError, IntegrityError) as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    return JsonResponse({'movimiento': {
+        'id': movimiento.id, 'fecha': movimiento.fecha.isoformat(), 'tipo': movimiento.tipo,
+        'nombre': movimiento.nombre, 'detalle': movimiento.detalle or '', 'monto_total': str(movimiento.monto_total),
+    }})
+
+
+@require_POST
+def eliminar_movimiento_financiero(request, movimiento_id):
+    movimiento = get_object_or_404(MovimientoFinanciero, pk=movimiento_id)
+    movimiento.delete()
+    return JsonResponse({'ok': True})
 
 
 def ventas(request):
     animales = Animal.objects.filter(vivo=True, vendido=False).select_related('parcela')
     ventas_registradas = Venta.objects.select_related('comprador').prefetch_related('animal_set').order_by('-fecha', '-id')
+    today = date.today()
+    total_ventas = ventas_registradas.count()
+    ganancia_total = ventas_registradas.aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+    ganancia_anio_actual = ventas_registradas.filter(fecha__year=today.year).aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+    compradores = list(Comprador.objects.order_by('apellido', 'nombre'))
+    chart_years = [today.year - i for i in range(4, -1, -1)]
+    chart_labels = [str(year) for year in chart_years]
+    chart_series = []
+    for year in chart_years:
+        total = Venta.objects.filter(fecha__year=year).aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+        chart_series.append(float(total))
+
     return _page(request, 'ventas.html', 'ventas', {
         'animales': [_animal_data(a) for a in animales],
         'ventas': [_venta_data(v) for v in ventas_registradas],
-        'compradores': [{'id': c.id, 'nombre': str(c)} for c in Comprador.objects.all()],
+        'compradores': [_comprador_data(c) for c in compradores],
+        'summary': {
+            'total_ventas': total_ventas,
+            'ganancia_total': float(ganancia_total),
+            'ganancia_anio_actual': float(ganancia_anio_actual),
+            'compradores': len(compradores),
+        },
+        'chart': {
+            'labels_json': json.dumps(chart_labels),
+            'series_json': json.dumps(chart_series),
+        },
     })
 
 
@@ -394,10 +527,16 @@ def _registrar_venta(venta, datos):
     animales = list(Animal.objects.select_for_update().filter(pk__in=animales_ids, vivo=True, vendido=False))
     if len(animales) != len(animales_ids):
         raise ValueError('Uno o más animales ya no están disponibles para la venta.')
-    if any(animal.peso_actual is None or animal.peso_actual <= 0 for animal in animales):
-        raise ValueError('Todos los animales seleccionados deben tener un peso actual mayor a cero.')
 
-    peso_total = sum((animal.peso_actual for animal in animales), Decimal('0'))
+    peso_total_manual = _parse_decimal(datos.get('peso_total'))
+    peso_manual = str(datos.get('peso_manual', '')).lower() in {'1', 'true', 'on', 'yes'}
+    if peso_total_manual is None:
+        if any(animal.peso_actual is None or animal.peso_actual <= 0 for animal in animales):
+            raise ValueError('Todos los animales seleccionados deben tener un peso actual mayor a cero o indicar un peso total manual.')
+        peso_total = sum((animal.peso_actual for animal in animales), Decimal('0'))
+    else:
+        peso_total = peso_total_manual
+
     monto_total = (peso_total * precio_por_kg).quantize(Decimal('0.01'))
     venta.tipo = datos.get('tipo', 'Venta de animales').strip() or 'Venta de animales'
     venta.fecha = datos.get('fecha') or date.today()
@@ -420,11 +559,14 @@ def _registrar_venta(venta, datos):
         venta.mov_financiero = movimiento
         venta.save(update_fields=['mov_financiero'])
 
-    precio_promedio = monto_total / len(animales)
     for animal in animales:
+        if peso_manual:
+            precio_venta_animal = ((peso_total / len(animales)) * precio_por_kg).quantize(Decimal('0.01'))
+        else:
+            precio_venta_animal = ((animal.peso_actual or Decimal('0')) * precio_por_kg).quantize(Decimal('0.01'))
         animal.vendido = True
         animal.venta = venta
-        animal.precio_venta = precio_promedio
+        animal.precio_venta = precio_venta_animal
         animal.save(update_fields=['vendido', 'venta', 'precio_venta'])
         MovimientoAnimal.objects.create(
             animal=animal, fecha=venta.fecha, tipo='Venta', origen=animal.parcela,
@@ -438,6 +580,46 @@ def _revertir_venta(venta):
     animales.update(vendido=False, venta=None, precio_venta=None)
     MovimientoAnimal.objects.filter(animal__in=animales, tipo='Venta', fecha=venta.fecha,
                                     observaciones=f'Venta #{venta.id}.').delete()
+
+
+@require_POST
+def crear_comprador(request):
+    try:
+        comprador = Comprador.objects.create(
+            dni=request.POST['dni'],
+            nombre=request.POST['nombre'].strip(),
+            apellido=request.POST['apellido'].strip(),
+            correo_electronico=request.POST['correo_electronico'],
+            fecha_nacimiento=request.POST['fecha_nacimiento'],
+            telefono=request.POST.get('telefono', '').strip(),
+        )
+    except (KeyError, ValueError, ValidationError, IntegrityError) as error:
+        return JsonResponse({'error': str(error) or 'No se pudo crear el comprador.'}, status=400)
+    return JsonResponse({'id': comprador.id, 'comprador': _comprador_data(comprador)}, status=201)
+
+
+@require_POST
+def actualizar_comprador(request, comprador_id):
+    comprador = get_object_or_404(Comprador, pk=comprador_id)
+    try:
+        comprador.dni = request.POST.get('dni', comprador.dni)
+        comprador.nombre = request.POST.get('nombre', comprador.nombre).strip()
+        comprador.apellido = request.POST.get('apellido', comprador.apellido).strip()
+        comprador.correo_electronico = request.POST.get('correo_electronico', comprador.correo_electronico)
+        comprador.fecha_nacimiento = request.POST.get('fecha_nacimiento', comprador.fecha_nacimiento)
+        comprador.telefono = request.POST.get('telefono', comprador.telefono or '').strip()
+        comprador.full_clean()
+        comprador.save()
+    except (ValueError, ValidationError, IntegrityError) as error:
+        return JsonResponse({'error': str(error) or 'No se pudo actualizar el comprador.'}, status=400)
+    return JsonResponse({'comprador': _comprador_data(comprador)})
+
+
+@require_POST
+def eliminar_comprador(request, comprador_id):
+    comprador = get_object_or_404(Comprador, pk=comprador_id)
+    comprador.delete()
+    return JsonResponse({'ok': True})
 
 
 @require_POST

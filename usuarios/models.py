@@ -8,6 +8,7 @@ class Persona(models.Model):
     apellido = models.CharField(max_length=100)
     correo_electronico = models.EmailField(max_length=100, unique=True)
     fecha_nacimiento = models.DateField()
+    telefono = models.CharField(max_length=20, blank=True, null=True)
 
     def __str__(self):
         return f"{self.nombre} {self.apellido}"

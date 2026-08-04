@@ -35,14 +35,24 @@
             <p>Stock Ganadero</p>
           </a>
         </li>
-        <li class="nav-item">
-          <a href="{% url 'finanzas' %}" class="nav-link" data-lte-toggle="treeview">
+        <li class="nav-item menu-open">
+          <a href="{% url 'finanzas' %}" class="nav-link{% if request.resolver_match.url_name == 'finanzas' or request.resolver_match.url_name == 'ventas' or request.resolver_match.url_name == 'compras' %} active{% endif %}" data-lte-toggle="treeview">
             <i class="nav-icon bi bi-cash-stack"></i>
             <p>Finanzas <i class="nav-arrow bi bi-chevron-right"></i></p>
           </a>
-          <ul class="nav nav-treeview">
-            <li class="nav-item"><a href="{% url 'ventas' %}" class="nav-link"><i class="nav-icon bi bi-receipt"></i><p>Ventas</p></a></li>
-            <li class="nav-item"><a href="{% url 'compras' %}" class="nav-link"><i class="nav-icon bi bi-cart"></i><p>Compras</p></a></li>
+          <ul class="nav nav-treeview" style="display: block;">
+            <li class="nav-item">
+              <a href="{% url 'ventas' %}" class="nav-link{% if request.resolver_match.url_name == 'ventas' %} active{% endif %}">
+                <i class="nav-icon bi bi-receipt"></i>
+                <p>Ventas</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{% url 'compras' %}" class="nav-link{% if request.resolver_match.url_name == 'compras' %} active{% endif %}">
+                <i class="nav-icon bi bi-cart"></i>
+                <p>Compras</p>
+              </a>
+            </li>
           </ul>
         </li>
         <li class="nav-item">

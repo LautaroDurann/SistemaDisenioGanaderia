@@ -9,6 +9,7 @@ from django.urls import reverse
 from animales.models import Animal, MovimientoAnimal, Pesaje
 from establecimientos.models import Establecimiento, Parcela
 from finanzas.models import MovimientoFinanciero, Venta
+from usuarios.models import Comprador
 
 
 class WebIntegrationTests(TestCase):
@@ -157,7 +158,8 @@ class WebIntegrationTests(TestCase):
         segundo.refresh_from_db()
         self.assertTrue(self.animal.vendido)
         self.assertEqual(self.animal.venta, venta)
-        self.assertEqual(self.animal.precio_venta, Decimal('1000200.00'))
+        self.assertEqual(self.animal.precio_venta, Decimal('750150.00'))
+        self.assertEqual(segundo.precio_venta, Decimal('1250250.00'))
         self.assertTrue(segundo.vendido)
 
         response = self.client.post(reverse('eliminar_venta', args=[venta.id]))
@@ -167,3 +169,48 @@ class WebIntegrationTests(TestCase):
         self.assertIsNone(self.animal.venta)
         self.assertFalse(Venta.objects.exists())
         self.assertFalse(MovimientoFinanciero.objects.exists())
+
+    def test_crear_comprador_y_venta_con_peso_total_manual(self):
+        self.animal.peso_actual = None
+        self.animal.save(update_fields=['peso_actual'])
+        response = self.client.post(reverse('crear_comprador'), {
+            'dni': '22333444', 'nombre': 'Carlos', 'apellido': 'Pérez',
+            'correo_electronico': 'carlos@example.com', 'fecha_nacimiento': '1990-01-15',
+            'telefono': '3515551234',
+        })
+        self.assertEqual(response.status_code, 201)
+        comprador = Comprador.objects.get(dni='22333444')
+        self.assertEqual(comprador.nombre, 'Carlos')
+        self.assertEqual(comprador.telefono, '3515551234')
+
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-04', 'tipo': 'Venta de prueba', 'precio_por_kg': '1500.00',
+            'peso_total': '420.00', 'peso_manual': 'on', 'comprador_id': comprador.id,
+            'detalle': 'Venta con peso manual', 'animales': [self.animal.id],
+        })
+        self.assertEqual(response.status_code, 201)
+        venta = Venta.objects.get(pk=response.json()['id'])
+        self.assertEqual(venta.peso_total, Decimal('420.00'))
+        self.assertEqual(venta.monto_total, Decimal('630000.00'))
+        self.assertEqual(venta.comprador, comprador)
+        self.animal.refresh_from_db()
+        self.assertEqual(self.animal.precio_venta, Decimal('630000.00'))
+
+    def test_editar_y_eliminar_comprador(self):
+        comprador = Comprador.objects.create(
+            dni='11222333', nombre='Ana', apellido='Gómez',
+            correo_electronico='ana@example.com', fecha_nacimiento='1995-05-20', telefono='3511112222'
+        )
+
+        response = self.client.post(reverse('actualizar_comprador', args=[comprador.id]), {
+            'dni': '11222333', 'nombre': 'Ana María', 'apellido': 'Gómez',
+            'correo_electronico': 'ana@example.com', 'fecha_nacimiento': '1995-05-20', 'telefono': '3513334444',
+        })
+        self.assertEqual(response.status_code, 200)
+        comprador.refresh_from_db()
+        self.assertEqual(comprador.nombre, 'Ana María')
+        self.assertEqual(comprador.telefono, '3513334444')
+
+        response = self.client.post(reverse('eliminar_comprador', args=[comprador.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Comprador.objects.filter(pk=comprador.id).exists())
