@@ -1,4 +1,17 @@
 {% load static %}
+<style>
+  .finanzas-child-active {
+    background-color: rgba(13, 110, 253, 0.10);
+    border-left: 3px solid #0d6efd;
+    border-radius: 0.25rem;
+    margin-left: 0.35rem;
+  }
+
+  .finanzas-branch-active > .nav-link {
+    background-color: rgba(13, 110, 253, 0.08);
+    border-left: 3px solid #0d6efd;
+  }
+</style>
 <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
   <!--begin::Sidebar Brand-->
   <div class="sidebar-brand">
@@ -35,20 +48,20 @@
             <p>Stock Ganadero</p>
           </a>
         </li>
-        <li class="nav-item menu-open">
-          <a href="{% url 'finanzas' %}" class="nav-link{% if request.resolver_match.url_name == 'finanzas' or request.resolver_match.url_name == 'ventas' or request.resolver_match.url_name == 'compras' %} active{% endif %}" data-lte-toggle="treeview">
+        <li class="nav-item{% if request.resolver_match.url_name == 'ventas' or request.resolver_match.url_name == 'compras' %} finanzas-branch-active{% endif %}" data-treeview="finanzas">
+          <a href="{% url 'finanzas' %}" id="nav-finanzas" class="nav-link{% if request.resolver_match.url_name == 'finanzas' %} active{% endif %}" data-lte-toggle="treeview">
             <i class="nav-icon bi bi-cash-stack"></i>
-            <p>Finanzas <i class="nav-arrow bi bi-chevron-right"></i></p>
+            <p>Finanzas <i id="finanzas-toggle" class="nav-arrow bi bi-chevron-right" style="cursor: pointer;"></i></p>
           </a>
-          <ul class="nav nav-treeview" style="display: block;">
+          <ul id="submenu-finanzas" class="nav nav-treeview" style="display: {% if request.resolver_match.url_name == 'ventas' or request.resolver_match.url_name == 'compras' %}block{% else %}none{% endif %};">
             <li class="nav-item">
-              <a href="{% url 'ventas' %}" class="nav-link{% if request.resolver_match.url_name == 'ventas' %} active{% endif %}">
+              <a href="{% url 'ventas' %}" class="nav-link{% if request.resolver_match.url_name == 'ventas' %} active finanzas-child-active{% endif %}">
                 <i class="nav-icon bi bi-receipt"></i>
                 <p>Ventas</p>
               </a>
             </li>
             <li class="nav-item">
-              <a href="{% url 'compras' %}" class="nav-link{% if request.resolver_match.url_name == 'compras' %} active{% endif %}">
+              <a href="{% url 'compras' %}" class="nav-link{% if request.resolver_match.url_name == 'compras' %} active finanzas-child-active{% endif %}">
                 <i class="nav-icon bi bi-cart"></i>
                 <p>Compras</p>
               </a>
@@ -97,4 +110,28 @@
     </nav>
   </div>
   <!--end::Sidebar Wrapper-->
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const toggle = document.getElementById('finanzas-toggle');
+    const submenu = document.getElementById('submenu-finanzas');
+    const parent = toggle ? toggle.closest('.nav-item') : null;
+    const link = document.getElementById('nav-finanzas');
+
+    if (!toggle || !submenu || !parent || !link) return;
+
+    toggle.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      const isOpen = submenu.style.display === 'block';
+      submenu.style.display = isOpen ? 'none' : 'block';
+      parent.classList.toggle('menu-open', !isOpen);
+      link.classList.toggle('active', !isOpen);
+    });
+
+    link.addEventListener('click', function (event) {
+      if (event.target === toggle) return;
+      window.location.href = this.getAttribute('href');
+    });
+  });
+</script>
 </aside>
