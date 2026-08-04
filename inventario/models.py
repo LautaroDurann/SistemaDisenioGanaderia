@@ -1,37 +1,58 @@
 from django.db import models
 
-# 1. Insumo
+
 class Insumo(models.Model):
-    nombre = models.CharField(max_length=100)
-    unidad_de_medida = models.CharField(max_length=20, default='kg')
-    fecha_vencimiento = models.DateField(null=True, blank=True)
-    stock_actual = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    TIPO_CHOICES = [
+        ('Vacuna', 'Vacuna'),
+        ('Medicamento', 'Medicamento'),
+        ('Alimento', 'Alimento'),
+        ('Otros', 'Otros'),
+    ]
+
+    nombre = models.CharField(max_length=100, null=True, blank=True)
+    unidadDeMedida = models.CharField(max_length=50, null=True, blank=True)
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, null=True, blank=True)
+
+    class Meta:
+        ordering = ['nombre']
 
     def __str__(self):
-        return f"{self.nombre} (Stock: {self.stock_actual})"
+        return f"{self.nombre or 'Insumo sin nombre'} (ID: {self.id})"
 
-# 2. Detalle de Compra (Conecta Compra con Insumo)
+
+class Lote(models.Model):
+    fechaVencimiento = models.DateField(null=True, blank=True)
+    stockActual = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    insumo = models.ForeignKey(Insumo, on_delete=models.CASCADE, related_name='lotes', null=True, blank=True)
+
+    class Meta:
+        ordering = ['fechaVencimiento', 'id']
+
+    def __str__(self):
+        return f"Lote {self.id} - {self.insumo}"
+
+
 class DetalleCompra(models.Model):
-    cantidad = models.DecimalField(max_digits=10, decimal_places=2)
-    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
-    
+    cantidad = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    precioUnitario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
     compra = models.ForeignKey('finanzas.Compra', on_delete=models.CASCADE, related_name='detalles')
-    insumo = models.ForeignKey(Insumo, on_delete=models.CASCADE)
+    lote = models.ForeignKey(Lote, on_delete=models.CASCADE, related_name='detalles_compra')
 
     def __str__(self):
-        return f"{self.cantidad} x {self.insumo.nombre} (Compra {self.compra.id})"
+        return f"Detalle {self.id} - Compra {self.compra.id}"
 
-# 3. Consumo (Conecta Insumo con Evento Sanitario)
+
 class Consumo(models.Model):
-    cantidad = models.DecimalField(max_digits=10, decimal_places=2)
-    
-    insumo = models.ForeignKey(Insumo, on_delete=models.CASCADE)
+    cantidad = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    lote = models.ForeignKey(Lote, on_delete=models.CASCADE, related_name='consumos')
     evento_sanitario = models.ForeignKey('sanidad.EventoSanitario', on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"Consumo: {self.cantidad} de {self.insumo.nombre}"
+        return f"Consumo {self.id} (Lote: {self.lote.id})"
 
-# 4. Dieta
+
 class Dieta(models.Model):
     nombre = models.CharField(max_length=100)
     porcentaje_proteina = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
@@ -40,24 +61,22 @@ class Dieta(models.Model):
     def __str__(self):
         return self.nombre
 
-# 5. Composición de Dieta (Conecta Dieta con Insumo)
+
 class ComposicionDieta(models.Model):
-    cantidad_por_porcion = models.DecimalField(max_digits=10, decimal_places=2)
-    
-    insumo = models.ForeignKey(Insumo, on_delete=models.CASCADE)
-    dieta = models.ForeignKey(Dieta, on_delete=models.CASCADE, related_name='composicion')
+    cantidadPorPorcion = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    lote = models.ForeignKey(Lote, on_delete=models.CASCADE, related_name='composiciones_dieta')
+    dieta = models.ForeignKey('inventario.Dieta', on_delete=models.CASCADE, related_name='composiciones')
 
     def __str__(self):
-        return f"{self.cantidad_por_porcion} de {self.insumo.nombre} en {self.dieta.nombre}"
+        return f"Composición {self.id} - Dieta {self.dieta.id}"
 
-# 6. Registro de Alimentación
+
 class RegistroAlimentacion(models.Model):
-    # En tu documento decía INT para fecha, pero lo correcto y más útil es DateField
-    fecha = models.DateField() 
-    
+    fecha = models.DateField()
+
     parcela = models.ForeignKey('establecimientos.Parcela', on_delete=models.CASCADE)
     dieta = models.ForeignKey(Dieta, on_delete=models.CASCADE)
 
     def __str__(self):
         return f"Alimentación en {self.parcela} - {self.fecha}"
-    #dd

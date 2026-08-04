@@ -1,5 +1,6 @@
 from django.urls import path
 
+from inventario.views import insumo_detalle, insumos, insumos_api
 from . import views
 
 urlpatterns = [
@@ -14,6 +15,9 @@ urlpatterns = [
     path('vacunacion/', views.vacunacion, name='vacunacion'),
     path('pesajes/', views.pesajes, name='pesajes'),
     path('alimentacion/', views.alimentacion, name='alimentacion'),
+    path('insumos/', insumos, name='insumos'),
+    path('api/insumos/', insumos_api, name='insumos_api'),
+    path('api/insumos/<int:insumo_id>/', insumo_detalle, name='insumo_detalle'),
     path('usuarios/', views.usuarios, name='usuarios'),
     path('configuracion/', views.configuracion, name='configuracion'),
     path('api/stock/', views.stock_api, name='stock_api'),
