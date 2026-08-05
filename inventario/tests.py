@@ -80,8 +80,6 @@ class InsumoCrudTests(TestCase):
         self.assertEqual(create_response.status_code, 201)
         created_data = create_response.json()['insumo']
         insumo_id = created_data['id']
-        self.assertEqual(created_data['cantidad_total'], '0.00')
-        self.assertFalse(Lote.objects.filter(insumo__id=insumo_id).exists())
 
         update_response = self.client.post(
             reverse('insumo_detalle', args=[insumo_id]),
@@ -98,15 +96,3 @@ class InsumoCrudTests(TestCase):
         delete_response = self.client.delete(reverse('insumo_detalle', args=[insumo_id]))
         self.assertEqual(delete_response.status_code, 200)
         self.assertFalse(Insumo.objects.filter(pk=insumo_id).exists())
-
-    def test_api_insumo_detail_returns_lotes(self):
-        insumo = Insumo.objects.create(nombre='Alimento B', tipo='Alimento', unidadDeMedida='kg')
-        Lote.objects.create(insumo=insumo, nombre='Lote 1', fechaVencimiento=date(2026, 12, 1), stockActual=Decimal('50.00'))
-        Lote.objects.create(insumo=insumo, nombre='Lote 2', fechaVencimiento=date(2026, 12, 15), stockActual=Decimal('100.00'))
-
-        response = self.client.get(reverse('insumo_detalle', args=[insumo.id]))
-        self.assertEqual(response.status_code, 200)
-        payload = response.json()['insumo']
-        self.assertEqual(payload['cantidad_total'], '150.00')
-        self.assertEqual(len(payload['lotes']), 2)
-        self.assertEqual(payload['lotes'][0]['nombre'], 'Lote 1')

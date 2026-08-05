@@ -75,9 +75,9 @@
           </a>
         </li>
         <li class="nav-item">
-          <a href="{% url 'sanidad' %}" class="nav-link{% if request.resolver_match.url_name == 'sanidad' or request.resolver_match.url_name == 'vacunacion' %} active{% endif %}" data-page="sanidad.html">
+          <a href="{% url 'vacunacion' %}" class="nav-link" data-page="vacunacion.html">
             <i class="nav-icon bi bi-shield-plus"></i>
-            <p>Sanidad</p>
+            <p>Vacunacion</p>
           </a>
         </li>
         <li class="nav-item">
@@ -94,7 +94,7 @@
         </li>
         <li class="nav-item">
           <a href="{% url 'insumos' %}" class="nav-link" data-page="insumos.html">
-            <i class="nav-icon bi bi-box-seam"></i>
+            <i class="nav-icon bi bi-pills"></i>
             <p>Insumos</p>
           </a>
         </li>

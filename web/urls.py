@@ -1,6 +1,6 @@
 from django.urls import path
 
-from inventario.views import insumo_detalle, insumo_lotes, insumos, insumos_api, lote_detalle
+from inventario.views import insumo_detalle, insumos, insumos_api
 from . import views
 
 urlpatterns = [
@@ -12,33 +12,18 @@ urlpatterns = [
     # Se conserva la URL anterior para enlaces guardados.
     path('movimientos/', views.finanzas, name='movimientos'),
     path('potreros/', views.potreros, name='potreros'),
-    path('sanidad/', views.sanidad, name='sanidad'),
-    path('vacunacion/', views.sanidad, name='vacunacion'),
+    path('vacunacion/', views.vacunacion, name='vacunacion'),
     path('pesajes/', views.pesajes, name='pesajes'),
     path('alimentacion/', views.alimentacion, name='alimentacion'),
     path('insumos/', insumos, name='insumos'),
     path('api/insumos/', insumos_api, name='insumos_api'),
     path('api/insumos/<int:insumo_id>/', insumo_detalle, name='insumo_detalle'),
-    path('api/insumos/<int:insumo_id>/lotes/', insumo_lotes, name='insumo_lotes'),
-    path('api/lotes/<int:lote_id>/', lote_detalle, name='lote_detalle'),
     path('usuarios/', views.usuarios, name='usuarios'),
     path('configuracion/', views.configuracion, name='configuracion'),
     path('api/stock/', views.stock_api, name='stock_api'),
     path('api/animales/', views.crear_animal, name='crear_animal'),
     path('api/animales/<int:animal_id>/', views.actualizar_animal, name='actualizar_animal'),
     path('api/animales/<int:animal_id>/eliminar/', views.eliminar_animal, name='eliminar_animal'),
-    path('api/sanidad/eventos/', views.crear_evento_sanitario, name='crear_evento_sanitario'),
-    path('api/sanidad/eventos/<int:evento_id>/', views.actualizar_evento_sanitario, name='actualizar_evento_sanitario'),
-    path('api/sanidad/eventos/<int:evento_id>/eliminar/', views.eliminar_evento_sanitario, name='eliminar_evento_sanitario'),
-    path('api/sanidad/enfermedades/', views.crear_enfermedad, name='crear_enfermedad'),
-    path('api/sanidad/enfermedades/<int:enfermedad_id>/', views.actualizar_enfermedad, name='actualizar_enfermedad'),
-    path('api/sanidad/enfermedades/<int:enfermedad_id>/eliminar/', views.eliminar_enfermedad, name='eliminar_enfermedad'),
-    path('api/sanidad/diagnosticos/', views.crear_diagnostico, name='crear_diagnostico'),
-    path('api/sanidad/diagnosticos/<int:diagnostico_id>/', views.actualizar_diagnostico, name='actualizar_diagnostico'),
-    path('api/sanidad/diagnosticos/<int:diagnostico_id>/eliminar/', views.eliminar_diagnostico, name='eliminar_diagnostico'),
-    path('api/sanidad/veterinarios/', views.crear_veterinario, name='crear_veterinario'),
-    path('api/sanidad/veterinarios/<int:veterinario_id>/', views.actualizar_veterinario, name='actualizar_veterinario'),
-    path('api/sanidad/veterinarios/<int:veterinario_id>/eliminar/', views.eliminar_veterinario, name='eliminar_veterinario'),
     path('api/pesajes/', views.crear_pesaje, name='crear_pesaje'),
     path('api/movimientos/', views.crear_movimiento, name='crear_movimiento'),
     path('api/finanzas/movimientos/', views.finanzas_api_list_create, name='api_finanzas_movimientos'),

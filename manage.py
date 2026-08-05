@@ -1,15 +1,8 @@
 #!/usr/bin/env python
 """Django's command-line utility for administrative tasks."""
 import os
-<<<<<<< HEAD
-import sys
-=======
 import sys 
-<<<<<<< HEAD
->>>>>>> 84b5412 (Modulo Sanidad)
-=======
 #hola
->>>>>>> 87ccc70 (Modulo Sanidad definitivo)
 
 
 def main():
