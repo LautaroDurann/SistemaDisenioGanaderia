@@ -179,9 +179,16 @@
 {% endblock %}
 
 {% block page_js %}
+<!-- 1. El filtro json_script va AFUERA de tus variables de Javascript -->
+{{ stats|json_script:'insumos-stats' }}
+
 <script>
+  // initialData ya lo tenías bien usando |safe
   const initialData = {{ insumos|safe }};
-  const stats = {{ stats|json_script:'insumos-stats' }};
+  
+  // 2. Le decimos a Javascript que busque la etiqueta que creó Django y extraiga los datos
+  const stats = JSON.parse(document.getElementById('insumos-stats').textContent);
 </script>
+
 <script src="{% static 'js/insumos.js' %}"></script>
 {% endblock %}
