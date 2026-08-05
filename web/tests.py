@@ -9,6 +9,7 @@ from django.urls import reverse
 from animales.models import Animal, MovimientoAnimal, Pesaje
 from establecimientos.models import Establecimiento, Parcela
 from finanzas.models import MovimientoFinanciero, Venta
+from sanidad.models import EventoSanitario
 from usuarios.models import Comprador
 
 
@@ -24,9 +25,20 @@ class WebIntegrationTests(TestCase):
         )
 
     def test_paginas_principales_responden(self):
-        for url_name in ('dashboard', 'stock', 'movimientos', 'potreros', 'vacunacion', 'pesajes', 'alimentacion', 'usuarios', 'configuracion'):
+        for url_name in ('dashboard', 'stock', 'movimientos', 'potreros', 'vacunacion', 'sanidad', 'pesajes', 'alimentacion', 'usuarios', 'configuracion'):
             with self.subTest(url_name=url_name):
                 self.assertEqual(self.client.get(reverse(url_name)).status_code, 200)
+
+    def test_crear_evento_sanitario(self):
+        response = self.client.post(reverse('crear_evento_sanitario'), {
+            'tipo': 'Desparasitación',
+            'fecha_aplicacion': '2026-08-01',
+            'estado': 'true',
+            'animal_id': self.animal.id,
+            'detalle': 'Desparasitación de prueba',
+        })
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(EventoSanitario.objects.filter(tipo='Desparasitación', animal=self.animal).exists())
 
     def test_api_stock_y_registro_de_pesaje(self):
         response = self.client.get(reverse('stock_api'))

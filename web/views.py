@@ -15,9 +15,9 @@ from django.views.decorators.http import require_POST
 from animales.models import Animal, MovimientoAnimal, Pesaje
 from establecimientos.models import Parcela
 from finanzas.models import Compra, MovimientoFinanciero, Venta
-from inventario.models import Dieta, Insumo
-from sanidad.models import EventoSanitario
-from usuarios.models import Comprador, RolEstablecimiento, Usuario
+from inventario.models import Dieta, Insumo, Lote, Consumo
+from sanidad.models import DetalleEvento, EventoSanitario, Enfermedad, Diagnostico
+from usuarios.models import Comprador, RolEstablecimiento, Usuario, Veterinario
 
 
 def _categoria(animal):
@@ -139,6 +139,12 @@ def _to_iso_date(value):
     if hasattr(value, 'isoformat'):
         return value.isoformat()
     return str(value)
+
+
+def _normalizar_dni(valor):
+    """Devuelve None cuando el DNI viene vacío para permitir personas sin DNI."""
+    valor = (valor or '').strip()
+    return valor or None
 
 
 def _venta_data(venta):
@@ -319,17 +325,329 @@ def potreros(request):
     return _page(request, 'potreros.html', 'potreros', {'potreros': datos, 'animales_por_potrero': animales})
 
 
+def _lote_data(lote):
+    return {
+        'id': lote.id,
+        'insumo': str(lote.insumo) if lote.insumo else '-',
+        'stock': str(lote.stockActual or 0),
+        'fecha_vencimiento': lote.fechaVencimiento.isoformat() if lote.fechaVencimiento else '',
+    }
+
+
+def _asignar_evento_sanitario(evento, datos):
+    tipo = datos.get('tipo', '').strip()
+    fecha_aplicacion = datos.get('fecha_aplicacion', '').strip()
+    animal_ids = [int(value) for value in datos.getlist('animales') if str(value).strip()]
+
+    if not tipo or not fecha_aplicacion or not animal_ids:
+        raise ValueError('Tipo, fecha y al menos un animal son obligatorios para el evento sanitario.')
+    if len(animal_ids) != len(set(animal_ids)):
+        raise ValueError('No se permiten animales duplicados en el mismo evento.')
+
+    evento.tipo = tipo
+    evento.fecha_aplicacion = fecha_aplicacion
+    evento.estado = datos.get('estado', 'true') in ('true', 'on', '1')
+    evento.costo_total = _parse_decimal(datos.get('costo_total'))
+    evento.cantidad = _parse_decimal(datos.get('cantidad'))
+    evento.detalle = datos.get('detalle', '').strip() or None
+    evento.veterinario_id = int(datos['veterinario_id']) if datos.get('veterinario_id') else None
+    evento.diagnostico_id = int(datos['diagnostico_id']) if datos.get('diagnostico_id') else None
+    evento.lote_id = int(datos['lote_id']) if datos.get('lote_id') else None
+    return animal_ids
+
+
+def _evento_sanitario_data(evento):
+    detalles = []
+    for detalle in evento.detalles.all():
+        animal = detalle.animal
+        detalles.append({
+            'id': animal.id,
+            'nombre': animal.nombre or 'S/N',
+            'caravana': str(animal.id_senasa) if animal.id_senasa is not None else 'S/N',
+            'categoria': _categoria(animal),
+            'edad': _edad(animal),
+            'potrero': str(animal.parcela) if animal.parcela else 'Sin asignar',
+            'cantidad_dosis': str(detalle.cantidad_dosis or ''),
+        })
+
+    caravana = ', '.join(f"#{d['caravana']}" for d in detalles) if detalles else 'S/N'
+    animales_text = ', '.join(d['nombre'] for d in detalles) if detalles else 'S/N'
+    categorias = ', '.join(sorted({d['categoria'] for d in detalles if d['categoria']})) if detalles else ''
+
+    return {
+        'id': evento.id,
+        'detalle': evento.detalle or '',
+        'tipo': evento.tipo,
+        'fecha_aplicacion': evento.fecha_aplicacion.isoformat(),
+        'estado': evento.estado,
+        'costo_total': str(evento.costo_total or 0),
+        'animal_ids': [d['id'] for d in detalles],
+        'animales': detalles,
+        'animal': animales_text,
+        'caravana': caravana,
+        'categoria': categorias,
+        'edad': detalles[0]['edad'] if detalles else '-',
+        'potrero': detalles[0]['potrero'] if detalles else 'Sin asignar',
+        'veterinario_id': evento.veterinario_id,
+        'veterinario': str(evento.veterinario) if evento.veterinario else '-',
+        'diagnostico_id': evento.diagnostico_id,
+        'diagnostico': str(evento.diagnostico) if evento.diagnostico else '-',
+        'lote_id': evento.lote_id if hasattr(evento, 'lote_id') else None,
+        'lote': str(evento.lote) if hasattr(evento, 'lote') and evento.lote else '-',
+        'cantidad': str(getattr(evento, 'cantidad', '') or ''),
+    }
+
+
+def _enfermedad_data(enfermedad):
+    return {
+        'id': enfermedad.id,
+        'nombre': enfermedad.nombre,
+        'es_zoonotica': enfermedad.es_zoonotica,
+        'descripcion': enfermedad.descripcion or '',
+    }
+
+
+def _diagnostico_data(diagnostico):
+    return {
+        'id': diagnostico.id,
+        'fecha_deteccion': diagnostico.fecha_deteccion.isoformat(),
+        'estado_actual': diagnostico.estado_actual,
+        'observaciones': diagnostico.observaciones or '',
+        'animal_id': diagnostico.animal_id,
+        'animal': diagnostico.animal.nombre or 'S/N',
+        'caravana': str(diagnostico.animal.id_senasa) if diagnostico.animal.id_senasa is not None else 'S/N',
+        'enfermedad_id': diagnostico.enfermedad_id,
+        'enfermedad': diagnostico.enfermedad.nombre,
+    }
+
+
+def _veterinario_data(veterinario):
+    return {
+        'id': veterinario.id,
+        'nombre': veterinario.nombre,
+        'apellido': veterinario.apellido,
+        'dni': veterinario.dni,
+        'correo_electronico': veterinario.correo_electronico,
+        'telefono': veterinario.telefono or '',
+        'fecha_nacimiento': veterinario.fecha_nacimiento.isoformat() if veterinario.fecha_nacimiento else '',
+        'nombre_completo': str(veterinario),
+    }
+
+
+def _asignar_enfermedad(enfermedad, datos):
+    enfermedad.nombre = datos['nombre'].strip()
+    enfermedad.es_zoonotica = datos.get('es_zoonotica') in ('true', 'on', '1', 'True')
+    enfermedad.descripcion = datos.get('descripcion', '').strip()
+
+
+def _asignar_diagnostico(diagnostico, datos):
+    diagnostico.animal_id = int(datos['animal_id'])
+    diagnostico.enfermedad_id = int(datos['enfermedad_id'])
+    diagnostico.fecha_deteccion = datos['fecha_deteccion']
+    diagnostico.estado_actual = datos.get('estado_actual', 'En tratamiento')
+    diagnostico.observaciones = datos.get('observaciones', '').strip()
+
+
+def _asignar_veterinario(veterinario, datos):
+    veterinario.dni = _normalizar_dni(datos.get('dni', ''))
+    veterinario.nombre = datos['nombre'].strip()
+    veterinario.apellido = datos.get('apellido', '').strip() or None
+    veterinario.correo_electronico = datos.get('correo_electronico', '').strip() or None
+    veterinario.telefono = datos.get('telefono', '').strip()
+    veterinario.fecha_nacimiento = datos.get('fecha_nacimiento') or None
+
+
+def crear_enfermedad(request):
+    try:
+        enfermedad = Enfermedad()
+        _asignar_enfermedad(enfermedad, request.POST)
+        enfermedad.full_clean()
+        enfermedad.save()
+    except (KeyError, ValueError, ValidationError) as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    return JsonResponse({'enfermedad': _enfermedad_data(enfermedad)}, status=201)
+
+
+@require_POST
+def actualizar_enfermedad(request, enfermedad_id):
+    enfermedad = get_object_or_404(Enfermedad, pk=enfermedad_id)
+    try:
+        _asignar_enfermedad(enfermedad, request.POST)
+        enfermedad.full_clean()
+        enfermedad.save()
+    except (KeyError, ValueError, ValidationError) as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    return JsonResponse({'enfermedad': _enfermedad_data(enfermedad)})
+
+
+@require_POST
+def eliminar_enfermedad(request, enfermedad_id):
+    enfermedad = get_object_or_404(Enfermedad, pk=enfermedad_id)
+    enfermedad.delete()
+    return JsonResponse({'ok': True})
+
+
+@require_POST
+def crear_diagnostico(request):
+    try:
+        diagnostico = Diagnostico()
+        _asignar_diagnostico(diagnostico, request.POST)
+        diagnostico.full_clean()
+        diagnostico.save()
+    except (KeyError, ValueError, ValidationError) as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    _recalcular_estado_enfermo(diagnostico.animal)
+    return JsonResponse({'diagnostico': _diagnostico_data(diagnostico)}, status=201)
+
+
+@require_POST
+def actualizar_diagnostico(request, diagnostico_id):
+    diagnostico = get_object_or_404(Diagnostico, pk=diagnostico_id)
+    animal_anterior = diagnostico.animal
+    try:
+        _asignar_diagnostico(diagnostico, request.POST)
+        diagnostico.full_clean()
+        diagnostico.save()
+    except (KeyError, ValueError, ValidationError) as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    _recalcular_estado_enfermo(animal_anterior)
+    if diagnostico.animal_id != animal_anterior.id:
+        _recalcular_estado_enfermo(diagnostico.animal)
+    return JsonResponse({'diagnostico': _diagnostico_data(diagnostico)})
+
+
+@require_POST
+def eliminar_diagnostico(request, diagnostico_id):
+    diagnostico = get_object_or_404(Diagnostico, pk=diagnostico_id)
+    animal = diagnostico.animal
+    diagnostico.delete()
+    _recalcular_estado_enfermo(animal)
+    return JsonResponse({'ok': True})
+
+
+@require_POST
+def crear_veterinario(request):
+    try:
+        veterinario = Veterinario()
+        _asignar_veterinario(veterinario, request.POST)
+        veterinario.full_clean()
+        veterinario.save()
+    except (KeyError, ValueError, ValidationError) as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    return JsonResponse({'veterinario': _veterinario_data(veterinario)}, status=201)
+
+
+@require_POST
+def actualizar_veterinario(request, veterinario_id):
+    veterinario = get_object_or_404(Veterinario, pk=veterinario_id)
+    try:
+        _asignar_veterinario(veterinario, request.POST)
+        veterinario.full_clean()
+        veterinario.save()
+    except (KeyError, ValueError, ValidationError) as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    return JsonResponse({'veterinario': _veterinario_data(veterinario)})
+
+
+@require_POST
+def eliminar_veterinario(request, veterinario_id):
+    veterinario = get_object_or_404(Veterinario, pk=veterinario_id)
+    veterinario.delete()
+    return JsonResponse({'ok': True})
+
+
+def _recalcular_estado_enfermo(animal):
+    animal.enfermo = Diagnostico.objects.filter(animal=animal).exclude(estado_actual='Curado').exists()
+    animal.save(update_fields=['enfermo'])
+
+
+def sanidad(request):
+    today = date.today()
+    eventos = EventoSanitario.objects.select_related('veterinario', 'diagnostico', 'lote').prefetch_related('detalles__animal__parcela').order_by('-fecha_aplicacion', '-id')
+    eventos_aplicados_mes = EventoSanitario.objects.filter(
+        estado=True,
+        fecha_aplicacion__year=today.year, fecha_aplicacion__month=today.month,
+    ).count()
+    proximas_aplicaciones = EventoSanitario.objects.filter(
+        estado=False, fecha_aplicacion__gte=today,
+    ).count()
+    animales_enfermos = Animal.objects.filter(enfermo=True).count()
+    enfermedades = Enfermedad.objects.order_by('nombre')
+    diagnosticos = Diagnostico.objects.select_related('animal', 'enfermedad').order_by('-fecha_deteccion')
+    veterinarios = Veterinario.objects.order_by('apellido', 'nombre')
+    lotes = Lote.objects.select_related('insumo').filter(insumo__tipo='Vacuna').order_by('fechaVencimiento')
+    # Incluir animales vivos aunque ya hayan sido vendidos para permitir registrar eventos y diagnósticos históricos.
+    animales = Animal.objects.filter(vivo=True).select_related('parcela').order_by('id_senasa')
+
+    data = {
+        'kpis': {
+            'eventos_aplicados_mes': eventos_aplicados_mes,
+            'aplicaciones_mes': eventos_aplicados_mes,
+            'proximas_aplicaciones': proximas_aplicaciones,
+            'veterinarios': veterinarios.count(),
+            'eventos_totales': eventos.count(),
+        },
+        'eventos': [_evento_sanitario_data(e) for e in eventos],
+        'enfermedades': [_enfermedad_data(e) for e in enfermedades],
+        'diagnosticos': [_diagnostico_data(d) for d in diagnosticos],
+        'veterinarios': [_veterinario_data(v) for v in veterinarios],
+        'lotes': [_lote_data(l) for l in lotes],
+        'tipos_evento': [choice[0] for choice in EventoSanitario.TIPO_CHOICES],
+        'animales': [{
+            'id': a.id,
+            'nombre': a.nombre or 'S/N',
+            'caravana': str(a.id_senasa) if a.id_senasa is not None else 'S/N',
+            'sexo': a.sexo,
+            'tipo_animal': a.tipo_animal,
+            'categoria': _categoria(a),
+            'potrero': str(a.parcela) if a.parcela else 'Sin asignar',
+            'enfermo': a.enfermo,
+        } for a in animales],
+    }
+    return _page(request, 'sanidad.html', 'sanidad', data)
+
+
+@require_POST
+def crear_evento_sanitario(request):
+    try:
+        evento = EventoSanitario()
+        animal_ids = _asignar_evento_sanitario(evento, request.POST)
+        evento.full_clean()
+        with transaction.atomic():
+            evento.save()
+            evento.detalles.all().delete()
+            for animal_id in animal_ids:
+                DetalleEvento.objects.create(evento=evento, animal_id=animal_id)
+    except (KeyError, ValueError, ValidationError) as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    return JsonResponse({'evento': _evento_sanitario_data(evento)}, status=201)
+
+
+@require_POST
+def actualizar_evento_sanitario(request, evento_id):
+    evento = get_object_or_404(EventoSanitario, pk=evento_id)
+    try:
+        animal_ids = _asignar_evento_sanitario(evento, request.POST)
+        evento.full_clean()
+        with transaction.atomic():
+            evento.save()
+            evento.detalles.all().delete()
+            for animal_id in animal_ids:
+                DetalleEvento.objects.create(evento=evento, animal_id=animal_id)
+    except (KeyError, ValueError, ValidationError) as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    return JsonResponse({'evento': _evento_sanitario_data(evento)})
+
+
+@require_POST
+def eliminar_evento_sanitario(request, evento_id):
+    evento = get_object_or_404(EventoSanitario, pk=evento_id)
+    evento.delete()
+    return JsonResponse({'ok': True})
+
+
 def vacunacion(request):
-    eventos = EventoSanitario.objects.filter(tipo='Vacunación').select_related('animal', 'veterinario')
-    data = {'vacunaciones': [{
-        'fecha': e.fecha_aplicacion.isoformat(), 'caravana': str(e.animal.id_senasa), 'animal': e.animal.nombre,
-        'categoria': _categoria(e.animal), 'edad': _edad(e.animal),
-        'potrero': str(e.animal.parcela) if e.animal.parcela else 'Sin asignar',
-        'vacuna': e.detalle or 'Vacunación', 'proxima': '-',
-        'veterinario': str(e.veterinario) if e.veterinario else '-',
-        'estado': 'Vacunado' if e.estado else 'Pendiente', 'obs': e.detalle or '-',
-    } for e in eventos]}
-    return _page(request, 'vacunacion.html', 'vacunacion', data)
+    return sanidad(request)
 
 
 def pesajes(request):
@@ -586,7 +904,7 @@ def _revertir_venta(venta):
 def crear_comprador(request):
     try:
         comprador = Comprador.objects.create(
-            dni=request.POST['dni'],
+            dni=_normalizar_dni(request.POST.get('dni', '')),
             nombre=request.POST['nombre'].strip(),
             apellido=request.POST['apellido'].strip(),
             correo_electronico=request.POST['correo_electronico'],
@@ -602,7 +920,7 @@ def crear_comprador(request):
 def actualizar_comprador(request, comprador_id):
     comprador = get_object_or_404(Comprador, pk=comprador_id)
     try:
-        comprador.dni = request.POST.get('dni', comprador.dni)
+        comprador.dni = _normalizar_dni(request.POST.get('dni', comprador.dni))
         comprador.nombre = request.POST.get('nombre', comprador.nombre).strip()
         comprador.apellido = request.POST.get('apellido', comprador.apellido).strip()
         comprador.correo_electronico = request.POST.get('correo_electronico', comprador.correo_electronico)
