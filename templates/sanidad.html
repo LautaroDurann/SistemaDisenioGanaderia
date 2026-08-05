@@ -1,0 +1,493 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/vacunacion.css' %}">
+{% endblock %}
+
+{% block content %}
+  <div class="app-wrapper">
+    <div id="navbar-container"></div>
+    <div id="sidebar-container"></div>
+    <main class="app-main">
+      <div class="app-content-header">
+        <div class="container-fluid">
+          <div class="row align-items-center">
+            <div class="col-lg-5">
+              <h3 class="mb-0">Sanidad</h3>
+              <p class="text-secondary mb-0">
+                Gestiona el historial sanitario, diagnósticos, veterinarios y eventos de servicios.
+              </p>
+            </div>
+            <div class="col-lg-7 text-lg-end mt-3 mt-lg-0">
+              <button type="button" class="btn btn-success" id="btn-registrar-evento">
+                <i class="bi bi-shield-plus me-1"></i> Registrar Evento
+              </button>
+              <button type="button" class="btn btn-outline-danger">
+                <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
+              </button>
+              <button type="button" class="btn btn-outline-success">
+                <i class="bi bi-file-earmark-excel me-1"></i> Exportar Excel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-content">
+        <div class="container-fluid">
+          <div class="row g-3 mb-3">
+            <div class="col-xl-3 col-md-6">
+              <div class="card vacapp-card h-100">
+                <div class="card-body d-flex align-items-center gap-3">
+                  <div class="text-bg-success rounded-3 p-2"><i class="bi bi-heart-pulse fs-4"></i></div>
+                  <div>
+                    <h4 class="mb-0" id="kpi-eventos">0</h4>
+                    <small class="text-secondary d-block">Eventos sanitarios</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+              <div class="card vacapp-card h-100">
+                <div class="card-body d-flex align-items-center gap-3">
+                  <div class="text-bg-info rounded-3 p-2"><i class="bi bi-calendar-check fs-4"></i></div>
+                  <div>
+                    <h4 class="mb-0" id="kpi-aplicaciones-mes">0</h4>
+                    <small class="text-secondary d-block">Aplicaciones este mes</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+              <div class="card vacapp-card h-100">
+                <div class="card-body d-flex align-items-center gap-3">
+                  <div class="text-bg-warning rounded-3 p-2"><i class="bi bi-clock-history fs-4"></i></div>
+                  <div>
+                    <h4 class="mb-0" id="kpi-proximas">0</h4>
+                    <small class="text-secondary d-block">Próximas aplicaciones</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+              <div class="card vacapp-alert-card h-100">
+                <div class="card-body d-flex align-items-center gap-2">
+                  <div class="vacapp-alert-icon text-bg-primary"><i class="bi bi-people-fill"></i></div>
+                  <div class="flex-grow-1">
+                    <div class="fw-semibold" id="kpi-veterinarios">0</div>
+                    <small class="text-secondary">Veterinarios registrados</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card vacapp-card mb-3">
+            <div class="card-body">
+              <div class="row g-2 align-items-end mb-3">
+                <div class="col-md-3">
+                  <label class="form-label small mb-1">Buscar</label>
+                  <input type="text" id="f-buscar" class="form-control form-control-sm" placeholder="Caravana, animal, detalle..." />
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small mb-1">Fecha</label>
+                  <input type="date" id="f-fecha" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small mb-1">Tipo</label>
+                  <select id="f-tipo" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small mb-1">Veterinario</label>
+                  <select id="f-veterinario" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small mb-1">Estado</label>
+                  <select id="f-estado" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    <option value="true">Aplicado</option>
+                    <option value="false">Pendiente</option>
+                  </select>
+                </div>
+                <div class="col-md-1 text-end align-self-end">
+                  <button id="f-limpiar" type="button" class="btn btn-outline-secondary btn-sm w-100">
+                    <i class="bi bi-x-lg me-1"></i> Limpiar
+                  </button>
+                </div>
+              </div>
+
+              <div class="d-flex justify-content-between align-items-center mb-3 gap-2">
+                <div>
+                  <button type="button" id="btn-vista-calendario" class="btn btn-outline-primary btn-sm active">Vista calendario</button>
+                  <button type="button" id="btn-vista-lista" class="btn btn-outline-secondary btn-sm">Vista lista</button>
+                </div>
+                <div class="text-secondary small">Alterna entre calendario de eventos y listado detallado.</div>
+              </div>
+
+              <div id="sanidad-vista-calendario">
+                <div class="card vacapp-card mb-3">
+                  <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                      <div>
+                        <h5 class="mb-1">Calendario sanitario</h5>
+                        <small class="text-secondary d-block mb-1">Seleccione un día para ver eventos sanitarios.</small>
+                        <strong id="calendario-titulo" class="d-block"></strong>
+                      </div>
+                      <div class="small text-secondary d-flex gap-2">
+                        <span><span class="badge text-bg-success">&nbsp;</span> Aplicado</span>
+                        <span><span class="badge text-bg-warning">&nbsp;</span> Pendiente</span>
+                      </div>
+                    </div>
+                    <div class="vacapp-calendar-grande mb-3" id="calendario-grid"></div>
+                    <div id="calendario-detalle" class="small text-secondary">Toca un día con eventos para ver el detalle.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="sanidad-vista-lista" style="display:none">
+                <div class="table-responsive">
+                  <table class="table table-hover table-vacapp align-middle">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Caravana</th>
+                        <th>Animal</th>
+                        <th>Tipo</th>
+                        <th>Veterinario</th>
+                        <th>Diagnóstico</th>
+                        <th>Lote</th>
+                        <th>Cantidad</th>
+                        <th>Estado</th>
+                        <th class="text-end">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tabla-sanidad-body"></tbody>
+                  </table>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                  <small class="text-secondary" id="tabla-info"></small>
+                  <nav>
+                    <ul class="pagination pagination-sm mb-0" id="tabla-paginacion"></ul>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-lg-4">
+            <div class="card vacapp-card h-100">
+              <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Enfermedades</h5>
+                <button type="button" class="btn btn-sm btn-outline-success" id="btn-registrar-enfermedad">Agregar</button>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-sm table-borderless mb-0">
+                    <thead class="text-secondary small text-uppercase">
+                      <tr><th>Nombre</th><th>Zoonótica</th><th class="text-end">Acciones</th></tr>
+                    </thead>
+                    <tbody id="enfermedades-body"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="card vacapp-card h-100">
+              <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Diagnósticos</h5>
+                <button type="button" class="btn btn-sm btn-outline-success" id="btn-registrar-diagnostico">Agregar</button>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-sm table-borderless mb-0">
+                    <thead class="text-secondary small text-uppercase">
+                      <tr><th>Animal</th><th>Enfermedad</th><th>Estado</th><th class="text-end">Acciones</th></tr>
+                    </thead>
+                    <tbody id="diagnosticos-body"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="card vacapp-card h-100">
+              <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Veterinarios</h5>
+                <button type="button" class="btn btn-sm btn-outline-success" id="btn-registrar-veterinario">Agregar</button>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-sm table-borderless mb-0">
+                    <thead class="text-secondary small text-uppercase">
+                      <tr><th>Nombre</th><th>Correo</th><th class="text-end">Acciones</th></tr>
+                    </thead>
+                    <tbody id="veterinarios-body"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <div id="footer-container"></div>
+  </div>
+
+  <div class="modal fade" id="modalRegistrarEvento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modal-evento-title">Registrar Evento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="form-evento">
+            <input type="hidden" id="evento-id" />
+            <div class="row g-2 mb-3">
+              <div class="col-md-4">
+                <label class="form-label small mb-1">Tipo de evento</label>
+                <select id="s-tipo" class="form-select"></select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small mb-1">Fecha de aplicación</label>
+                <input type="date" id="d-fecha" class="form-control" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small mb-1">Estado</label>
+                <select id="s-estado" class="form-select">
+                  <option value="true">Aplicado</option>
+                  <option value="false">Pendiente</option>
+                </select>
+              </div>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-md-4">
+                <label class="form-label small mb-1">Animal</label>
+                <input type="text" id="s-animal-search" class="form-control form-control-sm mb-2" placeholder="Buscar por caravana" autocomplete="off" />
+                <select id="s-animal" class="form-select"></select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small mb-1">Veterinario</label>
+                <select id="s-veterinario" class="form-select"></select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small mb-1">Diagnóstico</label>
+                <select id="s-diagnostico" class="form-select"></select>
+              </div>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-md-4">
+                <label class="form-label small mb-1">Lote</label>
+                <select id="s-lote" class="form-select"></select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small mb-1">Cantidad</label>
+                <input type="number" step="0.01" min="0" id="i-cantidad" class="form-control" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small mb-1">Costo total</label>
+                <input type="number" step="0.01" min="0" id="i-costo" class="form-control" />
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small mb-1">Detalle</label>
+              <textarea id="t-detalle" class="form-control" rows="3" placeholder="Observaciones adicionales..."></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-success" id="btn-guardar-evento">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalRegistrarEnfermedad" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modal-enfermedad-title">Registrar Enfermedad</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="form-enfermedad">
+            <input type="hidden" id="enfermedad-id" />
+            <div class="mb-3">
+              <label class="form-label small mb-1">Nombre</label>
+              <input type="text" id="e-nombre" class="form-control" required />
+            </div>
+            <div class="mb-3 form-check">
+              <input class="form-check-input" type="checkbox" id="e-zoonotica" />
+              <label class="form-check-label" for="e-zoonotica">Zoonótica</label>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small mb-1">Descripción</label>
+              <textarea id="e-descripcion" class="form-control" rows="3"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-success" id="btn-guardar-enfermedad">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalRegistrarDiagnostico" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modal-diagnostico-title">Registrar Diagnóstico</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="form-diagnostico">
+            <input type="hidden" id="diagnostico-id" />
+            <div class="row g-2 mb-3">
+              <div class="col-md-6">
+                <label class="form-label small mb-1">Animal</label>
+                <input type="text" id="d-animal-search" class="form-control form-control-sm mb-2" placeholder="Buscar por caravana" autocomplete="off" />
+                <select id="d-animal" class="form-select" required></select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small mb-1">Enfermedad</label>
+                <select id="d-enfermedad" class="form-select" required></select>
+              </div>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-md-6">
+                <label class="form-label small mb-1">Fecha de detección</label>
+                <input type="date" id="d-fecha-deteccion" class="form-control" required />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small mb-1">Estado</label>
+                <select id="d-estado-actual" class="form-select" required>
+                  <option value="En tratamiento">En tratamiento</option>
+                  <option value="Curado">Curado</option>
+                  <option value="Crónico">Crónico</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small mb-1">Observaciones</label>
+              <textarea id="d-observaciones" class="form-control" rows="3"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-success" id="btn-guardar-diagnostico">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalRegistrarVeterinario" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modal-veterinario-title">Registrar Veterinario</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="form-veterinario">
+            <input type="hidden" id="veterinario-id" />
+            <div class="row g-2 mb-3">
+              <div class="col-md-6">
+                <label class="form-label small mb-1">Nombre</label>
+                <input type="text" id="v-nombre" class="form-control" required />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small mb-1">Apellido</label>
+                <input type="text" id="v-apellido" class="form-control" required />
+              </div>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-md-6">
+                <label class="form-label small mb-1">Correo electrónico</label>
+                <input type="email" id="v-correo" class="form-control" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small mb-1">Teléfono</label>
+                <input type="text" id="v-telefono" class="form-control" />
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small mb-1">Fecha de nacimiento</label>
+              <input type="date" id="v-fecha-nacimiento" class="form-control" />
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-success" id="btn-guardar-veterinario">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalDetalleCrud" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="detalle-crud-title">Detalle</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="detalle-crud-body"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalDetalleEvento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Detalle del Evento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3 mb-3">
+            <div class="col-md-3"><small class="text-secondary d-block">Caravana</small><strong id="detalle-caravana">-</strong></div>
+            <div class="col-md-3"><small class="text-secondary d-block">Animal</small><strong id="detalle-animal">-</strong></div>
+            <div class="col-md-3"><small class="text-secondary d-block">Tipo</small><strong id="detalle-tipo">-</strong></div>
+            <div class="col-md-3"><small class="text-secondary d-block">Estado</small><strong id="detalle-estado">-</strong></div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4"><small class="text-secondary d-block">Fecha</small><strong id="detalle-fecha">-</strong></div>
+            <div class="col-md-4"><small class="text-secondary d-block">Veterinario</small><strong id="detalle-veterinario">-</strong></div>
+            <div class="col-md-4"><small class="text-secondary d-block">Diagnóstico</small><strong id="detalle-diagnostico">-</strong></div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4"><small class="text-secondary d-block">Lote</small><strong id="detalle-lote">-</strong></div>
+            <div class="col-md-4"><small class="text-secondary d-block">Cantidad</small><strong id="detalle-cantidad">-</strong></div>
+            <div class="col-md-4"><small class="text-secondary d-block">Costo</small><strong id="detalle-costo">-</strong></div>
+          </div>
+          <div>
+            <small class="text-secondary d-block mb-1">Detalle</small>
+            <p id="detalle-observaciones" class="mb-0">-</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block page_js %}
+<script src="{% static 'js/sanidad.js' %}"></script>
+{% endblock %}
