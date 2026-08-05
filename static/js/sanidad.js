@@ -13,6 +13,8 @@ const ESTADO_BADGE = {
 const FILAS_POR_PAGINA = 8;
 let paginaActual = 1;
 let eventoEnEdicion = null;
+let guardandoEvento = false;
+let seleccionAnimalesEvento = new Set();
 
 function formatFecha(iso) {
   if (!iso) return '-';
@@ -22,6 +24,10 @@ function formatFecha(iso) {
 
 function parseBoolean(value) {
   return value === true || value === 'true' || value === 'on';
+}
+
+function escapeHtml(text) {
+  return String(text || '').replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
 }
 
 const API_EVENTOS_BASE = '/api/sanidad/eventos/';
@@ -35,8 +41,13 @@ function buildEventFormData(evento) {
   formData.append('tipo', evento.tipo);
   formData.append('fecha_aplicacion', evento.fecha_aplicacion);
   formData.append('estado', evento.estado ? 'true' : 'false');
-  formData.append('animal_id', evento.animal_id);
   formData.append('detalle', evento.detalle || '');
+
+  if (Array.isArray(evento.animal_ids) && evento.animal_ids.length) {
+    evento.animal_ids.forEach((animalId) => formData.append('animales', animalId));
+  } else if (evento.animal_id) {
+    formData.append('animales', evento.animal_id);
+  }
 
   if (evento.veterinario_id) {
     formData.append('veterinario_id', evento.veterinario_id);
@@ -73,7 +84,8 @@ function setOptions(select, options, includeBlank = false) {
   const html = [];
   if (includeBlank) html.push('<option value="">Todos</option>');
   options.forEach((opt) => {
-    html.push(`<option value="${opt.value}">${opt.label}</option>`);
+    const selected = opt.selected ? ' selected' : '';
+    html.push(`<option value="${opt.value}"${selected}>${opt.label}</option>`);
   });
   select.innerHTML = html.join('');
 }
@@ -166,17 +178,19 @@ function renderTabla() {
   });
 }
 
-function getCalendarBounds() {
-  const fechas = EVENTOS.map((evento) => new Date(evento.fecha_aplicacion));
-  if (!fechas.length) return { year: new Date().getFullYear(), month: new Date().getMonth() };
-  fechas.sort((a, b) => a - b);
-  const earliest = fechas[0];
-  return { year: earliest.getFullYear(), month: earliest.getMonth() };
+function getCalendarBounds(monthSelectorValue) {
+  if (monthSelectorValue) {
+    const [year, month] = monthSelectorValue.split('-').map(Number);
+    return { year, month: month - 1 };
+  }
+  const hoy = new Date();
+  return { year: hoy.getFullYear(), month: hoy.getMonth() };
 }
 
 function renderCalendar() {
   const eventosVisibles = aplicarFiltros();
-  const { year, month } = getCalendarBounds();
+  const mesSeleccionado = document.getElementById('calendario-mes').value;
+  const { year, month } = getCalendarBounds(mesSeleccionado);
   const primerDiaSemana = new Date(year, month, 1).getDay();
   const diasMes = new Date(year, month + 1, 0).getDate();
 
@@ -191,6 +205,10 @@ function renderCalendar() {
   const titulo = document.getElementById('calendario-titulo');
   if (titulo) {
     titulo.textContent = `${nombreMes.charAt(0).toUpperCase()}${nombreMes.slice(1)}`;
+  }
+  const mesSelector = document.getElementById('calendario-mes');
+  if (mesSelector) {
+    mesSelector.value = `${year}-${String(month + 1).padStart(2, '0')}`;
   }
 
   let html = ['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((diasemana) => `<div class="day-label">${diasemana}</div>`).join('');
@@ -226,15 +244,40 @@ function showCalendarDetails(fecha) {
     detalle.textContent = `No hay eventos en ${formatFecha(fecha)}`;
     return;
   }
+
   detalle.innerHTML = `
-    <div><strong>${eventos.length} evento${eventos.length > 1 ? 's' : ''} el ${formatFecha(fecha)}</strong></div>
-    <ul class="list-unstyled small mb-0">
-      ${eventos
-        .map(
-          (evento) => `<li class="mb-2"><span class="badge ${ESTADO_BADGE[evento.estado] || 'text-bg-secondary'} me-2">${evento.estado ? 'Aplicado' : 'Pendiente'}</span> ${evento.tipo} - #${evento.caravana} ${evento.animal} ${evento.veterinario ? `(${evento.veterinario})` : ''}</li>`,
-        )
-        .join('')}
-    </ul>`;
+    <div class="mb-3"><strong>${eventos.length} evento${eventos.length > 1 ? 's' : ''} el ${formatFecha(fecha)}</strong></div>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light"><tr>
+          <th>Tipo</th>
+          <th>Veterinario</th>
+          <th>Estado</th>
+          <th>Animales</th>
+          <th class="text-end">Acción</th>
+        </tr></thead>
+        <tbody>
+          ${eventos
+            .map((evento) => `
+              <tr>
+                <td>${escapeHtml(evento.tipo)}</td>
+                <td>${escapeHtml(evento.veterinario || '-')}</td>
+                <td><span class="badge ${ESTADO_BADGE[evento.estado] || 'text-bg-secondary'}">${evento.estado ? 'Aplicado' : 'Pendiente'}</span></td>
+                <td>${escapeHtml(evento.animal)}</td>
+                <td class="text-end"><button type="button" class="btn btn-sm btn-outline-secondary btn-detalle-evento" data-id="${escapeHtml(evento.id)}"><i class="bi bi-eye"></i></button></td>
+              </tr>`)
+            .join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  detalle.querySelectorAll('.btn-detalle-evento').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const eventoId = btn.dataset.id;
+      const evento = eventos.find((item) => String(item.id) === String(eventoId));
+      if (evento) abrirDetalleEvento(evento);
+    });
+  });
 }
 
 function toggleVista(vista) {
@@ -476,17 +519,95 @@ function resetVeterinarioForm() {
   document.getElementById('v-fecha-nacimiento').value = '';
 }
 
-function renderAnimalOptions(select, filter = '') {
-  const normalizedFilter = filter.trim().toLowerCase();
-  const options = ANIMALES
-    .filter((a) => !normalizedFilter || String(a.caravana).toLowerCase().includes(normalizedFilter))
+function getSelectedAnimalIds() {
+  return Array.from(seleccionAnimalesEvento).filter(Boolean);
+}
+
+function renderSelectedAnimales() {
+  const contenedor = document.getElementById('seleccion-animales-evento');
+  const selected = ANIMALES.filter((a) => seleccionAnimalesEvento.has(String(a.id)));
+  contenedor.innerHTML = selected.length
+    ? selected.map((a) => `
+        <span class="badge bg-primary text-white d-inline-flex align-items-center" style="min-width: 180px;">
+          #${escapeHtml(a.caravana)} ${escapeHtml(a.nombre || 'S/N')} ${a.categoria ? `(${escapeHtml(a.categoria)})` : ''}
+        </span>`).join('')
+    : '<span class="text-secondary">No hay animales seleccionados.</span>';
+}
+
+function renderAnimalTipoOptions() {
+  const tipos = ['Bovino', 'Ovino', 'Porcino'];
+  const options = [{ value: '', label: 'Todos los tipos' }, ...tipos.map((tipo) => ({ value: tipo, label: tipo }))];
+  setOptions(document.getElementById('s-animal-tipo'), options, false);
+}
+
+function renderAnimalSelectionTable() {
+  const filter = document.getElementById('s-animal-search').value.trim().toLowerCase();
+  const tipo = document.getElementById('s-animal-tipo').value;
+  const categoria = document.getElementById('s-animal-categoria').value;
+
+  const rows = ANIMALES
+    .filter((a) => {
+      const text = `${a.caravana} ${a.nombre || ''} ${a.tipo_animal || ''} ${a.categoria || ''}`.toLowerCase();
+      const matchFilter = !filter || text.includes(filter);
+      const matchTipo = !tipo || a.tipo_animal === tipo;
+      const matchCategoria = !categoria || a.categoria === categoria;
+      return matchFilter && matchTipo && matchCategoria;
+    })
     .sort((a, b) => String(a.caravana).localeCompare(String(b.caravana), undefined, { numeric: true }))
-    .map((a) => ({ value: a.id, label: `#${a.caravana} - ${a.nombre || 'S/N'}` }));
+    .map((a) => `
+      <tr>
+        <td><input type="checkbox" class="form-check-input evento-animal-checkbox" value="${a.id}" ${seleccionAnimalesEvento.has(String(a.id)) ? 'checked' : ''}></td>
+        <td>#${a.caravana}</td>
+        <td>${a.nombre || 'S/N'}</td>
+        <td>${a.tipo_animal || '-'}</td>
+        <td>${a.categoria || '-'}</td>
+      </tr>`)
+    .join('');
+
+  document.getElementById('tabla-animales-evento').innerHTML = rows || '<tr><td colspan="5" class="text-center text-secondary">No se encontraron animales.</td></tr>';
+  document.querySelectorAll('.evento-animal-checkbox').forEach((checkbox) => {
+    checkbox.addEventListener('change', () => {
+      const id = String(checkbox.value);
+      if (checkbox.checked) seleccionAnimalesEvento.add(id);
+      else seleccionAnimalesEvento.delete(id);
+      renderSelectedAnimales();
+    });
+  });
+  renderSelectedAnimales();
+}
+
+function renderAnimalOptions(select, filter = '', selectedIds = []) {
+  const normalizedFilter = filter.trim().toLowerCase();
+  const selectedValues = selectedIds.map(String);
+  const options = ANIMALES
+    .filter((a) => {
+      const text = `${a.caravana} ${a.nombre || ''} ${a.tipo_animal || ''} ${a.categoria || ''}`.toLowerCase();
+      return !normalizedFilter || text.includes(normalizedFilter);
+    })
+    .sort((a, b) => String(a.caravana).localeCompare(String(b.caravana), undefined, { numeric: true }))
+    .map((a) => ({
+      value: a.id,
+      label: `#${a.caravana} - ${a.nombre || 'S/N'}${a.categoria ? ` (${a.categoria})` : a.tipo_animal ? ` - ${a.tipo_animal}` : ''}`,
+      selected: selectedValues.includes(String(a.id)),
+    }));
   if (!options.length) {
     select.innerHTML = '<option value="">No se encontraron animales</option>';
     return;
   }
   setOptions(select, options, false);
+}
+
+function renderVeterinarioOptions(select, filter = '') {
+  const normalizedFilter = filter.trim().toLowerCase();
+  const options = VETERINARIOS
+    .filter((v) => !normalizedFilter || v.nombre_completo.toLowerCase().includes(normalizedFilter))
+    .sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo, 'es'))
+    .map((v) => ({ value: v.id, label: v.nombre_completo }));
+  if (!options.length) {
+    select.innerHTML = '<option value="">No se encontraron veterinarios</option>';
+    return;
+  }
+  setOptions(select, [{ value: '', label: 'Sin veterinario' }, ...options], false);
 }
 
 function updateDiagnosticoSelects() {
@@ -702,11 +823,13 @@ function renderFiltros() {
   const veterinarioOptions = VETERINARIOS.map((v) => ({ value: v.id, label: v.nombre_completo }));
   setOptions(document.getElementById('f-veterinario'), veterinarioOptions, true);
   setOptions(document.getElementById('s-veterinario'), [{ value: '', label: 'Sin veterinario' }, ...veterinarioOptions]);
+  renderVeterinarioOptions(document.getElementById('s-veterinario'));
 
   const diagnosticoOptions = [{ value: '', label: 'Sin diagnóstico' }, ...DIAGNOSTICOS.map((d) => ({ value: d.id, label: `${d.enfermedad} - ${d.animal}` }))];
   setOptions(document.getElementById('s-diagnostico'), diagnosticoOptions, false);
 
-  renderAnimalOptions(document.getElementById('s-animal'));
+  renderAnimalTipoOptions();
+  renderAnimalSelectionTable();
 
   const loteOptions = [{ value: '', label: 'Sin lote' }, ...LOTES.map((l) => ({ value: l.id, label: `${l.insumo} (${l.stock} u)` }))];
   setOptions(document.getElementById('s-lote'), loteOptions, false);
@@ -722,8 +845,11 @@ function resetEventoForm() {
   document.getElementById('s-estado').value = 'true';
   document.getElementById('d-fecha').value = new Date().toISOString().split('T')[0];
   document.getElementById('s-animal-search').value = '';
-  renderAnimalOptions(document.getElementById('s-animal'));
-  document.getElementById('s-animal').value = ANIMALES[0]?.id || '';
+  document.getElementById('s-animal-tipo').value = '';
+  document.getElementById('s-animal-categoria').value = '';
+  document.getElementById('s-animal-categoria').classList.add('d-none');
+  seleccionAnimalesEvento.clear();
+  renderAnimalSelectionTable();
   document.getElementById('s-veterinario').value = '';
   document.getElementById('s-diagnostico').value = '';
   document.getElementById('s-lote').value = '';
@@ -744,7 +870,11 @@ function openEventoModal(evento = null) {
     document.getElementById('s-tipo').value = evento.tipo;
     document.getElementById('d-fecha').value = evento.fecha_aplicacion;
     document.getElementById('s-estado').value = String(evento.estado);
-    document.getElementById('s-animal').value = evento.animal_id || ANIMALES[0]?.id || '';
+    seleccionAnimalesEvento = new Set((evento.animal_ids || []).map(String));
+    document.getElementById('s-animal-tipo').value = '';
+    document.getElementById('s-animal-categoria').value = '';
+    document.getElementById('s-animal-categoria').classList.add('d-none');
+    renderAnimalSelectionTable();
     document.getElementById('s-veterinario').value = evento.veterinario_id || '';
     document.getElementById('s-diagnostico').value = evento.diagnostico_id || '';
     document.getElementById('s-lote').value = evento.lote_id || '';
@@ -756,9 +886,25 @@ function openEventoModal(evento = null) {
   modalRegistrarEvento.show();
 }
 
+function changeCalendarMonth(offset) {
+  const mesSelector = document.getElementById('calendario-mes');
+  const [year, month] = mesSelector.value.split('-').map(Number);
+  const nuevaFecha = new Date(year, month - 1 + offset, 1);
+  mesSelector.value = `${nuevaFecha.getFullYear()}-${String(nuevaFecha.getMonth() + 1).padStart(2, '0')}`;
+  renderCalendar();
+}
+
 function abrirDetalleEvento(evento) {
-  document.getElementById('detalle-caravana').textContent = `#${evento.caravana}`;
-  document.getElementById('detalle-animal').textContent = evento.animal;
+  const animales = Array.isArray(evento.animales) ? evento.animales : [];
+  const caravanaText = animales.length
+    ? animales.map((a) => `#${a.caravana}`).join(', ')
+    : evento.caravana;
+  const animalText = animales.length
+    ? animales.map((a) => `#${a.caravana} ${a.nombre}`).join(', ')
+    : evento.animal;
+
+  document.getElementById('detalle-caravana').textContent = caravanaText;
+  document.getElementById('detalle-animal').textContent = animalText;
   document.getElementById('detalle-tipo').textContent = evento.tipo;
   document.getElementById('detalle-estado').textContent = evento.estado ? 'Aplicado' : 'Pendiente';
   document.getElementById('detalle-fecha').textContent = formatFecha(evento.fecha_aplicacion);
@@ -778,7 +924,7 @@ async function guardarEvento() {
   const tipo = document.getElementById('s-tipo').value;
   const fecha_aplicacion = document.getElementById('d-fecha').value;
   const estado = parseBoolean(document.getElementById('s-estado').value);
-  const animalId = document.getElementById('s-animal').value;
+  const animalIds = Array.from(seleccionAnimalesEvento).filter(Boolean);
   const veterinarioId = document.getElementById('s-veterinario').value;
   const diagnosticoId = document.getElementById('s-diagnostico').value;
   const loteId = document.getElementById('s-lote').value;
@@ -786,28 +932,40 @@ async function guardarEvento() {
   const costo_total = document.getElementById('i-costo').value;
   const detalle = document.getElementById('t-detalle').value;
 
-  const animal = ANIMALES.find((a) => String(a.id) === String(animalId));
-  const diag = DIAGNOSTICOS.find((d) => String(d.id) === String(diagnosticoId));
-  const lote = LOTES.find((l) => String(l.id) === String(loteId));
-
-  if (!tipo || !fecha_aplicacion || !animal) {
-    alert('Debe completar tipo, fecha y animal.');
+  if (!tipo || !fecha_aplicacion || !animalIds.length) {
+    alert('Debe completar tipo, fecha y al menos un animal.');
     return;
   }
+  if (new Date(fecha_aplicacion) > new Date(new Date().toISOString().split('T')[0])) {
+    document.getElementById('s-estado').value = 'false';
+  }
+
+  const fechaEvento = new Date(fecha_aplicacion);
+  const hoy = new Date(new Date().toISOString().split('T')[0]);
+  const estadoAuto = fechaEvento > hoy ? false : estado;
 
   const eventoNuevo = {
     id,
     detalle,
     tipo,
     fecha_aplicacion,
-    estado,
+    estado: estadoAuto,
     costo_total: costo_total || '0',
-    animal_id: animal.id,
+    animal_ids: animalIds,
     veterinario_id: veterinarioId || null,
     diagnostico_id: diagnosticoId || null,
     lote_id: loteId || null,
     cantidad: cantidad || '',
   };
+
+  if (guardandoEvento) {
+    return;
+  }
+  guardandoEvento = true;
+  const btnGuardar = document.getElementById('btn-guardar-evento');
+  btnGuardar.disabled = true;
+  const originalBtnText = btnGuardar.textContent;
+  btnGuardar.textContent = 'Guardando...';
 
   try {
     let data;
@@ -822,10 +980,15 @@ async function guardarEvento() {
       EVENTOS.unshift(data.evento);
     }
     renderTabla();
+    renderCalendar();
     const modal = bootstrap.Modal.getInstance(document.getElementById('modalRegistrarEvento'));
     if (modal) modal.hide();
   } catch (error) {
     alert(error.message);
+  } finally {
+    guardandoEvento = false;
+    btnGuardar.disabled = false;
+    btnGuardar.textContent = originalBtnText;
   }
 }
 
@@ -848,44 +1011,84 @@ async function eliminarEvento(id) {
       EVENTOS.splice(index, 1);
     }
     renderTabla();
+    renderCalendar();
   } catch (error) {
     alert(error.message);
   }
 }
 
+function handleTablaBodyClick(event) {
+  const button = event.target.closest('button');
+  if (!button) return;
+  const id = button.dataset.id;
+  if (!id) return;
+
+  if (button.classList.contains('btn-detalle-evento')) {
+    const evento = EVENTOS.find((item) => String(item.id) === id);
+    if (evento) abrirDetalleEvento(evento);
+    return;
+  }
+
+  if (button.classList.contains('btn-editar-evento')) {
+    const evento = EVENTOS.find((item) => String(item.id) === id);
+    if (evento) openEventoModal(evento);
+    return;
+  }
+
+  if (button.classList.contains('btn-eliminar-evento')) {
+    eliminarEvento(id);
+    return;
+  }
+}
+
 function bindEventosTabla() {
-  const tbody = document.getElementById('tabla-sanidad-body');
-  tbody.querySelectorAll('.btn-detalle-evento').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const evento = EVENTOS.find((item) => String(item.id) === btn.dataset.id);
-      if (evento) abrirDetalleEvento(evento);
-    });
-  });
-  tbody.querySelectorAll('.btn-editar-evento').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const evento = EVENTOS.find((item) => String(item.id) === btn.dataset.id);
-      if (evento) openEventoModal(evento);
-    });
-  });
-  tbody.querySelectorAll('.btn-eliminar-evento').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      if (confirm('¿Eliminar este evento sanitario?')) {
-        eliminarEvento(btn.dataset.id);
-      }
-    });
-  });
+  // Ya no se usa delegación directa para los botones de tabla.
 }
 
 function setupListeners() {
+  if (window.sanidadListenersSetup) return;
+  window.sanidadListenersSetup = true;
+
+  document.getElementById('form-evento').addEventListener('submit', (event) => {
+    event.preventDefault();
+    guardarEvento();
+  });
   document.getElementById('btn-guardar-evento').addEventListener('click', guardarEvento);
   document.getElementById('btn-registrar-evento').addEventListener('click', () => openEventoModal());
   document.getElementById('btn-registrar-enfermedad').addEventListener('click', () => openEnfermedadModal());
   document.getElementById('btn-registrar-diagnostico').addEventListener('click', () => openDiagnosticoModal());
   document.getElementById('btn-registrar-veterinario').addEventListener('click', () => openVeterinarioModal());
   document.getElementById('d-animal-search').addEventListener('input', (event) => renderAnimalOptions(document.getElementById('d-animal'), event.target.value));
-  document.getElementById('s-animal-search').addEventListener('input', (event) => renderAnimalOptions(document.getElementById('s-animal'), event.target.value));
+  document.getElementById('s-animal-search').addEventListener('input', () => renderAnimalSelectionTable());
+  document.getElementById('s-animal-tipo').addEventListener('change', () => {
+    const categoriaSelect = document.getElementById('s-animal-categoria');
+    if (document.getElementById('s-animal-tipo').value === 'Bovino') {
+      categoriaSelect.classList.remove('d-none');
+    } else {
+      categoriaSelect.classList.add('d-none');
+      categoriaSelect.value = '';
+    }
+    renderAnimalSelectionTable();
+  });
+  document.getElementById('s-animal-categoria').addEventListener('change', renderAnimalSelectionTable);
+  document.getElementById('s-animal-select-all').addEventListener('click', () => {
+    const checkboxes = Array.from(document.querySelectorAll('#tabla-animales-evento .evento-animal-checkbox'));
+    const visibleIds = checkboxes.map((checkbox) => String(checkbox.value));
+    const allSelected = visibleIds.length > 0 && visibleIds.every((id) => seleccionAnimalesEvento.has(id));
+    visibleIds.forEach((id) => {
+      if (allSelected) seleccionAnimalesEvento.delete(id);
+      else seleccionAnimalesEvento.add(id);
+    });
+    renderAnimalSelectionTable();
+  });
+  document.getElementById('s-veterinario-search').addEventListener('input', (event) => renderVeterinarioOptions(document.getElementById('s-veterinario'), event.target.value));
   document.getElementById('btn-vista-calendario').addEventListener('click', () => toggleVista('calendario'));
   document.getElementById('btn-vista-lista').addEventListener('click', () => toggleVista('lista'));
+  document.getElementById('btn-cal-prev').addEventListener('click', () => changeCalendarMonth(-1));
+  document.getElementById('btn-cal-next').addEventListener('click', () => changeCalendarMonth(1));
+  document.getElementById('calendario-mes').addEventListener('change', () => {
+    renderCalendar();
+  });
 
   document.getElementById('btn-guardar-enfermedad').addEventListener('click', guardarEnfermedad);
   document.getElementById('btn-guardar-diagnostico').addEventListener('click', guardarDiagnostico);
@@ -906,9 +1109,9 @@ function setupListeners() {
     });
     paginaActual = 1;
     renderTabla();
-    bindEventosTabla();
     renderCalendar();
   });
+  document.getElementById('tabla-sanidad-body').addEventListener('click', handleTablaBodyClick);
 }
 
 function refresh() {

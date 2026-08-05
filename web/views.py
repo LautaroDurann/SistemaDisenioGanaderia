@@ -16,7 +16,7 @@ from animales.models import Animal, MovimientoAnimal, Pesaje
 from establecimientos.models import Parcela
 from finanzas.models import Compra, MovimientoFinanciero, Venta
 from inventario.models import Dieta, Insumo, Lote, Consumo
-from sanidad.models import EventoSanitario, Enfermedad, Diagnostico
+from sanidad.models import DetalleEvento, EventoSanitario, Enfermedad, Diagnostico
 from usuarios.models import Comprador, RolEstablecimiento, Usuario, Veterinario
 
 
@@ -331,10 +331,12 @@ def _lote_data(lote):
 def _asignar_evento_sanitario(evento, datos):
     tipo = datos.get('tipo', '').strip()
     fecha_aplicacion = datos.get('fecha_aplicacion', '').strip()
-    animal_id = datos.get('animal_id', '').strip()
+    animal_ids = [int(value) for value in datos.getlist('animales') if str(value).strip()]
 
-    if not tipo or not fecha_aplicacion or not animal_id:
-        raise ValueError('Tipo, fecha y animal son obligatorios para el evento sanitario.')
+    if not tipo or not fecha_aplicacion or not animal_ids:
+        raise ValueError('Tipo, fecha y al menos un animal son obligatorios para el evento sanitario.')
+    if len(animal_ids) != len(set(animal_ids)):
+        raise ValueError('No se permiten animales duplicados en el mismo evento.')
 
     evento.tipo = tipo
     evento.fecha_aplicacion = fecha_aplicacion
@@ -342,14 +344,30 @@ def _asignar_evento_sanitario(evento, datos):
     evento.costo_total = _parse_decimal(datos.get('costo_total'))
     evento.cantidad = _parse_decimal(datos.get('cantidad'))
     evento.detalle = datos.get('detalle', '').strip() or None
-    evento.animal_id = int(animal_id)
     evento.veterinario_id = int(datos['veterinario_id']) if datos.get('veterinario_id') else None
     evento.diagnostico_id = int(datos['diagnostico_id']) if datos.get('diagnostico_id') else None
     evento.lote_id = int(datos['lote_id']) if datos.get('lote_id') else None
-    return evento
+    return animal_ids
 
 
 def _evento_sanitario_data(evento):
+    detalles = []
+    for detalle in evento.detalles.all():
+        animal = detalle.animal
+        detalles.append({
+            'id': animal.id,
+            'nombre': animal.nombre or 'S/N',
+            'caravana': str(animal.id_senasa) if animal.id_senasa is not None else 'S/N',
+            'categoria': _categoria(animal),
+            'edad': _edad(animal),
+            'potrero': str(animal.parcela) if animal.parcela else 'Sin asignar',
+            'cantidad_dosis': str(detalle.cantidad_dosis or ''),
+        })
+
+    caravana = ', '.join(f"#{d['caravana']}" for d in detalles) if detalles else 'S/N'
+    animales_text = ', '.join(d['nombre'] for d in detalles) if detalles else 'S/N'
+    categorias = ', '.join(sorted({d['categoria'] for d in detalles if d['categoria']})) if detalles else ''
+
     return {
         'id': evento.id,
         'detalle': evento.detalle or '',
@@ -357,12 +375,13 @@ def _evento_sanitario_data(evento):
         'fecha_aplicacion': evento.fecha_aplicacion.isoformat(),
         'estado': evento.estado,
         'costo_total': str(evento.costo_total or 0),
-        'animal_id': evento.animal_id,
-        'animal': evento.animal.nombre or 'S/N',
-        'caravana': str(evento.animal.id_senasa) if evento.animal.id_senasa is not None else 'S/N',
-        'categoria': _categoria(evento.animal),
-        'edad': _edad(evento.animal),
-        'potrero': str(evento.animal.parcela) if evento.animal.parcela else 'Sin asignar',
+        'animal_ids': [d['id'] for d in detalles],
+        'animales': detalles,
+        'animal': animales_text,
+        'caravana': caravana,
+        'categoria': categorias,
+        'edad': detalles[0]['edad'] if detalles else '-',
+        'potrero': detalles[0]['potrero'] if detalles else 'Sin asignar',
         'veterinario_id': evento.veterinario_id,
         'veterinario': str(evento.veterinario) if evento.veterinario else '-',
         'diagnostico_id': evento.diagnostico_id,
@@ -529,7 +548,7 @@ def _recalcular_estado_enfermo(animal):
 
 def sanidad(request):
     today = date.today()
-    eventos = EventoSanitario.objects.select_related('animal', 'veterinario', 'diagnostico', 'lote').order_by('-fecha_aplicacion', '-id')
+    eventos = EventoSanitario.objects.select_related('veterinario', 'diagnostico', 'lote').prefetch_related('detalles__animal__parcela').order_by('-fecha_aplicacion', '-id')
     eventos_aplicados_mes = EventoSanitario.objects.filter(
         estado=True,
         fecha_aplicacion__year=today.year, fecha_aplicacion__month=today.month,
@@ -564,6 +583,7 @@ def sanidad(request):
             'nombre': a.nombre or 'S/N',
             'caravana': str(a.id_senasa) if a.id_senasa is not None else 'S/N',
             'sexo': a.sexo,
+            'tipo_animal': a.tipo_animal,
             'categoria': _categoria(a),
             'potrero': str(a.parcela) if a.parcela else 'Sin asignar',
             'enfermo': a.enfermo,
@@ -576,9 +596,13 @@ def sanidad(request):
 def crear_evento_sanitario(request):
     try:
         evento = EventoSanitario()
-        _asignar_evento_sanitario(evento, request.POST)
+        animal_ids = _asignar_evento_sanitario(evento, request.POST)
         evento.full_clean()
-        evento.save()
+        with transaction.atomic():
+            evento.save()
+            evento.detalles.all().delete()
+            for animal_id in animal_ids:
+                DetalleEvento.objects.create(evento=evento, animal_id=animal_id)
     except (KeyError, ValueError, ValidationError) as error:
         return JsonResponse({'error': str(error)}, status=400)
     return JsonResponse({'evento': _evento_sanitario_data(evento)}, status=201)
@@ -588,9 +612,13 @@ def crear_evento_sanitario(request):
 def actualizar_evento_sanitario(request, evento_id):
     evento = get_object_or_404(EventoSanitario, pk=evento_id)
     try:
-        _asignar_evento_sanitario(evento, request.POST)
+        animal_ids = _asignar_evento_sanitario(evento, request.POST)
         evento.full_clean()
-        evento.save()
+        with transaction.atomic():
+            evento.save()
+            evento.detalles.all().delete()
+            for animal_id in animal_ids:
+                DetalleEvento.objects.create(evento=evento, animal_id=animal_id)
     except (KeyError, ValueError, ValidationError) as error:
         return JsonResponse({'error': str(error)}, status=400)
     return JsonResponse({'evento': _evento_sanitario_data(evento)})
