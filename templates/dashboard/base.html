@@ -60,6 +60,67 @@
 <script src="{% static 'js/adminlte.js' %}"></script>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.37.1/dist/apexcharts.min.js"></script>
 
+<!-- CÓDIGO NUEVO PARA EL MODO CLARO/OSCURO -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const THEME_KEY = 'lte-theme';
+    
+    // Función para aplicar el tema en la pantalla
+    const setTheme = (theme) => {
+      let resolved = theme;
+      if (theme === 'auto') {
+        resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-bs-theme', resolved);
+      document.documentElement.style.colorScheme = resolved;
+    };
+
+    // Función para cambiar los íconos y el botón activo en el menú
+    const updateUI = (theme) => {
+      // 1. Cambiar el ícono principal de la barra superior
+      const icons = {
+        light: document.querySelector('i[data-lte-theme-icon="light"]'),
+        dark: document.querySelector('i[data-lte-theme-icon="dark"]'),
+        auto: document.querySelector('i[data-lte-theme-icon="auto"]')
+      };
+      
+      Object.values(icons).forEach(icon => {
+          if(icon) icon.classList.add('d-none');
+      });
+      if (icons[theme]) icons[theme].classList.remove('d-none');
+
+      // 2. Mover la tilde de confirmación en el menú desplegable
+      document.querySelectorAll('[data-bs-theme-value]').forEach(btn => {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-pressed', 'false');
+        const checkIcon = btn.querySelector('.bi-check-lg');
+        if (checkIcon) checkIcon.classList.add('d-none');
+      });
+
+      const activeBtn = document.querySelector(`[data-bs-theme-value="${theme}"]`);
+      if (activeBtn) {
+        activeBtn.classList.add('active');
+        activeBtn.setAttribute('aria-pressed', 'true');
+        const checkIcon = activeBtn.querySelector('.bi-check-lg');
+        if (checkIcon) checkIcon.classList.remove('d-none');
+      }
+    };
+
+    // 3. Escuchar los clics del usuario
+    document.querySelectorAll('[data-bs-theme-value]').forEach(toggle => {
+      toggle.addEventListener('click', () => {
+        const theme = toggle.getAttribute('data-bs-theme-value');
+        localStorage.setItem(THEME_KEY, theme);
+        setTheme(theme);
+        updateUI(theme);
+      });
+    });
+
+    // 4. Configurar la vista correcta cuando la página termina de cargar
+    const storedTheme = localStorage.getItem(THEME_KEY) || 'auto';
+    updateUI(storedTheme);
+  });
+</script>
 {% endblock %}
 
 <!--se agrega este bloque vacio para que no choque con los de las paginas que heredan-->
