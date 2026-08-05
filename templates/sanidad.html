@@ -137,6 +137,11 @@
                         <h5 class="mb-1">Calendario sanitario</h5>
                         <small class="text-secondary d-block mb-1">Seleccione un día para ver eventos sanitarios.</small>
                         <strong id="calendario-titulo" class="d-block"></strong>
+                        <div class="d-flex align-items-center gap-2 mt-2">
+                          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cal-prev"><i class="bi bi-chevron-left"></i></button>
+                          <input type="month" id="calendario-mes" class="form-control form-control-sm w-auto" />
+                          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cal-next"><i class="bi bi-chevron-right"></i></button>
+                        </div>
                       </div>
                       <div class="small text-secondary d-flex gap-2">
                         <span><span class="badge text-bg-success">&nbsp;</span> Aplicado</span>
@@ -269,16 +274,48 @@
               </div>
             </div>
             <div class="row g-2 mb-3">
-              <div class="col-md-4">
-                <label class="form-label small mb-1">Animal</label>
-                <input type="text" id="s-animal-search" class="form-control form-control-sm mb-2" placeholder="Buscar por caravana" autocomplete="off" />
-                <select id="s-animal" class="form-select"></select>
+              <div class="col-md-8">
+                <label class="form-label small mb-1">Animales</label>
+                <div class="input-group mb-2">
+                  <input type="text" id="s-animal-search" class="form-control form-control-sm" placeholder="Buscar por caravana, nombre o categoría" autocomplete="off" />
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="s-animal-select-all">Seleccionar todo</button>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-6">
+                    <select id="s-animal-tipo" class="form-select form-select-sm">
+                      <option value="">Todos los tipos</option>
+                    </select>
+                  </div>
+                  <div class="col-6">
+                    <select id="s-animal-categoria" class="form-select form-select-sm d-none">
+                      <option value="">Todas las categorías</option>
+                      <option value="Toro">Toro</option>
+                      <option value="Vaca">Vaca</option>
+                      <option value="Ternero">Ternero</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="table-responsive" style="max-height: 520px; min-height: 320px; overflow:auto;">
+                  <table class="table table-sm table-hover mb-0 w-100">
+                    <thead class="table-light">
+                      <tr>
+                        <th style="width: 1%"></th>
+                        <th>Caravana</th>
+                        <th>Animal</th>
+                        <th>Tipo</th>
+                        <th>Categoría</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tabla-animales-evento"></tbody>
+                  </table>
+                </div>
+                <div id="seleccion-animales-evento" class="d-flex flex-wrap gap-2 mt-3"></div>
+                <small class="text-secondary d-block mt-1">Seleccioná uno o varios animales para el mismo evento.</small>
               </div>
               <div class="col-md-4">
                 <label class="form-label small mb-1">Veterinario</label>
-                <select id="s-veterinario" class="form-select"></select>
-              </div>
-              <div class="col-md-4">
+                <input type="text" id="s-veterinario-search" class="form-control form-control-sm mb-2" placeholder="Buscar veterinario..." autocomplete="off" />
+                <select id="s-veterinario" class="form-select mb-3"></select>
                 <label class="form-label small mb-1">Diagnóstico</label>
                 <select id="s-diagnostico" class="form-select"></select>
               </div>

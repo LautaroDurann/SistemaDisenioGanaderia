@@ -1,4 +1,6 @@
 from django.db import models
+from django.core.exceptions import ValidationError
+from django.db import transaction
 
 # 1. Enfermedad
 class Enfermedad(models.Model):
@@ -9,7 +11,7 @@ class Enfermedad(models.Model):
     def __str__(self):
         return self.nombre
 
-# 2. Diagnostico (Tabla intermedia para normalizar la relación)
+# 2. Diagnostico
 class Diagnostico(models.Model):
     ESTADO_CHOICES = [
         ('Curado', 'Curado'),
@@ -20,21 +22,13 @@ class Diagnostico(models.Model):
     animal = models.ForeignKey('animales.Animal', on_delete=models.CASCADE)
     enfermedad = models.ForeignKey(Enfermedad, on_delete=models.CASCADE)
     fecha_deteccion = models.DateField()
-    
-    # --- CAMBIO AQUÍ ---
-    # Dejó de ser BooleanField y ahora es CharField usando el ENUM. 
-    # Le puse 'En tratamiento' por defecto porque tiene sentido al detectar una enfermedad.
     estado_actual = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='En tratamiento')
-    
     observaciones = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"Diagnóstico: {self.enfermedad.nombre} - Animal ID: {self.animal_id}"
 
-# 3. Evento Sanitario (Reemplazo de la antigua tabla Tratamientos)
-from django.core.exceptions import ValidationError
-
-
+# 3. Evento Sanitario (Cabecera - Aplica para muchos animales)
 class EventoSanitario(models.Model):
     TIPO_CHOICES = [
         ('Vacunación', 'Vacunación'),
@@ -50,44 +44,35 @@ class EventoSanitario(models.Model):
     fecha_aplicacion = models.DateField()
     estado = models.BooleanField(default=True)
     costo_total = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    
+    # Esta cantidad ahora representa la sumatoria total del medicamento utilizado en el evento
     cantidad = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     lote = models.ForeignKey('inventario.Lote', on_delete=models.SET_NULL, null=True, blank=True)
 
-    # Claves Foráneas
-    animal = models.ForeignKey('animales.Animal', on_delete=models.CASCADE)
+    # Claves Foráneas Generales
     diagnostico = models.ForeignKey(Diagnostico, on_delete=models.SET_NULL, null=True, blank=True)
     veterinario = models.ForeignKey('usuarios.Veterinario', on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # ATENCIÓN: El campo 'animal' fue removido de aquí.
 
     def __str__(self):
-        return f"{self.tipo} ({self.fecha_aplicacion})"
+        return f"{self.tipo} ({self.fecha_aplicacion}) - ID: {self.pk}"
 
     def clean(self):
-        if self.tipo == 'Inseminación' and self.animal and self.animal.sexo != 'Hembra':
-            raise ValidationError('Solo se puede registrar inseminación para hembras.')
+        # Las validaciones del animal se fueron al DetalleEvento.
+        # Aquí solo validamos cosas globales del evento (ej: Inventario)
         if self.tipo == 'Vacunación' and self.estado and self.lote and (self.cantidad is None or self.cantidad <= 0):
-            raise ValidationError('Si la vacunación se aplicó, debe indicar un lote y la cantidad consumida.')
-        if self.tipo == 'Castración' and self.animal and self.animal.castrado:
-            raise ValidationError('El animal ya está castrado.')
+            raise ValidationError('Si la vacunación se aplicó, debe indicar un lote y la cantidad total consumida.')
 
     def save(self, *args, **kwargs):
-        from django.db import transaction
         from inventario.models import Consumo
 
         self.full_clean()
-        old_evento = None
-        if self.pk:
-            try:
-                old_evento = EventoSanitario.objects.select_related('lote').get(pk=self.pk)
-            except EventoSanitario.DoesNotExist:
-                old_evento = None
-
+        
         with transaction.atomic():
             super().save(*args, **kwargs)
 
-            if self.tipo == 'Castración' and not self.animal.castrado:
-                self.animal.castrado = True
-                self.animal.save(update_fields=['castrado'])
-
+            # La lógica de inventario permanece en la cabecera porque se descuenta el total
             if self.tipo == 'Vacunación' and self.estado and self.lote and self.cantidad:
                 consumo, created = Consumo.objects.get_or_create(
                     evento_sanitario=self,
@@ -122,3 +107,34 @@ class EventoSanitario(models.Model):
                         consumo.lote.stockActual = max(consumo.lote.stockActual + (consumo.cantidad or 0), 0)
                         consumo.lote.save(update_fields=['stockActual'])
                     consumo.delete()
+
+
+# 4. Detalle Evento (¡LA NUEVA TABLA INTERMEDIA!)
+class DetalleEvento(models.Model):
+    evento = models.ForeignKey(EventoSanitario, on_delete=models.CASCADE, related_name='detalles')
+    animal = models.ForeignKey('animales.Animal', on_delete=models.CASCADE, related_name='eventos_aplicados')
+    
+    # Opcional: Si quieres registrar qué dosis exacta recibió cada animal, usas este campo
+    cantidad_dosis = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Dosis aplicada a este animal")
+
+    def __str__(self):
+        return f"Animal: {self.animal_id} - Evento ID: {self.evento_id}"
+
+    def clean(self):
+        # Validaciones de reglas de negocio a nivel de animal individual
+        if self.evento.tipo == 'Inseminación' and self.animal.sexo != 'Hembra':
+            raise ValidationError(f'No se puede inseminar al animal {self.animal.id} porque no es hembra.')
+            
+        if self.evento.tipo == 'Castración' and self.animal.castrado:
+            raise ValidationError(f'El animal {self.animal.id} ya figura como castrado.')
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            
+            # Cambios de estado en el animal se ejecutan desde el Detalle
+            if self.evento.tipo == 'Castración' and not self.animal.castrado:
+                self.animal.castrado = True
+                self.animal.save(update_fields=['castrado'])
