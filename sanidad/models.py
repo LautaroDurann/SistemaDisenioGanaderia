@@ -28,7 +28,14 @@ class Diagnostico(models.Model):
     def __str__(self):
         return f"Diagnóstico: {self.enfermedad.nombre} - Animal ID: {self.animal_id}"
 
+<<<<<<< HEAD
 # 3. Evento Sanitario (Cabecera - Aplica para muchos animales)
+=======
+# 3. Evento Sanitario (Reemplazo de la antigua tabla Tratamientos)
+from django.core.exceptions import ValidationError
+
+
+>>>>>>> 80563b6 (Modulo sanidad)
 class EventoSanitario(models.Model):
     TIPO_CHOICES = [
         ('Vacunación', 'Vacunación'),
@@ -44,12 +51,20 @@ class EventoSanitario(models.Model):
     fecha_aplicacion = models.DateField()
     estado = models.BooleanField(default=True)
     costo_total = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+<<<<<<< HEAD
     
     # Esta cantidad ahora representa la sumatoria total del medicamento utilizado en el evento
     cantidad = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     lote = models.ForeignKey('inventario.Lote', on_delete=models.SET_NULL, null=True, blank=True)
 
     # Claves Foráneas Generales
+=======
+    cantidad = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    lote = models.ForeignKey('inventario.Lote', on_delete=models.SET_NULL, null=True, blank=True)
+
+    # Claves Foráneas
+    animal = models.ForeignKey('animales.Animal', on_delete=models.CASCADE)
+>>>>>>> 80563b6 (Modulo sanidad)
     diagnostico = models.ForeignKey(Diagnostico, on_delete=models.SET_NULL, null=True, blank=True)
     veterinario = models.ForeignKey('usuarios.Veterinario', on_delete=models.SET_NULL, null=True, blank=True)
     
@@ -64,7 +79,16 @@ class EventoSanitario(models.Model):
         if self.tipo == 'Vacunación' and self.estado and self.lote and (self.cantidad is None or self.cantidad <= 0):
             raise ValidationError('Si la vacunación se aplicó, debe indicar un lote y la cantidad total consumida.')
 
+    def clean(self):
+        if self.tipo == 'Inseminación' and self.animal and self.animal.sexo != 'Hembra':
+            raise ValidationError('Solo se puede registrar inseminación para hembras.')
+        if self.tipo == 'Vacunación' and self.estado and self.lote and (self.cantidad is None or self.cantidad <= 0):
+            raise ValidationError('Si la vacunación se aplicó, debe indicar un lote y la cantidad consumida.')
+        if self.tipo == 'Castración' and self.animal and self.animal.castrado:
+            raise ValidationError('El animal ya está castrado.')
+
     def save(self, *args, **kwargs):
+<<<<<<< HEAD
         from inventario.models import Consumo
 
         self.full_clean()
@@ -73,6 +97,26 @@ class EventoSanitario(models.Model):
             super().save(*args, **kwargs)
 
             # La lógica de inventario permanece en la cabecera porque se descuenta el total
+=======
+        from django.db import transaction
+        from inventario.models import Consumo
+
+        self.full_clean()
+        old_evento = None
+        if self.pk:
+            try:
+                old_evento = EventoSanitario.objects.select_related('lote').get(pk=self.pk)
+            except EventoSanitario.DoesNotExist:
+                old_evento = None
+
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+
+            if self.tipo == 'Castración' and not self.animal.castrado:
+                self.animal.castrado = True
+                self.animal.save(update_fields=['castrado'])
+
+>>>>>>> 80563b6 (Modulo sanidad)
             if self.tipo == 'Vacunación' and self.estado and self.lote and self.cantidad:
                 consumo, created = Consumo.objects.get_or_create(
                     evento_sanitario=self,
@@ -107,6 +151,7 @@ class EventoSanitario(models.Model):
                         consumo.lote.stockActual = max(consumo.lote.stockActual + (consumo.cantidad or 0), 0)
                         consumo.lote.save(update_fields=['stockActual'])
                     consumo.delete()
+<<<<<<< HEAD
 
 
 # 4. Detalle Evento (¡LA NUEVA TABLA INTERMEDIA!)
@@ -138,3 +183,5 @@ class DetalleEvento(models.Model):
             if self.evento.tipo == 'Castración' and not self.animal.castrado:
                 self.animal.castrado = True
                 self.animal.save(update_fields=['castrado'])
+=======
+>>>>>>> 80563b6 (Modulo sanidad)

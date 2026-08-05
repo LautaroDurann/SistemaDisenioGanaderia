@@ -13,8 +13,11 @@ const ESTADO_BADGE = {
 const FILAS_POR_PAGINA = 8;
 let paginaActual = 1;
 let eventoEnEdicion = null;
+<<<<<<< HEAD
 let guardandoEvento = false;
 let seleccionAnimalesEvento = new Set();
+=======
+>>>>>>> 80563b6 (Modulo sanidad)
 
 function formatFecha(iso) {
   if (!iso) return '-';
@@ -26,10 +29,13 @@ function parseBoolean(value) {
   return value === true || value === 'true' || value === 'on';
 }
 
+<<<<<<< HEAD
 function escapeHtml(text) {
   return String(text || '').replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
 }
 
+=======
+>>>>>>> 80563b6 (Modulo sanidad)
 const API_EVENTOS_BASE = '/api/sanidad/eventos/';
 
 function getCsrfToken() {
@@ -41,6 +47,7 @@ function buildEventFormData(evento) {
   formData.append('tipo', evento.tipo);
   formData.append('fecha_aplicacion', evento.fecha_aplicacion);
   formData.append('estado', evento.estado ? 'true' : 'false');
+<<<<<<< HEAD
   formData.append('detalle', evento.detalle || '');
 
   if (Array.isArray(evento.animal_ids) && evento.animal_ids.length) {
@@ -49,6 +56,11 @@ function buildEventFormData(evento) {
     formData.append('animales', evento.animal_id);
   }
 
+=======
+  formData.append('animal_id', evento.animal_id);
+  formData.append('detalle', evento.detalle || '');
+
+>>>>>>> 80563b6 (Modulo sanidad)
   if (evento.veterinario_id) {
     formData.append('veterinario_id', evento.veterinario_id);
   }
@@ -84,8 +96,12 @@ function setOptions(select, options, includeBlank = false) {
   const html = [];
   if (includeBlank) html.push('<option value="">Todos</option>');
   options.forEach((opt) => {
+<<<<<<< HEAD
     const selected = opt.selected ? ' selected' : '';
     html.push(`<option value="${opt.value}"${selected}>${opt.label}</option>`);
+=======
+    html.push(`<option value="${opt.value}">${opt.label}</option>`);
+>>>>>>> 80563b6 (Modulo sanidad)
   });
   select.innerHTML = html.join('');
 }
@@ -178,6 +194,7 @@ function renderTabla() {
   });
 }
 
+<<<<<<< HEAD
 function getCalendarBounds(monthSelectorValue) {
   if (monthSelectorValue) {
     const [year, month] = monthSelectorValue.split('-').map(Number);
@@ -185,12 +202,24 @@ function getCalendarBounds(monthSelectorValue) {
   }
   const hoy = new Date();
   return { year: hoy.getFullYear(), month: hoy.getMonth() };
+=======
+function getCalendarBounds() {
+  const fechas = EVENTOS.map((evento) => new Date(evento.fecha_aplicacion));
+  if (!fechas.length) return { year: new Date().getFullYear(), month: new Date().getMonth() };
+  fechas.sort((a, b) => a - b);
+  const earliest = fechas[0];
+  return { year: earliest.getFullYear(), month: earliest.getMonth() };
+>>>>>>> 80563b6 (Modulo sanidad)
 }
 
 function renderCalendar() {
   const eventosVisibles = aplicarFiltros();
+<<<<<<< HEAD
   const mesSeleccionado = document.getElementById('calendario-mes').value;
   const { year, month } = getCalendarBounds(mesSeleccionado);
+=======
+  const { year, month } = getCalendarBounds();
+>>>>>>> 80563b6 (Modulo sanidad)
   const primerDiaSemana = new Date(year, month, 1).getDay();
   const diasMes = new Date(year, month + 1, 0).getDate();
 
@@ -206,10 +235,13 @@ function renderCalendar() {
   if (titulo) {
     titulo.textContent = `${nombreMes.charAt(0).toUpperCase()}${nombreMes.slice(1)}`;
   }
+<<<<<<< HEAD
   const mesSelector = document.getElementById('calendario-mes');
   if (mesSelector) {
     mesSelector.value = `${year}-${String(month + 1).padStart(2, '0')}`;
   }
+=======
+>>>>>>> 80563b6 (Modulo sanidad)
 
   let html = ['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((diasemana) => `<div class="day-label">${diasemana}</div>`).join('');
   for (let i = 0; i < primerDiaSemana; i += 1) {
@@ -244,6 +276,7 @@ function showCalendarDetails(fecha) {
     detalle.textContent = `No hay eventos en ${formatFecha(fecha)}`;
     return;
   }
+<<<<<<< HEAD
 
   detalle.innerHTML = `
     <div class="mb-3"><strong>${eventos.length} evento${eventos.length > 1 ? 's' : ''} el ${formatFecha(fecha)}</strong></div>
@@ -278,6 +311,17 @@ function showCalendarDetails(fecha) {
       if (evento) abrirDetalleEvento(evento);
     });
   });
+=======
+  detalle.innerHTML = `
+    <div><strong>${eventos.length} evento${eventos.length > 1 ? 's' : ''} el ${formatFecha(fecha)}</strong></div>
+    <ul class="list-unstyled small mb-0">
+      ${eventos
+        .map(
+          (evento) => `<li class="mb-2"><span class="badge ${ESTADO_BADGE[evento.estado] || 'text-bg-secondary'} me-2">${evento.estado ? 'Aplicado' : 'Pendiente'}</span> ${evento.tipo} - #${evento.caravana} ${evento.animal} ${evento.veterinario ? `(${evento.veterinario})` : ''}</li>`,
+        )
+        .join('')}
+    </ul>`;
+>>>>>>> 80563b6 (Modulo sanidad)
 }
 
 function toggleVista(vista) {
@@ -519,6 +563,7 @@ function resetVeterinarioForm() {
   document.getElementById('v-fecha-nacimiento').value = '';
 }
 
+<<<<<<< HEAD
 function getSelectedAnimalIds() {
   return Array.from(seleccionAnimalesEvento).filter(Boolean);
 }
@@ -590,6 +635,14 @@ function renderAnimalOptions(select, filter = '', selectedIds = []) {
       label: `#${a.caravana} - ${a.nombre || 'S/N'}${a.categoria ? ` (${a.categoria})` : a.tipo_animal ? ` - ${a.tipo_animal}` : ''}`,
       selected: selectedValues.includes(String(a.id)),
     }));
+=======
+function renderAnimalOptions(select, filter = '') {
+  const normalizedFilter = filter.trim().toLowerCase();
+  const options = ANIMALES
+    .filter((a) => !normalizedFilter || String(a.caravana).toLowerCase().includes(normalizedFilter))
+    .sort((a, b) => String(a.caravana).localeCompare(String(b.caravana), undefined, { numeric: true }))
+    .map((a) => ({ value: a.id, label: `#${a.caravana} - ${a.nombre || 'S/N'}` }));
+>>>>>>> 80563b6 (Modulo sanidad)
   if (!options.length) {
     select.innerHTML = '<option value="">No se encontraron animales</option>';
     return;
@@ -597,6 +650,7 @@ function renderAnimalOptions(select, filter = '', selectedIds = []) {
   setOptions(select, options, false);
 }
 
+<<<<<<< HEAD
 function renderVeterinarioOptions(select, filter = '') {
   const normalizedFilter = filter.trim().toLowerCase();
   const options = VETERINARIOS
@@ -610,6 +664,8 @@ function renderVeterinarioOptions(select, filter = '') {
   setOptions(select, [{ value: '', label: 'Sin veterinario' }, ...options], false);
 }
 
+=======
+>>>>>>> 80563b6 (Modulo sanidad)
 function updateDiagnosticoSelects() {
   renderAnimalOptions(document.getElementById('d-animal'));
   setOptions(document.getElementById('d-enfermedad'), ENFERMEDADES.map((e) => ({ value: e.id, label: e.nombre })), false);
@@ -823,13 +879,20 @@ function renderFiltros() {
   const veterinarioOptions = VETERINARIOS.map((v) => ({ value: v.id, label: v.nombre_completo }));
   setOptions(document.getElementById('f-veterinario'), veterinarioOptions, true);
   setOptions(document.getElementById('s-veterinario'), [{ value: '', label: 'Sin veterinario' }, ...veterinarioOptions]);
+<<<<<<< HEAD
   renderVeterinarioOptions(document.getElementById('s-veterinario'));
+=======
+>>>>>>> 80563b6 (Modulo sanidad)
 
   const diagnosticoOptions = [{ value: '', label: 'Sin diagnóstico' }, ...DIAGNOSTICOS.map((d) => ({ value: d.id, label: `${d.enfermedad} - ${d.animal}` }))];
   setOptions(document.getElementById('s-diagnostico'), diagnosticoOptions, false);
 
+<<<<<<< HEAD
   renderAnimalTipoOptions();
   renderAnimalSelectionTable();
+=======
+  renderAnimalOptions(document.getElementById('s-animal'));
+>>>>>>> 80563b6 (Modulo sanidad)
 
   const loteOptions = [{ value: '', label: 'Sin lote' }, ...LOTES.map((l) => ({ value: l.id, label: `${l.insumo} (${l.stock} u)` }))];
   setOptions(document.getElementById('s-lote'), loteOptions, false);
@@ -845,11 +908,16 @@ function resetEventoForm() {
   document.getElementById('s-estado').value = 'true';
   document.getElementById('d-fecha').value = new Date().toISOString().split('T')[0];
   document.getElementById('s-animal-search').value = '';
+<<<<<<< HEAD
   document.getElementById('s-animal-tipo').value = '';
   document.getElementById('s-animal-categoria').value = '';
   document.getElementById('s-animal-categoria').classList.add('d-none');
   seleccionAnimalesEvento.clear();
   renderAnimalSelectionTable();
+=======
+  renderAnimalOptions(document.getElementById('s-animal'));
+  document.getElementById('s-animal').value = ANIMALES[0]?.id || '';
+>>>>>>> 80563b6 (Modulo sanidad)
   document.getElementById('s-veterinario').value = '';
   document.getElementById('s-diagnostico').value = '';
   document.getElementById('s-lote').value = '';
@@ -870,11 +938,15 @@ function openEventoModal(evento = null) {
     document.getElementById('s-tipo').value = evento.tipo;
     document.getElementById('d-fecha').value = evento.fecha_aplicacion;
     document.getElementById('s-estado').value = String(evento.estado);
+<<<<<<< HEAD
     seleccionAnimalesEvento = new Set((evento.animal_ids || []).map(String));
     document.getElementById('s-animal-tipo').value = '';
     document.getElementById('s-animal-categoria').value = '';
     document.getElementById('s-animal-categoria').classList.add('d-none');
     renderAnimalSelectionTable();
+=======
+    document.getElementById('s-animal').value = evento.animal_id || ANIMALES[0]?.id || '';
+>>>>>>> 80563b6 (Modulo sanidad)
     document.getElementById('s-veterinario').value = evento.veterinario_id || '';
     document.getElementById('s-diagnostico').value = evento.diagnostico_id || '';
     document.getElementById('s-lote').value = evento.lote_id || '';
@@ -886,6 +958,7 @@ function openEventoModal(evento = null) {
   modalRegistrarEvento.show();
 }
 
+<<<<<<< HEAD
 function changeCalendarMonth(offset) {
   const mesSelector = document.getElementById('calendario-mes');
   const [year, month] = mesSelector.value.split('-').map(Number);
@@ -905,6 +978,11 @@ function abrirDetalleEvento(evento) {
 
   document.getElementById('detalle-caravana').textContent = caravanaText;
   document.getElementById('detalle-animal').textContent = animalText;
+=======
+function abrirDetalleEvento(evento) {
+  document.getElementById('detalle-caravana').textContent = `#${evento.caravana}`;
+  document.getElementById('detalle-animal').textContent = evento.animal;
+>>>>>>> 80563b6 (Modulo sanidad)
   document.getElementById('detalle-tipo').textContent = evento.tipo;
   document.getElementById('detalle-estado').textContent = evento.estado ? 'Aplicado' : 'Pendiente';
   document.getElementById('detalle-fecha').textContent = formatFecha(evento.fecha_aplicacion);
@@ -924,7 +1002,11 @@ async function guardarEvento() {
   const tipo = document.getElementById('s-tipo').value;
   const fecha_aplicacion = document.getElementById('d-fecha').value;
   const estado = parseBoolean(document.getElementById('s-estado').value);
+<<<<<<< HEAD
   const animalIds = Array.from(seleccionAnimalesEvento).filter(Boolean);
+=======
+  const animalId = document.getElementById('s-animal').value;
+>>>>>>> 80563b6 (Modulo sanidad)
   const veterinarioId = document.getElementById('s-veterinario').value;
   const diagnosticoId = document.getElementById('s-diagnostico').value;
   const loteId = document.getElementById('s-lote').value;
@@ -932,6 +1014,7 @@ async function guardarEvento() {
   const costo_total = document.getElementById('i-costo').value;
   const detalle = document.getElementById('t-detalle').value;
 
+<<<<<<< HEAD
   if (!tipo || !fecha_aplicacion || !animalIds.length) {
     alert('Debe completar tipo, fecha y al menos un animal.');
     return;
@@ -943,21 +1026,38 @@ async function guardarEvento() {
   const fechaEvento = new Date(fecha_aplicacion);
   const hoy = new Date(new Date().toISOString().split('T')[0]);
   const estadoAuto = fechaEvento > hoy ? false : estado;
+=======
+  const animal = ANIMALES.find((a) => String(a.id) === String(animalId));
+  const diag = DIAGNOSTICOS.find((d) => String(d.id) === String(diagnosticoId));
+  const lote = LOTES.find((l) => String(l.id) === String(loteId));
+
+  if (!tipo || !fecha_aplicacion || !animal) {
+    alert('Debe completar tipo, fecha y animal.');
+    return;
+  }
+>>>>>>> 80563b6 (Modulo sanidad)
 
   const eventoNuevo = {
     id,
     detalle,
     tipo,
     fecha_aplicacion,
+<<<<<<< HEAD
     estado: estadoAuto,
     costo_total: costo_total || '0',
     animal_ids: animalIds,
+=======
+    estado,
+    costo_total: costo_total || '0',
+    animal_id: animal.id,
+>>>>>>> 80563b6 (Modulo sanidad)
     veterinario_id: veterinarioId || null,
     diagnostico_id: diagnosticoId || null,
     lote_id: loteId || null,
     cantidad: cantidad || '',
   };
 
+<<<<<<< HEAD
   if (guardandoEvento) {
     return;
   }
@@ -967,6 +1067,8 @@ async function guardarEvento() {
   const originalBtnText = btnGuardar.textContent;
   btnGuardar.textContent = 'Guardando...';
 
+=======
+>>>>>>> 80563b6 (Modulo sanidad)
   try {
     let data;
     if (id && !String(id).startsWith('tmp-')) {
@@ -980,15 +1082,21 @@ async function guardarEvento() {
       EVENTOS.unshift(data.evento);
     }
     renderTabla();
+<<<<<<< HEAD
     renderCalendar();
+=======
+>>>>>>> 80563b6 (Modulo sanidad)
     const modal = bootstrap.Modal.getInstance(document.getElementById('modalRegistrarEvento'));
     if (modal) modal.hide();
   } catch (error) {
     alert(error.message);
+<<<<<<< HEAD
   } finally {
     guardandoEvento = false;
     btnGuardar.disabled = false;
     btnGuardar.textContent = originalBtnText;
+=======
+>>>>>>> 80563b6 (Modulo sanidad)
   }
 }
 
@@ -1011,12 +1119,16 @@ async function eliminarEvento(id) {
       EVENTOS.splice(index, 1);
     }
     renderTabla();
+<<<<<<< HEAD
     renderCalendar();
+=======
+>>>>>>> 80563b6 (Modulo sanidad)
   } catch (error) {
     alert(error.message);
   }
 }
 
+<<<<<<< HEAD
 function handleTablaBodyClick(event) {
   const button = event.target.closest('button');
   if (!button) return;
@@ -1053,12 +1165,39 @@ function setupListeners() {
     event.preventDefault();
     guardarEvento();
   });
+=======
+function bindEventosTabla() {
+  const tbody = document.getElementById('tabla-sanidad-body');
+  tbody.querySelectorAll('.btn-detalle-evento').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const evento = EVENTOS.find((item) => String(item.id) === btn.dataset.id);
+      if (evento) abrirDetalleEvento(evento);
+    });
+  });
+  tbody.querySelectorAll('.btn-editar-evento').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const evento = EVENTOS.find((item) => String(item.id) === btn.dataset.id);
+      if (evento) openEventoModal(evento);
+    });
+  });
+  tbody.querySelectorAll('.btn-eliminar-evento').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (confirm('¿Eliminar este evento sanitario?')) {
+        eliminarEvento(btn.dataset.id);
+      }
+    });
+  });
+}
+
+function setupListeners() {
+>>>>>>> 80563b6 (Modulo sanidad)
   document.getElementById('btn-guardar-evento').addEventListener('click', guardarEvento);
   document.getElementById('btn-registrar-evento').addEventListener('click', () => openEventoModal());
   document.getElementById('btn-registrar-enfermedad').addEventListener('click', () => openEnfermedadModal());
   document.getElementById('btn-registrar-diagnostico').addEventListener('click', () => openDiagnosticoModal());
   document.getElementById('btn-registrar-veterinario').addEventListener('click', () => openVeterinarioModal());
   document.getElementById('d-animal-search').addEventListener('input', (event) => renderAnimalOptions(document.getElementById('d-animal'), event.target.value));
+<<<<<<< HEAD
   document.getElementById('s-animal-search').addEventListener('input', () => renderAnimalSelectionTable());
   document.getElementById('s-animal-tipo').addEventListener('change', () => {
     const categoriaSelect = document.getElementById('s-animal-categoria');
@@ -1089,6 +1228,11 @@ function setupListeners() {
   document.getElementById('calendario-mes').addEventListener('change', () => {
     renderCalendar();
   });
+=======
+  document.getElementById('s-animal-search').addEventListener('input', (event) => renderAnimalOptions(document.getElementById('s-animal'), event.target.value));
+  document.getElementById('btn-vista-calendario').addEventListener('click', () => toggleVista('calendario'));
+  document.getElementById('btn-vista-lista').addEventListener('click', () => toggleVista('lista'));
+>>>>>>> 80563b6 (Modulo sanidad)
 
   document.getElementById('btn-guardar-enfermedad').addEventListener('click', guardarEnfermedad);
   document.getElementById('btn-guardar-diagnostico').addEventListener('click', guardarDiagnostico);
@@ -1109,9 +1253,15 @@ function setupListeners() {
     });
     paginaActual = 1;
     renderTabla();
+<<<<<<< HEAD
     renderCalendar();
   });
   document.getElementById('tabla-sanidad-body').addEventListener('click', handleTablaBodyClick);
+=======
+    bindEventosTabla();
+    renderCalendar();
+  });
+>>>>>>> 80563b6 (Modulo sanidad)
 }
 
 function refresh() {
