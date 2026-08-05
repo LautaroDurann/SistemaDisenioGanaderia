@@ -1,6 +1,6 @@
 from django.urls import path
 
-from inventario.views import insumo_detalle, insumos, insumos_api
+from inventario.views import insumo_detalle, insumo_lotes, insumos, insumos_api, lote_detalle
 from . import views
 
 urlpatterns = [
@@ -18,6 +18,8 @@ urlpatterns = [
     path('insumos/', insumos, name='insumos'),
     path('api/insumos/', insumos_api, name='insumos_api'),
     path('api/insumos/<int:insumo_id>/', insumo_detalle, name='insumo_detalle'),
+    path('api/insumos/<int:insumo_id>/lotes/', insumo_lotes, name='insumo_lotes'),
+    path('api/lotes/<int:lote_id>/', lote_detalle, name='lote_detalle'),
     path('usuarios/', views.usuarios, name='usuarios'),
     path('configuracion/', views.configuracion, name='configuracion'),
     path('api/stock/', views.stock_api, name='stock_api'),
