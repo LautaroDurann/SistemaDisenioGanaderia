@@ -141,6 +141,12 @@ def _to_iso_date(value):
     return str(value)
 
 
+def _normalizar_dni(valor):
+    """Devuelve None cuando el DNI viene vacío para permitir personas sin DNI."""
+    valor = (valor or '').strip()
+    return valor or None
+
+
 def _venta_data(venta):
     animales = list(venta.animal_set.all())
     return {
@@ -420,9 +426,10 @@ def _veterinario_data(veterinario):
         'id': veterinario.id,
         'nombre': veterinario.nombre,
         'apellido': veterinario.apellido,
+        'dni': veterinario.dni,
         'correo_electronico': veterinario.correo_electronico,
         'telefono': veterinario.telefono or '',
-        'fecha_nacimiento': veterinario.fecha_nacimiento.isoformat(),
+        'fecha_nacimiento': veterinario.fecha_nacimiento.isoformat() if veterinario.fecha_nacimiento else '',
         'nombre_completo': str(veterinario),
     }
 
@@ -442,9 +449,10 @@ def _asignar_diagnostico(diagnostico, datos):
 
 
 def _asignar_veterinario(veterinario, datos):
+    veterinario.dni = _normalizar_dni(datos.get('dni', ''))
     veterinario.nombre = datos['nombre'].strip()
-    veterinario.apellido = datos['apellido'].strip()
-    veterinario.correo_electronico = datos.get('correo_electronico', '').strip()
+    veterinario.apellido = datos.get('apellido', '').strip() or None
+    veterinario.correo_electronico = datos.get('correo_electronico', '').strip() or None
     veterinario.telefono = datos.get('telefono', '').strip()
     veterinario.fecha_nacimiento = datos.get('fecha_nacimiento') or None
 
@@ -488,25 +496,32 @@ def crear_diagnostico(request):
         diagnostico.save()
     except (KeyError, ValueError, ValidationError) as error:
         return JsonResponse({'error': str(error)}, status=400)
+    _recalcular_estado_enfermo(diagnostico.animal)
     return JsonResponse({'diagnostico': _diagnostico_data(diagnostico)}, status=201)
 
 
 @require_POST
 def actualizar_diagnostico(request, diagnostico_id):
     diagnostico = get_object_or_404(Diagnostico, pk=diagnostico_id)
+    animal_anterior = diagnostico.animal
     try:
         _asignar_diagnostico(diagnostico, request.POST)
         diagnostico.full_clean()
         diagnostico.save()
     except (KeyError, ValueError, ValidationError) as error:
         return JsonResponse({'error': str(error)}, status=400)
+    _recalcular_estado_enfermo(animal_anterior)
+    if diagnostico.animal_id != animal_anterior.id:
+        _recalcular_estado_enfermo(diagnostico.animal)
     return JsonResponse({'diagnostico': _diagnostico_data(diagnostico)})
 
 
 @require_POST
 def eliminar_diagnostico(request, diagnostico_id):
     diagnostico = get_object_or_404(Diagnostico, pk=diagnostico_id)
+    animal = diagnostico.animal
     diagnostico.delete()
+    _recalcular_estado_enfermo(animal)
     return JsonResponse({'ok': True})
 
 
@@ -889,7 +904,7 @@ def _revertir_venta(venta):
 def crear_comprador(request):
     try:
         comprador = Comprador.objects.create(
-            dni=request.POST['dni'],
+            dni=_normalizar_dni(request.POST.get('dni', '')),
             nombre=request.POST['nombre'].strip(),
             apellido=request.POST['apellido'].strip(),
             correo_electronico=request.POST['correo_electronico'],
@@ -905,7 +920,7 @@ def crear_comprador(request):
 def actualizar_comprador(request, comprador_id):
     comprador = get_object_or_404(Comprador, pk=comprador_id)
     try:
-        comprador.dni = request.POST.get('dni', comprador.dni)
+        comprador.dni = _normalizar_dni(request.POST.get('dni', comprador.dni))
         comprador.nombre = request.POST.get('nombre', comprador.nombre).strip()
         comprador.apellido = request.POST.get('apellido', comprador.apellido).strip()
         comprador.correo_electronico = request.POST.get('correo_electronico', comprador.correo_electronico)

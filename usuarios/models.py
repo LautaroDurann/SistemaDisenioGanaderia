@@ -3,15 +3,15 @@ from django.db import models
 # 1. Clase Base: Persona
 class Persona(models.Model):
     # Django crea el id (idPersona) automáticamente.
-    dni = models.CharField(max_length=8, unique=True)
+    dni = models.CharField(max_length=8, unique=True, null=True, blank=True)
     nombre = models.CharField(max_length=100)
-    apellido = models.CharField(max_length=100)
-    correo_electronico = models.EmailField(max_length=100, unique=True)
-    fecha_nacimiento = models.DateField()
+    apellido = models.CharField(max_length=100, null=True, blank=True)
+    correo_electronico = models.EmailField(max_length=100, unique=True, null=True, blank=True)
+    fecha_nacimiento = models.DateField(null=True, blank=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
 
     def __str__(self):
-        return f"{self.nombre} {self.apellido}"
+        return ' '.join(parte for parte in (self.nombre, self.apellido) if parte)
 
 
 class Telefono(models.Model):

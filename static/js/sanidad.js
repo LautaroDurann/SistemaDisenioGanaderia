@@ -15,6 +15,7 @@ let paginaActual = 1;
 let eventoEnEdicion = null;
 let guardandoEvento = false;
 let seleccionAnimalesEvento = new Set();
+let fechaSeleccionada = null;
 
 function formatFecha(iso) {
   if (!iso) return '-';
@@ -229,9 +230,13 @@ function renderCalendar() {
   const grid = document.getElementById('calendario-grid');
   grid.innerHTML = html;
   grid.querySelectorAll('.day-cell[data-fecha]').forEach((cell) => {
+    if (cell.dataset.fecha === fechaSeleccionada) {
+      cell.classList.add('selected');
+    }
     cell.addEventListener('click', () => {
       document.querySelectorAll('.day-cell.selected').forEach((selected) => selected.classList.remove('selected'));
       cell.classList.add('selected');
+      fechaSeleccionada = cell.dataset.fecha;
       showCalendarDetails(cell.dataset.fecha);
     });
   });
@@ -254,7 +259,7 @@ function showCalendarDetails(fecha) {
           <th>Veterinario</th>
           <th>Estado</th>
           <th>Animales</th>
-          <th class="text-end">Acción</th>
+          <th class="text-end">Acciones</th>
         </tr></thead>
         <tbody>
           ${eventos
@@ -264,7 +269,11 @@ function showCalendarDetails(fecha) {
                 <td>${escapeHtml(evento.veterinario || '-')}</td>
                 <td><span class="badge ${ESTADO_BADGE[evento.estado] || 'text-bg-secondary'}">${evento.estado ? 'Aplicado' : 'Pendiente'}</span></td>
                 <td>${escapeHtml(evento.animal)}</td>
-                <td class="text-end"><button type="button" class="btn btn-sm btn-outline-secondary btn-detalle-evento" data-id="${escapeHtml(evento.id)}"><i class="bi bi-eye"></i></button></td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-sm btn-outline-secondary btn-detalle-evento" data-id="${escapeHtml(evento.id)}" title="Ver detalle"><i class="bi bi-eye"></i></button>
+                  <button type="button" class="btn btn-sm btn-outline-primary btn-editar-evento" data-id="${escapeHtml(evento.id)}" title="Editar"><i class="bi bi-pencil"></i></button>
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar-evento" data-id="${escapeHtml(evento.id)}" title="Eliminar"><i class="bi bi-trash"></i></button>
+                </td>
               </tr>`)
             .join('')}
         </tbody>
@@ -276,6 +285,20 @@ function showCalendarDetails(fecha) {
       const eventoId = btn.dataset.id;
       const evento = eventos.find((item) => String(item.id) === String(eventoId));
       if (evento) abrirDetalleEvento(evento);
+    });
+  });
+
+  detalle.querySelectorAll('.btn-editar-evento').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const eventoId = btn.dataset.id;
+      const evento = eventos.find((item) => String(item.id) === String(eventoId));
+      if (evento) openEventoModal(evento);
+    });
+  });
+
+  detalle.querySelectorAll('.btn-eliminar-evento').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      eliminarEvento(btn.dataset.id);
     });
   });
 }
@@ -306,12 +329,13 @@ function toggleVista(vista) {
 function renderVeterinarios() {
   const tbody = document.getElementById('veterinarios-body');
   if (!VETERINARIOS.length) {
-    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-secondary py-3">No hay veterinarios registrados.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-secondary py-3">No hay veterinarios registrados.</td></tr>';
     return;
   }
   tbody.innerHTML = VETERINARIOS.map((vet) => `
     <tr>
       <td>${vet.nombre_completo}</td>
+      <td>${vet.dni || '-'}</td>
       <td>${vet.correo_electronico || '-'}</td>
       <td class="text-end">
         <button class="btn btn-sm btn-outline-secondary btn-detalle-veterinario" data-id="${vet.id}" title="Ver detalle"><i class="bi bi-eye"></i></button>
@@ -424,6 +448,7 @@ function bindVeterinariosTable() {
       const veterinario = VETERINARIOS.find((item) => String(item.id) === btn.dataset.id);
       if (veterinario) abrirDetalleCrud('Veterinario', `
         <p><strong>Nombre:</strong> ${veterinario.nombre_completo}</p>
+        <p><strong>DNI:</strong> ${veterinario.dni || '-'}</p>
         <p><strong>Correo:</strong> ${veterinario.correo_electronico || '-'}</p>
         <p><strong>Teléfono:</strong> ${veterinario.telefono || '-'}</p>
         <p><strong>Fecha de nacimiento:</strong> ${formatFecha(veterinario.fecha_nacimiento)}</p>
@@ -482,6 +507,7 @@ function buildDiagnosticoFormData(diagnostico) {
 
 function buildVeterinarioFormData(veterinario) {
   return buildEntityFormData({
+    dni: veterinario.dni || '',
     nombre: veterinario.nombre,
     apellido: veterinario.apellido,
     correo_electronico: veterinario.correo_electronico || '',
@@ -512,6 +538,7 @@ function resetDiagnosticoForm() {
 
 function resetVeterinarioForm() {
   document.getElementById('veterinario-id').value = '';
+  document.getElementById('v-dni').value = '';
   document.getElementById('v-nombre').value = '';
   document.getElementById('v-apellido').value = '';
   document.getElementById('v-correo').value = '';
@@ -651,6 +678,7 @@ function openVeterinarioModal(veterinario = null) {
     resetVeterinarioForm();
   } else {
     document.getElementById('veterinario-id').value = veterinario.id;
+    document.getElementById('v-dni').value = veterinario.dni || '';
     document.getElementById('v-nombre').value = veterinario.nombre;
     document.getElementById('v-apellido').value = veterinario.apellido;
     document.getElementById('v-correo').value = veterinario.correo_electronico || '';
@@ -731,14 +759,15 @@ async function guardarDiagnostico() {
 
 async function guardarVeterinario() {
   const id = document.getElementById('veterinario-id').value;
+  const dni = document.getElementById('v-dni').value.trim();
   const nombre = document.getElementById('v-nombre').value.trim();
   const apellido = document.getElementById('v-apellido').value.trim();
   const correo_electronico = document.getElementById('v-correo').value.trim();
   const telefono = document.getElementById('v-telefono').value.trim();
   const fecha_nacimiento = document.getElementById('v-fecha-nacimiento').value;
 
-  if (!nombre || !apellido) {
-    alert('Nombre y apellido son obligatorios.');
+  if (!nombre) {
+    alert('El nombre es obligatorio.');
     return;
   }
 
@@ -746,7 +775,7 @@ async function guardarVeterinario() {
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'X-CSRFToken': getCsrfToken() },
-    body: buildVeterinarioFormData({ nombre, apellido, correo_electronico, telefono, fecha_nacimiento }),
+    body: buildVeterinarioFormData({ dni, nombre, apellido, correo_electronico, telefono, fecha_nacimiento }),
   });
   const data = await response.json();
   if (!response.ok) {
@@ -981,6 +1010,7 @@ async function guardarEvento() {
     }
     renderTabla();
     renderCalendar();
+    if (fechaSeleccionada) showCalendarDetails(fechaSeleccionada);
     const modal = bootstrap.Modal.getInstance(document.getElementById('modalRegistrarEvento'));
     if (modal) modal.hide();
   } catch (error) {
@@ -1012,6 +1042,7 @@ async function eliminarEvento(id) {
     }
     renderTabla();
     renderCalendar();
+    if (fechaSeleccionada) showCalendarDetails(fechaSeleccionada);
   } catch (error) {
     alert(error.message);
   }
