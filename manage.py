@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 """Django's command-line utility for administrative tasks."""
 import os
+<<<<<<< HEAD
 import sys
+=======
+import sys 
+>>>>>>> 84b5412 (Modulo Sanidad)
 
 
 def main():
