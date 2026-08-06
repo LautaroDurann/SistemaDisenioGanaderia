@@ -4,8 +4,12 @@ const ENFERMEDADES = Array.isArray(SANIDAD_DATA.enfermedades) ? SANIDAD_DATA.enf
 const DIAGNOSTICOS = Array.isArray(SANIDAD_DATA.diagnosticos) ? SANIDAD_DATA.diagnosticos : [];
 const VETERINARIOS = Array.isArray(SANIDAD_DATA.veterinarios) ? SANIDAD_DATA.veterinarios : [];
 const LOTES = Array.isArray(SANIDAD_DATA.lotes) ? SANIDAD_DATA.lotes : [];
+const INSUMOS = Array.isArray(SANIDAD_DATA.insumos) ? SANIDAD_DATA.insumos : [];
 const ANIMALES = Array.isArray(SANIDAD_DATA.animales) ? SANIDAD_DATA.animales : [];
-const TIPOS_EVENTO = SANIDAD_DATA.tipos_evento || ['Vacunación', 'Desparasitación', 'Antibiótico', 'Suplemento', 'Castración', 'Inseminación'];
+const defaultTiposEvento = ['Vacunación', 'Desparasitación', 'Antibiótico', 'Suplemento', 'Castración', 'Inseminación', 'Otro'];
+const TIPOS_EVENTO = Array.isArray(SANIDAD_DATA.tipos_evento)
+  ? [...new Set([...SANIDAD_DATA.tipos_evento, 'Otro'])]
+  : defaultTiposEvento;
 const ESTADO_BADGE = {
   true: 'text-bg-success',
   false: 'text-bg-warning',
@@ -25,6 +29,40 @@ function formatFecha(iso) {
 
 function parseBoolean(value) {
   return value === true || value === 'true' || value === 'on';
+}
+
+function getSelectedLote() {
+  const loteId = document.getElementById('s-lote').value;
+  return LOTES.find((lote) => String(lote.id) === String(loteId)) || null;
+}
+
+function updateStockWarning() {
+  const warningEl = document.getElementById('s-stock-warning');
+  if (!warningEl) return;
+  const lote = getSelectedLote();
+  const cantidadValue = document.getElementById('i-cantidad').value;
+  const cantidad = parseFloat(cantidadValue);
+  if (lote && !Number.isNaN(cantidad) && cantidad > 0 && lote.stock !== undefined && Number(cantidad) > Number(lote.stock)) {
+    warningEl.textContent = `Stock insuficiente: el lote seleccionado tiene solo ${lote.stock} unidad${lote.stock === 1 ? '' : 'es'} disponibles.`;
+    warningEl.classList.remove('d-none');
+    return;
+  }
+  warningEl.textContent = '';
+  warningEl.classList.add('d-none');
+}
+
+function updateEstadoByFecha() {
+  const fecha = document.getElementById('d-fecha').value;
+  const estadoSelect = document.getElementById('s-estado');
+  const hoy = new Date(new Date().toISOString().split('T')[0]);
+  const fechaEvento = fecha ? new Date(fecha) : null;
+  const esFuturo = fechaEvento && fechaEvento > hoy;
+  if (esFuturo) {
+    estadoSelect.value = 'false';
+    estadoSelect.disabled = true;
+  } else {
+    estadoSelect.disabled = false;
+  }
 }
 
 function escapeHtml(text) {
@@ -147,7 +185,6 @@ function renderTabla() {
       <tr>
         <td>${formatFecha(evento.fecha_aplicacion)}</td>
         <td>#${evento.caravana}</td>
-        <td>${evento.animal}</td>
         <td>${evento.tipo}</td>
         <td>${evento.veterinario}</td>
         <td>${evento.diagnostico}</td>
@@ -243,7 +280,7 @@ function renderCalendar() {
 }
 
 function showCalendarDetails(fecha) {
-  const eventos = EVENTOS.filter((evento) => evento.fecha_aplicacion === fecha);
+  const eventos = aplicarFiltros().filter((evento) => evento.fecha_aplicacion === fecha);
   const detalle = document.getElementById('calendario-detalle');
   if (!eventos.length) {
     detalle.textContent = `No hay eventos en ${formatFecha(fecha)}`;
@@ -255,20 +292,28 @@ function showCalendarDetails(fecha) {
     <div class="table-responsive">
       <table class="table table-sm table-hover mb-0">
         <thead class="table-light"><tr>
+          <th>Fecha</th>
+          <th>Animal</th>
           <th>Tipo</th>
           <th>Veterinario</th>
+          <th>Diagnóstico</th>
+          <th>Lote</th>
+          <th>Cantidad</th>
           <th>Estado</th>
-          <th>Animales</th>
           <th class="text-end">Acciones</th>
         </tr></thead>
         <tbody>
           ${eventos
             .map((evento) => `
               <tr>
-                <td>${escapeHtml(evento.tipo)}</td>
+                <td>${formatFecha(evento.fecha_aplicacion)}</td>
+                <td>#${escapeHtml(evento.caravana || evento.animal || '-')}</td>
+                <td>${escapeHtml(evento.tipo || '-')}</td>
                 <td>${escapeHtml(evento.veterinario || '-')}</td>
+                <td>${escapeHtml(evento.diagnostico || '-')}</td>
+                <td>${escapeHtml(evento.lote || '-')}</td>
+                <td>${escapeHtml(evento.cantidad || '-')}</td>
                 <td><span class="badge ${ESTADO_BADGE[evento.estado] || 'text-bg-secondary'}">${evento.estado ? 'Aplicado' : 'Pendiente'}</span></td>
-                <td>${escapeHtml(evento.animal)}</td>
                 <td class="text-end">
                   <button type="button" class="btn btn-sm btn-outline-secondary btn-detalle-evento" data-id="${escapeHtml(evento.id)}" title="Ver detalle"><i class="bi bi-eye"></i></button>
                   <button type="button" class="btn btn-sm btn-outline-primary btn-editar-evento" data-id="${escapeHtml(evento.id)}" title="Editar"><i class="bi bi-pencil"></i></button>
@@ -552,6 +597,7 @@ function getSelectedAnimalIds() {
 
 function renderSelectedAnimales() {
   const contenedor = document.getElementById('seleccion-animales-evento');
+  const contador = document.getElementById('contador-animales-seleccionados');
   const selected = ANIMALES.filter((a) => seleccionAnimalesEvento.has(String(a.id)));
   contenedor.innerHTML = selected.length
     ? selected.map((a) => `
@@ -559,6 +605,10 @@ function renderSelectedAnimales() {
           #${escapeHtml(a.caravana)} ${escapeHtml(a.nombre || 'S/N')} ${a.categoria ? `(${escapeHtml(a.categoria)})` : ''}
         </span>`).join('')
     : '<span class="text-secondary">No hay animales seleccionados.</span>';
+  if (contador) {
+    const texto = selected.length === 1 ? '1 seleccionado' : `${selected.length} seleccionados`;
+    contador.textContent = texto;
+  }
 }
 
 function renderAnimalTipoOptions() {
@@ -859,9 +909,66 @@ function renderFiltros() {
 
   renderAnimalTipoOptions();
   renderAnimalSelectionTable();
+  renderInsumoOptions();
+  renderLoteOptions();
+}
 
-  const loteOptions = [{ value: '', label: 'Sin lote' }, ...LOTES.map((l) => ({ value: l.id, label: `${l.insumo} (${l.stock} u)` }))];
-  setOptions(document.getElementById('s-lote'), loteOptions, false);
+function renderLoteOptions() {
+  const tipoEvento = document.getElementById('s-tipo').value;
+  const selectLote = document.getElementById('s-lote');
+  const insumoId = document.getElementById('s-insumo').value;
+  const currentValue = String(selectLote.value || '');
+
+  const showOnlyVacuna = tipoEvento === 'Vacunación';
+  const loteFilter = (lote) => {
+    if (!lote.insumo_tipo) return false;
+    if (showOnlyVacuna) {
+      return lote.insumo_tipo === 'Vacuna';
+    }
+    return lote.insumo_tipo !== 'Vacuna' && lote.insumo_tipo !== 'Alimento';
+  };
+
+  const filtered = LOTES.filter(loteFilter);
+  let matchingLotes = insumoId ? filtered.filter((l) => String(l.insumo_id) === insumoId) : [];
+
+  if (currentValue && !matchingLotes.some((lote) => String(lote.id) === currentValue)) {
+    const loteActual = LOTES.find((lote) => String(lote.id) === currentValue);
+    if (loteActual) {
+      matchingLotes = [loteActual, ...matchingLotes];
+    }
+  }
+
+  const loteOptions = [{ value: '', label: insumoId ? 'Sin lote disponible' : 'Seleccioná primero un insumo' }, ...matchingLotes.map((l) => ({ value: l.id, label: `${l.nombre} — ${l.insumo_nombre} (${l.stock} u)` }))];
+  setOptions(selectLote, loteOptions, false);
+  if (currentValue) {
+    selectLote.value = currentValue;
+  }
+  updateStockWarning();
+}
+
+function renderInsumoOptions() {
+  const tipoEvento = document.getElementById('s-tipo').value;
+  const filtroTexto = document.getElementById('s-insumo-search').value.trim().toLowerCase();
+  const selectInsumo = document.getElementById('s-insumo');
+  const currentValue = String(selectInsumo.value || '');
+  const showOnlyVacuna = tipoEvento === 'Vacunación';
+  let insumoOptions = [{ value: '', label: 'Sin insumo' }, ...INSUMOS
+    .filter((i) => {
+      const text = `${i.nombre || ''} ${i.tipo || ''}`.toLowerCase();
+      if (filtroTexto && !text.includes(filtroTexto)) return false;
+      if (showOnlyVacuna) return i.tipo === 'Vacuna';
+      return i.tipo !== 'Vacuna' && i.tipo !== 'Alimento';
+    })
+    .map((i) => ({ value: i.id, label: `${i.nombre} (${i.tipo})` }))];
+
+  if (currentValue && !insumoOptions.some((option) => String(option.value) === currentValue)) {
+    insumoOptions = [{ value: currentValue, label: 'Insumo actual' }, ...insumoOptions];
+  }
+
+  setOptions(selectInsumo, insumoOptions, false);
+  if (currentValue) {
+    selectInsumo.value = currentValue;
+  }
 }
 
 const modalRegistrarEventoEl = document.getElementById('modalRegistrarEvento');
@@ -881,10 +988,16 @@ function resetEventoForm() {
   renderAnimalSelectionTable();
   document.getElementById('s-veterinario').value = '';
   document.getElementById('s-diagnostico').value = '';
+  document.getElementById('s-insumo-search').value = '';
+  document.getElementById('s-insumo').value = '';
+  renderInsumoOptions();
+  renderLoteOptions();
   document.getElementById('s-lote').value = '';
   document.getElementById('i-cantidad').value = '';
   document.getElementById('i-costo').value = '';
   document.getElementById('t-detalle').value = '';
+  updateStockWarning();
+  updateEstadoByFecha();
 }
 
 function openEventoModal(evento = null) {
@@ -906,10 +1019,15 @@ function openEventoModal(evento = null) {
     renderAnimalSelectionTable();
     document.getElementById('s-veterinario').value = evento.veterinario_id || '';
     document.getElementById('s-diagnostico').value = evento.diagnostico_id || '';
+    renderInsumoOptions();
+    document.getElementById('s-insumo').value = evento.lote_insumo_id || '';
+    renderLoteOptions();
     document.getElementById('s-lote').value = evento.lote_id || '';
     document.getElementById('i-cantidad').value = evento.cantidad || '';
     document.getElementById('i-costo').value = evento.costo_total || '';
     document.getElementById('t-detalle').value = evento.detalle || '';
+    updateStockWarning();
+    updateEstadoByFecha();
   }
 
   modalRegistrarEvento.show();
@@ -931,6 +1049,9 @@ function abrirDetalleEvento(evento) {
   const animalText = animales.length
     ? animales.map((a) => `#${a.caravana} ${a.nombre}`).join(', ')
     : evento.animal;
+  const warningEl = document.getElementById('detalle-stock-warning');
+  const lote = LOTES.find((item) => String(item.id) === String(evento.lote_id)) || null;
+  const cantidad = parseFloat(evento.cantidad || 0);
 
   document.getElementById('detalle-caravana').textContent = caravanaText;
   document.getElementById('detalle-animal').textContent = animalText;
@@ -943,6 +1064,16 @@ function abrirDetalleEvento(evento) {
   document.getElementById('detalle-cantidad').textContent = evento.cantidad || '-';
   document.getElementById('detalle-costo').textContent = evento.costo_total || '-';
   document.getElementById('detalle-observaciones').textContent = evento.detalle || '-';
+
+  if (warningEl) {
+    if (lote && !Number.isNaN(cantidad) && cantidad > 0 && Number(cantidad) > Number(lote.stock || 0)) {
+      warningEl.textContent = `Stock insuficiente: el lote seleccionado tiene solo ${lote.stock} unidad${lote.stock === 1 ? '' : 'es'} disponibles.`;
+      warningEl.classList.remove('d-none');
+    } else {
+      warningEl.textContent = '';
+      warningEl.classList.add('d-none');
+    }
+  }
 
   const modal = new bootstrap.Modal(document.getElementById('modalDetalleEvento'));
   modal.show();
@@ -1102,6 +1233,18 @@ function setupListeners() {
     renderAnimalSelectionTable();
   });
   document.getElementById('s-animal-categoria').addEventListener('change', renderAnimalSelectionTable);
+  document.getElementById('s-tipo').addEventListener('change', () => {
+    renderInsumoOptions();
+    renderLoteOptions();
+  });
+  document.getElementById('s-insumo-search').addEventListener('input', () => {
+    renderInsumoOptions();
+    renderLoteOptions();
+  });
+  document.getElementById('s-insumo').addEventListener('change', renderLoteOptions);
+  document.getElementById('s-lote').addEventListener('change', updateStockWarning);
+  document.getElementById('i-cantidad').addEventListener('input', updateStockWarning);
+  document.getElementById('d-fecha').addEventListener('change', updateEstadoByFecha);
   document.getElementById('s-animal-select-all').addEventListener('click', () => {
     const checkboxes = Array.from(document.querySelectorAll('#tabla-animales-evento .evento-animal-checkbox'));
     const visibleIds = checkboxes.map((checkbox) => String(checkbox.value));

@@ -328,9 +328,22 @@ def potreros(request):
 def _lote_data(lote):
     return {
         'id': lote.id,
+        'nombre': lote.nombre or f'Lote {lote.id}',
+        'insumo_id': lote.insumo_id,
         'insumo': str(lote.insumo) if lote.insumo else '-',
+        'insumo_nombre': lote.insumo.nombre if lote.insumo else '-',
+        'insumo_tipo': lote.insumo.tipo if lote.insumo else '',
         'stock': str(lote.stockActual or 0),
         'fecha_vencimiento': lote.fechaVencimiento.isoformat() if lote.fechaVencimiento else '',
+    }
+
+
+def _insumo_data(insumo):
+    return {
+        'id': insumo.id,
+        'nombre': insumo.nombre or f'Insumo {insumo.id}',
+        'tipo': insumo.tipo or '',
+        'unidad_de_medida': insumo.unidadDeMedida or '',
     }
 
 
@@ -338,6 +351,14 @@ def _asignar_evento_sanitario(evento, datos):
     tipo = datos.get('tipo', '').strip()
     fecha_aplicacion = datos.get('fecha_aplicacion', '').strip()
     animal_ids = [int(value) for value in datos.getlist('animales') if str(value).strip()]
+    if not animal_ids:
+        animal_ids = [int(value) for value in datos.getlist('animal_ids') if str(value).strip()]
+    if not animal_ids:
+        animal_ids = [int(value) for value in datos.getlist('animal_id') if str(value).strip()]
+    if not animal_ids:
+        animal_id = datos.get('animal_id', '').strip()
+        if animal_id:
+            animal_ids = [int(animal_id)]
 
     if not tipo or not fecha_aplicacion or not animal_ids:
         raise ValueError('Tipo, fecha y al menos un animal son obligatorios para el evento sanitario.')
@@ -394,6 +415,8 @@ def _evento_sanitario_data(evento):
         'diagnostico': str(evento.diagnostico) if evento.diagnostico else '-',
         'lote_id': evento.lote_id if hasattr(evento, 'lote_id') else None,
         'lote': str(evento.lote) if hasattr(evento, 'lote') and evento.lote else '-',
+        'lote_insumo_id': evento.lote.insumo_id if evento.lote and evento.lote.insumo_id else None,
+        'lote_insumo_tipo': evento.lote.insumo.tipo if evento.lote and evento.lote.insumo else None,
         'cantidad': str(getattr(evento, 'cantidad', '') or ''),
     }
 
@@ -575,7 +598,7 @@ def sanidad(request):
     enfermedades = Enfermedad.objects.order_by('nombre')
     diagnosticos = Diagnostico.objects.select_related('animal', 'enfermedad').order_by('-fecha_deteccion')
     veterinarios = Veterinario.objects.order_by('apellido', 'nombre')
-    lotes = Lote.objects.select_related('insumo').filter(insumo__tipo='Vacuna').order_by('fechaVencimiento')
+    lotes = Lote.objects.select_related('insumo').order_by('insumo__nombre', 'fechaVencimiento')
     # Incluir animales vivos aunque ya hayan sido vendidos para permitir registrar eventos y diagnósticos históricos.
     animales = Animal.objects.filter(vivo=True).select_related('parcela').order_by('id_senasa')
 
@@ -592,6 +615,7 @@ def sanidad(request):
         'diagnosticos': [_diagnostico_data(d) for d in diagnosticos],
         'veterinarios': [_veterinario_data(v) for v in veterinarios],
         'lotes': [_lote_data(l) for l in lotes],
+        'insumos': [_insumo_data(i) for i in Insumo.objects.order_by('nombre')],
         'tipos_evento': [choice[0] for choice in EventoSanitario.TIPO_CHOICES],
         'animales': [{
             'id': a.id,

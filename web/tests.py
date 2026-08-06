@@ -2,6 +2,7 @@ import base64
 from datetime import date
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
@@ -9,7 +10,7 @@ from django.urls import reverse
 from animales.models import Animal, MovimientoAnimal, Pesaje
 from establecimientos.models import Establecimiento, Parcela
 from finanzas.models import MovimientoFinanciero, Venta
-from sanidad.models import EventoSanitario
+from sanidad.models import DetalleEvento, EventoSanitario
 from usuarios.models import Comprador
 
 
@@ -38,7 +39,22 @@ class WebIntegrationTests(TestCase):
             'detalle': 'Desparasitación de prueba',
         })
         self.assertEqual(response.status_code, 201)
-        self.assertTrue(EventoSanitario.objects.filter(tipo='Desparasitación', animal=self.animal).exists())
+        evento = EventoSanitario.objects.get(tipo='Desparasitación', fecha_aplicacion='2026-08-01')
+        self.assertTrue(evento.detalles.filter(animal=self.animal).exists())
+
+    def test_validacion_de_castracion_muestra_la_caravana_del_animal(self):
+        evento = EventoSanitario.objects.create(tipo='Castración', fecha_aplicacion='2026-08-01', estado=True)
+        self.animal.castrado = True
+        self.animal.save(update_fields=['castrado'])
+
+        detalle = DetalleEvento(evento=evento, animal=self.animal)
+
+        with self.assertRaises(ValidationError) as error:
+            detalle.full_clean()
+
+        mensaje = str(error.exception)
+        self.assertIn(str(self.animal.id_senasa), mensaje)
+        self.assertNotIn(f'El animal {self.animal.id}', mensaje)
 
     def test_api_stock_y_registro_de_pesaje(self):
         response = self.client.get(reverse('stock_api'))

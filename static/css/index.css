@@ -6,6 +6,17 @@
         overflow-y: scroll;
       }
 
+      body.modal-open {
+        padding-right: 0 !important;
+      }
+
+      .modal-backdrop {
+        z-index: 1040;
+      }
+
+      .modal {
+        z-index: 1050;
+      }
 
       /* Ajustes propios de VacApp */
       body {

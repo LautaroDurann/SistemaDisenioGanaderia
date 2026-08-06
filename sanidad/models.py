@@ -28,6 +28,16 @@ class Diagnostico(models.Model):
     def __str__(self):
         return f"Diagnóstico: {self.enfermedad.nombre} - Animal ID: {self.animal_id}"
 
+def _identificador_animal(animal):
+    if animal is None:
+        return 'Sin animal'
+    if getattr(animal, 'id_senasa', None) is not None:
+        return f'#{animal.id_senasa}'
+    if getattr(animal, 'nombre', None):
+        return animal.nombre
+    return f'ID {animal.id}'
+
+
 # 3. Evento Sanitario (Cabecera - Aplica para muchos animales)
 class EventoSanitario(models.Model):
     TIPO_CHOICES = [
@@ -123,10 +133,10 @@ class DetalleEvento(models.Model):
     def clean(self):
         # Validaciones de reglas de negocio a nivel de animal individual
         if self.evento.tipo == 'Inseminación' and self.animal.sexo != 'Hembra':
-            raise ValidationError(f'No se puede inseminar al animal {self.animal.id} porque no es hembra.')
+            raise ValidationError(f'No se puede inseminar al animal {_identificador_animal(self.animal)} porque no es hembra.')
             
         if self.evento.tipo == 'Castración' and self.animal.castrado:
-            raise ValidationError(f'El animal {self.animal.id} ya figura como castrado.')
+            raise ValidationError(f'El animal {_identificador_animal(self.animal)} ya figura como castrado.')
 
     def save(self, *args, **kwargs):
         self.full_clean()
