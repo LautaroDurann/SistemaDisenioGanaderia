@@ -9,7 +9,7 @@ from django.urls import reverse
 
 from animales.models import Animal, MovimientoAnimal, Pesaje
 from establecimientos.models import Establecimiento, Parcela
-from finanzas.models import MovimientoFinanciero, Venta
+from finanzas.models import Compra, MovimientoFinanciero, Venta
 from sanidad.models import DetalleEvento, EventoSanitario
 from usuarios.models import Comprador
 
@@ -41,6 +41,143 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 201)
         evento = EventoSanitario.objects.get(tipo='Desparasitación', fecha_aplicacion='2026-08-01')
         self.assertTrue(evento.detalles.filter(animal=self.animal).exists())
+
+    def test_evento_aplicado_con_costo_genera_egreso_en_finanzas(self):
+        response = self.client.post(reverse('crear_evento_sanitario'), {
+            'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
+            'costo_total': '5000.50', 'animal_id': self.animal.id,
+        })
+        self.assertEqual(response.status_code, 201)
+        evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
+        self.assertIsNotNone(evento.mov_financiero)
+        movimiento = evento.mov_financiero
+        self.assertEqual(movimiento.tipo, 'Egreso')
+        self.assertEqual(movimiento.monto_total, Decimal('5000.50'))
+        self.assertEqual(movimiento.fecha.isoformat(), '2026-08-01')
+        self.assertEqual(movimiento.nombre, f'Evento sanitario #{evento.id}')
+        self.assertIn('Sanidad', movimiento.detalle)
+
+    def test_evento_aplicado_sin_costo_no_genera_movimiento(self):
+        response = self.client.post(reverse('crear_evento_sanitario'), {
+            'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
+            'costo_total': '0', 'animal_id': self.animal.id,
+        })
+        self.assertEqual(response.status_code, 201)
+        evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
+        self.assertIsNone(evento.mov_financiero)
+        self.assertEqual(MovimientoFinanciero.objects.count(), 0)
+
+    def test_evento_pendiente_con_costo_no_genera_movimiento(self):
+        response = self.client.post(reverse('crear_evento_sanitario'), {
+            'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'false',
+            'costo_total': '5000.00', 'animal_id': self.animal.id,
+        })
+        self.assertEqual(response.status_code, 201)
+        evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
+        self.assertIsNone(evento.mov_financiero)
+        self.assertEqual(MovimientoFinanciero.objects.count(), 0)
+
+    def test_cambiar_evento_a_pendiente_elimina_el_movimiento_financiero(self):
+        response = self.client.post(reverse('crear_evento_sanitario'), {
+            'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
+            'costo_total': '5000.00', 'animal_id': self.animal.id,
+        })
+        evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
+        self.assertEqual(MovimientoFinanciero.objects.count(), 1)
+
+        response = self.client.post(reverse('actualizar_evento_sanitario', args=[evento.id]), {
+            'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'false',
+            'costo_total': '5000.00', 'animal_id': self.animal.id,
+        })
+        self.assertEqual(response.status_code, 200)
+        evento.refresh_from_db()
+        self.assertIsNone(evento.mov_financiero)
+        self.assertEqual(MovimientoFinanciero.objects.count(), 0)
+
+    def test_eliminar_evento_con_costo_elimina_el_movimiento_financiero(self):
+        response = self.client.post(reverse('crear_evento_sanitario'), {
+            'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
+            'costo_total': '5000.00', 'animal_id': self.animal.id,
+        })
+        evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
+        self.assertEqual(MovimientoFinanciero.objects.count(), 1)
+
+        response = self.client.post(reverse('eliminar_evento_sanitario', args=[evento.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(EventoSanitario.objects.filter(pk=evento.id).exists())
+        self.assertEqual(MovimientoFinanciero.objects.count(), 0)
+
+    def test_crear_y_editar_movimiento_financiero(self):
+        response = self.client.post(reverse('api_finanzas_movimientos'), {
+            'fecha': '2026-08-01', 'tipo': 'Egreso', 'nombre': 'Compra de insumos',
+            'detalle': 'Compra inicial', 'monto_total': '1500.00',
+        })
+        self.assertEqual(response.status_code, 201)
+        movimiento_id = response.json()['movimiento']['id']
+
+        response = self.client.post(reverse('actualizar_movimiento_financiero', args=[movimiento_id]), {
+            'fecha': '2026-08-02', 'tipo': 'Ingreso', 'nombre': 'Venta editada',
+            'detalle': 'Editado', 'monto_total': '2000.00',
+        })
+        self.assertEqual(response.status_code, 200)
+        movimiento = MovimientoFinanciero.objects.get(pk=movimiento_id)
+        self.assertEqual(movimiento.fecha.isoformat(), '2026-08-02')
+        self.assertEqual(movimiento.tipo, 'Ingreso')
+        self.assertEqual(movimiento.nombre, 'Venta editada')
+        self.assertEqual(movimiento.detalle, 'Editado')
+        self.assertEqual(str(movimiento.monto_total), '2000.00')
+
+    def test_editar_costo_del_movimiento_sincroniza_la_venta(self):
+        self.animal.peso_actual = Decimal('300.00')
+        self.animal.save(update_fields=['peso_actual'])
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-03', 'tipo': 'Venta de hacienda', 'precio_por_kg': '2500.50',
+            'detalle': 'Venta de prueba', 'animales': [self.animal.id],
+        })
+        self.assertEqual(response.status_code, 201)
+        venta = Venta.objects.get(pk=response.json()['id'])
+        movimiento_id = venta.mov_financiero.id
+
+        response = self.client.post(reverse('actualizar_movimiento_financiero', args=[movimiento_id]), {
+            'fecha': '2026-08-03', 'tipo': 'Ingreso', 'nombre': 'Venta editada', 'monto_total': '900000.00',
+        })
+        self.assertEqual(response.status_code, 200)
+        venta.refresh_from_db()
+        self.assertEqual(venta.monto_total, Decimal('900000.00'))
+        self.assertEqual(venta.mov_financiero.monto_total, Decimal('900000.00'))
+
+    def test_editar_costo_del_movimiento_sincroniza_el_evento_sanitario(self):
+        response = self.client.post(reverse('crear_evento_sanitario'), {
+            'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
+            'costo_total': '5000.00', 'animal_id': self.animal.id,
+        })
+        self.assertEqual(response.status_code, 201)
+        evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
+        movimiento_id = evento.mov_financiero_id
+
+        response = self.client.post(reverse('actualizar_movimiento_financiero', args=[movimiento_id]), {
+            'fecha': '2026-08-01', 'tipo': 'Egreso', 'nombre': 'Evento sanitario', 'monto_total': '7500.00',
+        })
+        self.assertEqual(response.status_code, 200)
+        evento.refresh_from_db()
+        self.assertEqual(evento.costo_total, Decimal('7500.00'))
+        self.assertEqual(evento.mov_financiero.monto_total, Decimal('7500.00'))
+
+    def test_editar_costo_del_movimiento_sincroniza_la_compra(self):
+        movimiento = MovimientoFinanciero.objects.create(
+            fecha='2026-08-01', tipo='Egreso', nombre='Compra de insumos', monto_total=Decimal('10000.00')
+        )
+        compra = Compra.objects.create(
+            tipo='Insumos', fecha='2026-08-01', monto_total=Decimal('10000.00'), mov_financiero=movimiento
+        )
+
+        response = self.client.post(reverse('actualizar_movimiento_financiero', args=[movimiento.id]), {
+            'fecha': '2026-08-01', 'tipo': 'Egreso', 'nombre': 'Compra de insumos', 'monto_total': '12000.00',
+        })
+        self.assertEqual(response.status_code, 200)
+        compra.refresh_from_db()
+        self.assertEqual(compra.monto_total, Decimal('12000.00'))
+        self.assertEqual(compra.mov_financiero.monto_total, Decimal('12000.00'))
 
     def test_validacion_de_castracion_muestra_la_caravana_del_animal(self):
         evento = EventoSanitario.objects.create(tipo='Castración', fecha_aplicacion='2026-08-01', estado=True)

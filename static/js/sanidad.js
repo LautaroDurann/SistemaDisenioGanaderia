@@ -381,8 +381,8 @@ function renderVeterinarios() {
   tbody.innerHTML = VETERINARIOS.map((vet) => `
     <tr>
       <td>${vet.nombre_completo}</td>
-      <td>${vet.dni || '-'}</td>
       <td>${vet.correo_electronico || '-'}</td>
+      <td>${vet.telefono || '-'}</td>
       <td class="text-end">
         <button class="btn btn-sm btn-outline-secondary btn-detalle-veterinario" data-id="${vet.id}" title="Ver detalle"><i class="bi bi-eye"></i></button>
         <button class="btn btn-sm btn-outline-primary btn-editar-veterinario" data-id="${vet.id}" title="Editar"><i class="bi bi-pencil"></i></button>
@@ -962,7 +962,9 @@ function renderFiltros() {
   setOptions(document.getElementById('s-veterinario'), [{ value: '', label: 'Sin veterinario' }, ...veterinarioOptions]);
   renderVeterinarioOptions(document.getElementById('s-veterinario'));
 
-  const diagnosticoOptions = [{ value: '', label: 'Sin diagnóstico' }, ...DIAGNOSTICOS.map((d) => ({ value: d.id, label: `#${d.caravana} - ${d.enfermedad} - ${formatFecha(d.fecha_deteccion)}` }))];
+  const diagnosticoOptions = [{ value: '', label: 'Sin diagnóstico' }, ...DIAGNOSTICOS
+    .filter((d) => d.estado_actual !== 'Curado')
+    .map((d) => ({ value: d.id, label: `#${d.caravana} - ${d.enfermedad} - ${formatFecha(d.fecha_deteccion)}` }))];
   setOptions(document.getElementById('s-diagnostico'), diagnosticoOptions, false);
 
   renderAnimalTipoOptions();

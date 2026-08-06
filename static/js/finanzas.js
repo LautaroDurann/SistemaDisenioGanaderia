@@ -12,60 +12,155 @@ const mesActualClave = () => {
 };
 
 let chartInstance = null;
+let chartIngresos = [];
+let chartEgresos = [];
+let kpiTotal = KPI_TOTAL;
+let kpiIngresos = KPI_INGRESOS;
+let kpiEgresos = KPI_EGRESOS;
+let kpiBalance = KPI_BALANCE;
 
 function filaMovimientoHTML(m) {
   const esIngreso = m.tipo === 'Ingreso';
-  return `<tr data-id="${m.id}" data-tipo="${m.tipo}" data-monto="${m.monto_total}" data-fecha="${m.fecha}">
+  return `<tr data-id="${m.id}" data-tipo="${m.tipo}" data-monto="${m.monto_total}" data-fecha="${m.fecha}" data-nombre="${m.nombre}">
     <td>${m.fecha}</td>
     <td><span class="badge ${esIngreso ? 'text-bg-success' : 'text-bg-danger'}">${m.tipo}</span></td>
     <td>${m.nombre}</td>
     <td>${m.detalle || '-'}</td>
     <td class="text-end">${dinero(m.monto_total)}</td>
-    <td class="text-end"><button class="btn btn-sm btn-outline-danger btn-eliminar" data-id="${m.id}">Eliminar</button></td>
+    <td class="text-end">
+      <div class="d-flex gap-1 justify-content-end">
+        <button class="btn btn-sm btn-outline-secondary btn-ver" data-id="${m.id}" title="Ver detalle"><i class="bi bi-eye"></i></button>
+        <button class="btn btn-sm btn-outline-primary btn-editar" data-id="${m.id}" title="Editar"><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-sm btn-outline-danger btn-eliminar" data-id="${m.id}" title="Eliminar"><i class="bi bi-trash"></i></button>
+      </div>
+    </td>
   </tr>`;
+}
+
+function verMovimiento(row) {
+  const id = row.dataset.id;
+  const tipo = row.dataset.tipo;
+  const monto = row.children[4]?.textContent.trim() || '';
+  document.getElementById('det-fecha').textContent = row.children[0].textContent.trim();
+  document.getElementById('det-tipo').textContent = tipo;
+  document.getElementById('det-nombre').textContent = row.children[2].textContent.trim();
+  document.getElementById('det-detalle').textContent = row.children[3].textContent.trim();
+  document.getElementById('det-monto').textContent = monto;
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modalVerMovimientoFinanciero')).show();
+}
+
+function abrirEdicionMovimiento(row) {
+  document.getElementById('mov-id').value = row.dataset.id;
+  document.getElementById('mov-fecha').value = row.dataset.fecha;
+  document.getElementById('mov-tipo').value = row.dataset.tipo;
+  document.getElementById('mov-monto').value = row.dataset.monto;
+  document.getElementById('mov-nombre').value = row.children[2].textContent.trim();
+  document.getElementById('mov-detalle').value = row.children[3].textContent.trim() === '-' ? '' : row.children[3].textContent.trim();
+  document.getElementById('titulo-mov-modal').textContent = 'Editar movimiento financiero';
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modalRegistrarMovimientoFinanciero')).show();
+}
+
+function enviarMovimiento(payload, url) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCookie('csrftoken') },
+    body: payload,
+  });
+}
+
+function aplicarFiltros() {
+  const tbody = document.getElementById('tabla-finanzas-body');
+  if (!tbody) return;
+  const desde = document.getElementById('filtro-desde')?.value || '';
+  const hasta = document.getElementById('filtro-hasta')?.value || '';
+  const concepto = (document.getElementById('filtro-concepto')?.value || '').trim().toLowerCase();
+
+  const hayDatos = tbody.querySelector('tr[data-id]');
+  let visibles = 0;
+  tbody.querySelectorAll('tr[data-id]').forEach((row) => {
+    const fecha = row.dataset.fecha || '';
+    const nombre = (row.dataset.nombre || '').toLowerCase();
+    const detalle = (row.children[3]?.textContent || '').toLowerCase();
+    let mostrar = true;
+    if (desde && fecha < desde) mostrar = false;
+    if (hasta && fecha > hasta) mostrar = false;
+    if (concepto && !(nombre.includes(concepto) || detalle.includes(concepto))) mostrar = false;
+    row.style.display = mostrar ? '' : 'none';
+    if (mostrar) visibles++;
+  });
+
+  const filaVacia = tbody.querySelector('#fila-vacia-movimientos');
+  const filaFiltro = tbody.querySelector('.fila-filtro-vacio');
+  if (hayDatos && visibles === 0) {
+    if (filaVacia) filaVacia.style.display = 'none';
+    if (!filaFiltro) {
+      tbody.insertAdjacentHTML('beforeend', '<tr class="fila-filtro-vacio"><td colspan="6" class="text-center text-secondary py-4">No se encontraron movimientos para los filtros aplicados.</td></tr>');
+    }
+  } else {
+    if (filaVacia) filaVacia.style.display = '';
+    if (filaFiltro) filaFiltro.remove();
+  }
+}
+
+function limpiarFiltros() {
+  ['filtro-desde', 'filtro-hasta', 'filtro-concepto'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  aplicarFiltros();
 }
 
 function prependFila(movimiento) {
   const tbody = document.getElementById('tabla-finanzas-body');
   if (!tbody) return;
-  const vacia = tbody.querySelector('tr td[colspan]');
-  if (vacia) vacia.closest('tr').remove();
+  const vacia = tbody.querySelector('#fila-vacia-movimientos');
+  if (vacia) vacia.remove();
+  const filaFiltro = tbody.querySelector('.fila-filtro-vacio');
+  if (filaFiltro) filaFiltro.remove();
   tbody.insertAdjacentHTML('afterbegin', filaMovimientoHTML(movimiento));
+  aplicarFiltros();
 }
 
 function actualizarKPIs(tipo, monto, signo, fechaISO) {
   if (mesClave(fechaISO) !== mesActualClave()) return;
   const montoNum = Number(monto || 0);
   const esIngreso = tipo === 'Ingreso';
-  const kpiTotal = document.getElementById('kpi-total');
-  const kpiTipo = document.getElementById(esIngreso ? 'kpi-ingresos' : 'kpi-egresos');
-  const kpiBalance = document.getElementById('kpi-balance');
-  if (kpiTotal) kpiTotal.textContent = Number(kpiTotal.textContent) + signo;
-  if (kpiTipo) kpiTipo.textContent = dinero(Number(kpiTipo.textContent.replace(/[^\d.-]/g, '')) + signo * montoNum);
-  if (kpiBalance) kpiBalance.textContent = dinero(Number(kpiBalance.textContent.replace(/[^\d.-]/g, '')) + signo * (esIngreso ? 1 : -1) * montoNum);
+  kpiTotal += signo;
+  if (esIngreso) kpiIngresos += signo * montoNum;
+  else kpiEgresos += signo * montoNum;
+  kpiBalance += signo * (esIngreso ? 1 : -1) * montoNum;
+  const elTotal = document.getElementById('kpi-total');
+  const elIngresos = document.getElementById('kpi-ingresos');
+  const elEgresos = document.getElementById('kpi-egresos');
+  const elBalance = document.getElementById('kpi-balance');
+  if (elTotal) elTotal.textContent = kpiTotal;
+  if (elIngresos) elIngresos.textContent = dinero(kpiIngresos);
+  if (elEgresos) elEgresos.textContent = dinero(kpiEgresos);
+  if (elBalance) elBalance.textContent = dinero(kpiBalance);
 }
 
 function actualizarChart(tipo, monto, signo, fechaISO) {
   if (!chartInstance) return;
   const idx = CHART_LABELS.indexOf(mesClave(fechaISO));
   if (idx === -1) return;
-  const series = [
-    { name: 'Ingresos', data: CHART_INGRESOS.slice() },
-    { name: 'Egresos', data: CHART_EGRESOS.slice() },
-  ];
-  const arr = tipo === 'Ingreso' ? series[0].data : series[1].data;
-  arr[idx] = Number(arr[idx]) + signo * Number(monto || 0);
-  chartInstance.updateSeries(series);
+  const arr = tipo === 'Ingreso' ? chartIngresos : chartEgresos;
+  arr[idx] = Number(arr[idx] || 0) + signo * Number(monto || 0);
+  chartInstance.updateSeries([
+    { name: 'Ingresos', data: chartIngresos.slice() },
+    { name: 'Egresos', data: chartEgresos.slice() },
+  ]);
 }
 
 document.addEventListener('DOMContentLoaded', function () {
   // Render chart
+  chartIngresos = CHART_INGRESOS.slice();
+  chartEgresos = CHART_EGRESOS.slice();
   try {
     chartInstance = new ApexCharts(document.querySelector('#chart-finanzas'), {
       chart: { height: 320, type: 'bar', toolbar: { show: false } },
       series: [
-        { name: 'Ingresos', data: CHART_INGRESOS },
-        { name: 'Egresos', data: CHART_EGRESOS },
+        { name: 'Ingresos', data: chartIngresos.slice() },
+        { name: 'Egresos', data: chartEgresos.slice() },
       ],
       xaxis: { categories: CHART_LABELS },
       colors: ['#198754', '#dc3545'],
@@ -77,30 +172,50 @@ document.addEventListener('DOMContentLoaded', function () {
     console.error('Error renderizando gráfico de finanzas', e);
   }
 
-  // Form submit
+  // Form submit (crear o editar)
   const form = document.getElementById('form-registrar-mov-financiero');
+  const modalRegistrar = document.getElementById('modalRegistrarMovimientoFinanciero');
   if (form) {
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
+      const id = document.getElementById('mov-id').value;
       const fd = new FormData(form);
-      fetch('/api/finanzas/movimientos/', {
-        method: 'POST',
-        headers: { 'X-CSRFToken': getCookie('csrftoken') },
-        body: fd,
-      }).then(res => res.json()).then(data => {
+      const url = id ? `/api/finanzas/movimientos/${id}/` : '/api/finanzas/movimientos/';
+      enviarMovimiento(fd, url).then(res => res.json()).then(data => {
         if (data.error) {
           alert(data.error);
           return;
         }
-        prependFila(data.movimiento);
-        actualizarKPIs(data.movimiento.tipo, data.movimiento.monto_total, 1, data.movimiento.fecha);
-        actualizarChart(data.movimiento.tipo, data.movimiento.monto_total, 1, data.movimiento.fecha);
+        const tbody = document.getElementById('tabla-finanzas-body');
+        if (id) {
+          const row = tbody.querySelector(`tr[data-id="${id}"]`);
+          if (row) {
+            actualizarKPIs(row.dataset.tipo, row.dataset.monto, -1, row.dataset.fecha);
+            actualizarChart(row.dataset.tipo, row.dataset.monto, -1, row.dataset.fecha);
+            row.outerHTML = filaMovimientoHTML(data.movimiento);
+          }
+          actualizarKPIs(data.movimiento.tipo, data.movimiento.monto_total, 1, data.movimiento.fecha);
+          actualizarChart(data.movimiento.tipo, data.movimiento.monto_total, 1, data.movimiento.fecha);
+          aplicarFiltros();
+        } else {
+          prependFila(data.movimiento);
+          actualizarKPIs(data.movimiento.tipo, data.movimiento.monto_total, 1, data.movimiento.fecha);
+          actualizarChart(data.movimiento.tipo, data.movimiento.monto_total, 1, data.movimiento.fecha);
+        }
         form.reset();
-        bootstrap.Modal.getInstance(document.getElementById('modalRegistrarMovimientoFinanciero'))?.hide();
+        bootstrap.Modal.getOrCreateInstance(modalRegistrar).hide();
       }).catch(err => {
         console.error(err);
-        alert('Error al crear movimiento.');
+        alert('Error al guardar el movimiento.');
       });
+    });
+  }
+
+  if (modalRegistrar) {
+    modalRegistrar.addEventListener('hidden.bs.modal', function () {
+      document.getElementById('mov-id').value = '';
+      document.getElementById('titulo-mov-modal').textContent = 'Registrar movimiento financiero';
+      form?.reset();
     });
   }
 
@@ -108,6 +223,18 @@ document.addEventListener('DOMContentLoaded', function () {
   const tbody = document.getElementById('tabla-finanzas-body');
   if (tbody) {
     tbody.addEventListener('click', function (e) {
+      const btnVer = e.target.closest('.btn-ver');
+      if (btnVer) {
+        const row = tbody.querySelector(`tr[data-id="${btnVer.dataset.id}"]`);
+        if (row) verMovimiento(row);
+        return;
+      }
+      const btnEditar = e.target.closest('.btn-editar');
+      if (btnEditar) {
+        const row = tbody.querySelector(`tr[data-id="${btnEditar.dataset.id}"]`);
+        if (row) abrirEdicionMovimiento(row);
+        return;
+      }
       const btn = e.target.closest('.btn-eliminar');
       if (!btn) return;
       const id = btn.dataset.id;
@@ -123,8 +250,12 @@ document.addEventListener('DOMContentLoaded', function () {
             actualizarChart(row.dataset.tipo, row.dataset.monto, -1, row.dataset.fecha);
             row.remove();
           }
-          if (!tbody.querySelector('tr')) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary py-4">No hay movimientos financieros registrados.</td></tr>';
+          if (!tbody.querySelector('tr[data-id]')) {
+            const filaFiltro = tbody.querySelector('.fila-filtro-vacio');
+            if (filaFiltro) filaFiltro.remove();
+            tbody.innerHTML = '<tr id="fila-vacia-movimientos"><td colspan="6" class="text-center text-secondary py-4">No hay movimientos financieros registrados.</td></tr>';
+          } else {
+            aplicarFiltros();
           }
         } else {
           alert('No se pudo eliminar.');
@@ -135,4 +266,12 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     });
   }
+
+  // Filtros de búsqueda
+  ['filtro-desde', 'filtro-hasta', 'filtro-concepto'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', aplicarFiltros);
+  });
+  const btnLimpiar = document.getElementById('btn-limpiar-filtros');
+  if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltros);
 });

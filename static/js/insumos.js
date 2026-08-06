@@ -23,6 +23,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('form-insumo');
   const guardarBtn = document.getElementById('btn-guardar-insumo');
   const modalTitle = document.getElementById('modalInsumoTitle');
+  const unidadSelect = document.getElementById('insumo-unidad');
+  const unidadOtroInput = document.getElementById('insumo-unidad-otro');
+  const UNIDADES_PREDEFINIDAS = ['Kg', 'Gr', 'Dosis', 'Unidad', 'Litros'];
+
+  const toggleUnidadOtro = () => {
+    const esOtro = unidadSelect.value === 'Otro';
+    unidadOtroInput.classList.toggle('d-none', !esOtro);
+    if (!esOtro) unidadOtroInput.value = '';
+  };
 
   const state = {
     items: [],
@@ -163,11 +172,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const total = state.items.length;
     const vacunas = state.items.filter((item) => item.tipo === 'Vacuna').length;
     const medicamentos = state.items.filter((item) => item.tipo === 'Medicamento').length;
-    const stockTotal = state.items.reduce((acc, item) => acc + Number(item.cantidad_total || 0), 0);
+    const alimentos = state.items.filter((item) => item.tipo === 'Alimento').length;
     document.getElementById('kpi-total-insumos').textContent = total;
     document.getElementById('kpi-vacunas').textContent = vacunas;
     document.getElementById('kpi-medicamentos').textContent = medicamentos;
-    document.getElementById('kpi-stock-total').textContent = stockTotal.toFixed(2);
+    document.getElementById('kpi-alimentos').textContent = alimentos;
   };
 
   const toggleDetailRow = async (insumoId, row) => {
@@ -201,6 +210,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('insumo-id').value = '';
     modalTitle.textContent = 'Registrar insumo';
     state.editingId = null;
+    unidadSelect.value = 'Kg';
+    toggleUnidadOtro();
 
     if (item) {
       const response = await fetch(`/api/insumos/${item.id}/`, { headers: buildHeaders() });
@@ -213,7 +224,15 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('insumo-id').value = detail.id;
       document.getElementById('insumo-nombre').value = detail.nombre || '';
       document.getElementById('insumo-tipo').value = detail.tipo || 'Otros';
-      document.getElementById('insumo-unidad').value = detail.unidad_de_medida || 'kg';
+      const unidad = (detail.unidad_de_medida || '').trim();
+      const match = UNIDADES_PREDEFINIDAS.find((op) => op.toLowerCase() === unidad.toLowerCase());
+      if (match) {
+        unidadSelect.value = match;
+      } else {
+        unidadSelect.value = 'Otro';
+        unidadOtroInput.value = unidad;
+      }
+      toggleUnidadOtro();
       modalTitle.textContent = 'Editar insumo';
       state.editingId = detail.id;
     }
@@ -225,7 +244,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const payload = new FormData();
     payload.set('nombre', document.getElementById('insumo-nombre').value.trim());
     payload.set('tipo', document.getElementById('insumo-tipo').value);
-    payload.set('unidad_de_medida', document.getElementById('insumo-unidad').value.trim() || 'kg');
+    let unidad = unidadSelect.value;
+    if (unidad === 'Otro') unidad = unidadOtroInput.value.trim();
+    payload.set('unidad_de_medida', unidad || 'kg');
 
     const url = state.editingId ? `/api/insumos/${state.editingId}/` : '/api/insumos/';
     const response = await fetch(url, { method: 'POST', body: payload, headers: buildHeaders() });
@@ -324,6 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   guardarBtn.addEventListener('click', saveInsumo);
+  unidadSelect.addEventListener('change', toggleUnidadOtro);
   limpiarBtn.addEventListener('click', () => {
     buscarInput.value = '';
     tipoSelect.value = '';

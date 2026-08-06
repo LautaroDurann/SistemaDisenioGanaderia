@@ -65,6 +65,23 @@
 
 			<div class="card mb-3">
 				<div class="card-body">
+					<div class="row g-2 align-items-end mb-3" id="filtros-movimientos">
+						<div class="col-md-3 col-sm-6">
+							<label class="form-label small mb-1">Desde</label>
+							<input type="date" id="filtro-desde" class="form-control form-control-sm">
+						</div>
+						<div class="col-md-3 col-sm-6">
+							<label class="form-label small mb-1">Hasta</label>
+							<input type="date" id="filtro-hasta" class="form-control form-control-sm">
+						</div>
+						<div class="col-md-4 col-sm-8">
+							<label class="form-label small mb-1">Concepto</label>
+							<input type="text" id="filtro-concepto" class="form-control form-control-sm" placeholder="Buscar por concepto (ej: sanidad, venta, compra)">
+						</div>
+						<div class="col-md-2 col-sm-4">
+							<button type="button" id="btn-limpiar-filtros" class="btn btn-sm btn-outline-secondary w-100">Limpiar</button>
+						</div>
+					</div>
 					<div class="table-responsive">
 						<table class="table table-hover align-middle mb-0">
 							<thead>
@@ -79,16 +96,22 @@
 							</thead>
 							<tbody id="tabla-finanzas-body">
 								{% for movimiento in page_data.movimientos %}
-									<tr data-id="{{ movimiento.id }}" data-tipo="{{ movimiento.tipo }}" data-monto="{{ movimiento.monto_total }}" data-fecha="{{ movimiento.fecha }}">
+									<tr data-id="{{ movimiento.id }}" data-tipo="{{ movimiento.tipo }}" data-monto="{{ movimiento.monto_total }}" data-fecha="{{ movimiento.fecha }}" data-nombre="{{ movimiento.nombre }}">
 										<td>{{ movimiento.fecha }}</td>
 										<td><span class="badge {% if movimiento.tipo == 'Ingreso' %}text-bg-success{% else %}text-bg-danger{% endif %}">{{ movimiento.tipo }}</span></td>
 										<td>{{ movimiento.nombre }}</td>
 										<td>{{ movimiento.detalle|default:'-' }}</td>
 										<td class="text-end">$ {{ movimiento.monto_total }}</td>
-										<td class="text-end"><button class="btn btn-sm btn-outline-danger btn-eliminar" data-id="{{ movimiento.id }}">Eliminar</button></td>
+										<td class="text-end">
+											<div class="d-flex gap-1 justify-content-end">
+												<button class="btn btn-sm btn-outline-secondary btn-ver" data-id="{{ movimiento.id }}" title="Ver detalle"><i class="bi bi-eye"></i></button>
+												<button class="btn btn-sm btn-outline-primary btn-editar" data-id="{{ movimiento.id }}" title="Editar"><i class="bi bi-pencil"></i></button>
+												<button class="btn btn-sm btn-outline-danger btn-eliminar" data-id="{{ movimiento.id }}" title="Eliminar"><i class="bi bi-trash"></i></button>
+											</div>
+										</td>
 									</tr>
 								{% empty %}
-									<tr><td colspan="6" class="text-center text-secondary py-4">No hay movimientos financieros registrados.</td></tr>
+									<tr id="fila-vacia-movimientos"><td colspan="6" class="text-center text-secondary py-4">No hay movimientos financieros registrados.</td></tr>
 								{% endfor %}
 							</tbody>
 						</table>
@@ -98,41 +121,42 @@
 		</div>
 	</div>
 
-	<!-- Modal Registrar Movimiento Financiero -->
+	<!-- Modal Registrar/Editar Movimiento Financiero -->
 	<div class="modal fade" id="modalRegistrarMovimientoFinanciero" tabindex="-1" aria-hidden="true">
 		<div class="modal-dialog modal-lg modal-dialog-scrollable">
 			<div class="modal-content">
 				<div class="modal-header">
-					<h5 class="modal-title">Registrar movimiento financiero</h5>
+					<h5 class="modal-title" id="titulo-mov-modal">Registrar movimiento financiero</h5>
 					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
 				</div>
 				<form id="form-registrar-mov-financiero">
+					<input type="hidden" name="id" id="mov-id" />
 					<div class="modal-body">
 						<div class="row g-2">
 							<div class="col-md-4">
 								<label class="form-label small">Fecha</label>
-								<input type="date" name="fecha" class="form-control" required />
+								<input type="date" name="fecha" id="mov-fecha" class="form-control" required />
 							</div>
 							<div class="col-md-4">
 								<label class="form-label small">Tipo</label>
-								<select name="tipo" class="form-select" required>
+								<select name="tipo" id="mov-tipo" class="form-select" required>
 									<option value="Ingreso">Ingreso</option>
 									<option value="Egreso">Egreso</option>
 								</select>
 							</div>
 							<div class="col-md-4">
 								<label class="form-label small">Monto</label>
-								<input type="number" step="0.01" name="monto_total" class="form-control" required />
+								<input type="number" step="0.01" name="monto_total" id="mov-monto" class="form-control" required />
 							</div>
 						</div>
 						<div class="row g-2 mt-3">
 							<div class="col-md-6">
 								<label class="form-label small">Concepto</label>
-								<input type="text" name="nombre" class="form-control" required />
+								<input type="text" name="nombre" id="mov-nombre" class="form-control" required />
 							</div>
 							<div class="col-md-6">
 								<label class="form-label small">Detalle</label>
-								<input type="text" name="detalle" class="form-control" />
+								<input type="text" name="detalle" id="mov-detalle" class="form-control" />
 							</div>
 						</div>
 					</div>
@@ -145,6 +169,35 @@
 		</div>
 	</div>
 
+	<!-- Modal Ver Movimiento Financiero -->
+	<div class="modal fade" id="modalVerMovimientoFinanciero" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-lg modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">Detalle del movimiento financiero</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body">
+					<dl class="row mb-0">
+						<dt class="col-sm-3">Fecha</dt>
+						<dd class="col-sm-9" id="det-fecha">-</dd>
+						<dt class="col-sm-3">Tipo</dt>
+						<dd class="col-sm-9" id="det-tipo">-</dd>
+						<dt class="col-sm-3">Concepto</dt>
+						<dd class="col-sm-9" id="det-nombre">-</dd>
+						<dt class="col-sm-3">Detalle</dt>
+						<dd class="col-sm-9" id="det-detalle">-</dd>
+						<dt class="col-sm-3">Monto</dt>
+						<dd class="col-sm-9" id="det-monto">-</dd>
+					</dl>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
 {% endblock %}
 
 {% block page_js %}
@@ -152,6 +205,10 @@
 		const CHART_LABELS = JSON.parse('{{ page_data.chart.labels_json|escapejs }}');
 		const CHART_INGRESOS = JSON.parse('{{ page_data.chart.ingresos_json|escapejs }}');
 		const CHART_EGRESOS = JSON.parse('{{ page_data.chart.egresos_json|escapejs }}');
+		const KPI_TOTAL = {{ page_data.kpis.total_movimientos_mes }};
+		const KPI_INGRESOS = {{ page_data.kpis.ingresos_mes }};
+		const KPI_EGRESOS = {{ page_data.kpis.egresos_mes }};
+		const KPI_BALANCE = {{ page_data.kpis.balance_mes }};
 	</script>
 	<script src="{% static 'js/finanzas.js' %}"></script>
 {% endblock %}

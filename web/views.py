@@ -238,7 +238,8 @@ def finanzas_api_list_create(request):
             if not fecha or not tipo or not nombre or not monto:
                 return JsonResponse({'error': 'Faltan campos obligatorios.'}, status=400)
             movimiento = MovimientoFinanciero.objects.create(
-                fecha=fecha, tipo=tipo, nombre=nombre, detalle=detalle or '', monto_total=_parse_decimal(monto)
+                fecha=date.fromisoformat(fecha), tipo=tipo, nombre=nombre, detalle=detalle or '',
+                monto_total=_parse_decimal(monto),
             )
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
@@ -252,12 +253,18 @@ def finanzas_api_list_create(request):
 def actualizar_movimiento_financiero(request, movimiento_id):
     try:
         movimiento = get_object_or_404(MovimientoFinanciero.objects.select_for_update(), pk=movimiento_id)
-        movimiento.fecha = request.POST.get('fecha') or movimiento.fecha
+        fecha = request.POST.get('fecha')
+        if fecha:
+            movimiento.fecha = date.fromisoformat(fecha)
         movimiento.tipo = request.POST.get('tipo') or movimiento.tipo
         movimiento.nombre = request.POST.get('nombre') or movimiento.nombre
-        movimiento.detalle = request.POST.get('detalle') or movimiento.detalle
+        detalle = request.POST.get('detalle')
+        if detalle:
+            movimiento.detalle = detalle
         monto = request.POST.get('monto_total')
-        movimiento.monto_total = _parse_decimal(monto) if monto is not None else movimiento.monto_total
+        if monto:
+            movimiento.monto_total = _parse_decimal(monto)
+            _sincronizar_costo_entidades(movimiento)
         movimiento.save()
     except (ValueError, ValidationError, IntegrityError) as error:
         return JsonResponse({'error': str(error)}, status=400)
@@ -272,6 +279,14 @@ def eliminar_movimiento_financiero(request, movimiento_id):
     movimiento = get_object_or_404(MovimientoFinanciero, pk=movimiento_id)
     movimiento.delete()
     return JsonResponse({'ok': True})
+
+
+def _sincronizar_costo_entidades(movimiento):
+    """Mantiene el costo del movimiento sincronizado con la entidad asociada (venta, compra o evento sanitario)."""
+    monto = movimiento.monto_total
+    Venta.objects.filter(mov_financiero_id=movimiento.id).update(monto_total=monto)
+    Compra.objects.filter(mov_financiero_id=movimiento.id).update(monto_total=monto)
+    EventoSanitario.objects.filter(mov_financiero_id=movimiento.id).update(costo_total=monto)
 
 
 def ventas(request):
@@ -402,6 +417,7 @@ def _evento_sanitario_data(evento):
         'fecha_aplicacion': evento.fecha_aplicacion.isoformat(),
         'estado': evento.estado,
         'costo_total': str(evento.costo_total or 0),
+        'mov_financiero_id': evento.mov_financiero_id,
         'animal_ids': [d['id'] for d in detalles],
         'animales': detalles,
         'animal': animales_text,
@@ -642,6 +658,7 @@ def crear_evento_sanitario(request):
             evento.detalles.all().delete()
             for animal_id in animal_ids:
                 DetalleEvento.objects.create(evento=evento, animal_id=animal_id)
+            _sync_movimiento_evento(evento)
     except (KeyError, ValueError, ValidationError) as error:
         return JsonResponse({'error': str(error)}, status=400)
     return JsonResponse({'evento': _evento_sanitario_data(evento)}, status=201)
@@ -658,15 +675,40 @@ def actualizar_evento_sanitario(request, evento_id):
             evento.detalles.all().delete()
             for animal_id in animal_ids:
                 DetalleEvento.objects.create(evento=evento, animal_id=animal_id)
+            _sync_movimiento_evento(evento)
     except (KeyError, ValueError, ValidationError) as error:
         return JsonResponse({'error': str(error)}, status=400)
     return JsonResponse({'evento': _evento_sanitario_data(evento)})
 
 
+def _sync_movimiento_evento(evento):
+    """Registra en Finanzas el gasto del evento cuando está Aplicado y tiene costo, o lo elimina si ya no corresponde."""
+    costo = evento.costo_total or Decimal('0')
+    if evento.estado and costo > 0:
+        movimiento, _ = MovimientoFinanciero.objects.update_or_create(
+            pk=evento.mov_financiero_id,
+            defaults={
+                'tipo': 'Egreso',
+                'nombre': f'Evento sanitario #{evento.id}',
+                'monto_total': costo,
+                'fecha': evento.fecha_aplicacion,
+                'detalle': evento.detalle or f'Gasto de {evento.tipo} registrado desde el módulo de Sanidad.',
+            },
+        )
+        if evento.mov_financiero_id != movimiento.id:
+            EventoSanitario.objects.filter(pk=evento.pk).update(mov_financiero=movimiento)
+    elif evento.mov_financiero_id:
+        MovimientoFinanciero.objects.filter(pk=evento.mov_financiero_id).delete()
+        EventoSanitario.objects.filter(pk=evento.pk).update(mov_financiero=None)
+
+
 @require_POST
 def eliminar_evento_sanitario(request, evento_id):
     evento = get_object_or_404(EventoSanitario, pk=evento_id)
+    movimiento_id = evento.mov_financiero_id
     evento.delete()
+    if movimiento_id:
+        MovimientoFinanciero.objects.filter(pk=movimiento_id).delete()
     return JsonResponse({'ok': True})
 
 
