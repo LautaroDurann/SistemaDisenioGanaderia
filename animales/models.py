@@ -20,6 +20,12 @@ class Animal(models.Model):
         ('Hembra', 'Hembra'),
     ]
 
+    # Identificador interno e incremental. Se usa para referenciar al animal
+    # dentro del sistema porque la caravana (id_senasa) puede cambiar.
+    # La columna en la base se mantiene como "id" para no alterar los datos
+    # ni las relaciones existentes.
+    idAnimal = models.BigAutoField(db_column='id', primary_key=True, serialize=False, verbose_name='ID')
+
     id_senasa = models.IntegerField(unique=True, null=True, blank=True) # Clave Única (CU)
     nombre = models.CharField(max_length=100, blank=True, default='')
     descripcion = models.TextField(blank=True, null=True)
@@ -81,15 +87,16 @@ class Preniez(models.Model):
     fecha = models.DateField()
     detalle = models.TextField(blank=True, null=True)
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
-    costo_inseminacion = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     estado_actual = models.CharField(max_length=20, choices=ESTADO_CHOICES)
     
     # --- RELACIONES ---
     madre = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='prenieces_madre')
     padre = models.ForeignKey(Animal, on_delete=models.SET_NULL, null=True, blank=True, related_name='prenieces_padre')
     parto = models.OneToOneField(Parto, on_delete=models.SET_NULL, null=True, blank=True)
-    veterinario = models.ForeignKey('usuarios.Veterinario', on_delete=models.SET_NULL, null=True, blank=True)
-    mov_financiero = models.ForeignKey('finanzas.MovimientoFinanciero', on_delete=models.SET_NULL, null=True, blank=True)
+    # El veterinario y el movimiento financiero de la inseminación se manejan
+    # en el EventoSanitario (tipo 'Inseminación'). La preñez solo se vincula al
+    # evento para saber qué hembras quedaron preñadas en esa inseminación.
+    evento_sanitario = models.ForeignKey('sanidad.EventoSanitario', on_delete=models.SET_NULL, null=True, blank=True, related_name='prenieces')
 
     def __str__(self):
         caravana = self.madre.id_senasa if self.madre and self.madre.id_senasa is not None else 'Sin caravana'

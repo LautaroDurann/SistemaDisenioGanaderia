@@ -137,7 +137,7 @@
       function reconstruirPesajes() {
         PESAJES = ANIMALES_PESAJE
           .map((a) => {
-            const hist = HISTORIAL[a.caravana];
+            const hist = HISTORIAL[a.id];
             if (!hist || !hist.length) return null;
             const actual = hist[hist.length - 1];
             const anterior = hist.length > 1 ? hist[hist.length - 2] : null;
@@ -215,7 +215,7 @@
             <td>${gpdTexto}</td>
             <td>${p.responsable}</td>
             <td class="text-end">
-              <button class="btn btn-sm btn-outline-secondary btn-ver-historial" data-caravana="${p.caravana}" title="Ver historial"><i class="bi bi-clock-history"></i></button>
+              <button class="btn btn-sm btn-outline-secondary btn-ver-historial" data-id="${p.id}" title="Ver historial"><i class="bi bi-clock-history"></i></button>
               <button class="btn btn-sm btn-outline-primary" title="Editar"><i class="bi bi-pencil"></i></button>
               <button class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="bi bi-trash"></i></button>
             </td>
@@ -256,17 +256,17 @@
 
       function renderSelectAnimalChart() {
         const select = document.getElementById('select-animal-chart');
-        select.innerHTML = ANIMALES_PESAJE.map((a) => `<option value="${a.caravana}">#${a.caravana} ${a.nombre}</option>`).join('');
-        select.value = ANIMALES_PESAJE[0].caravana;
+        select.innerHTML = ANIMALES_PESAJE.map((a) => `<option value="${a.id}">#${a.caravana} ${a.nombre}</option>`).join('');
+        select.value = ANIMALES_PESAJE[0].id;
       }
 
       function renderSelectAnimalModal() {
         const select = document.getElementById('pesaje-animal');
-        select.innerHTML = ANIMALES_PESAJE.map((a) => `<option value="${a.caravana}">#${a.caravana} ${a.nombre} - ${a.categoria}</option>`).join('');
+        select.innerHTML = ANIMALES_PESAJE.map((a) => `<option value="${a.id}">#${a.caravana} ${a.nombre} - ${a.categoria}</option>`).join('');
       }
 
-      function renderChartEvolucion(caravana) {
-        const hist = HISTORIAL[caravana];
+      function renderChartEvolucion(id) {
+        const hist = HISTORIAL[id];
         const categorias = hist.map((h) => h.fecha);
         const pesos = hist.map((h) => h.peso);
 
@@ -309,9 +309,9 @@
         }).render();
       }
 
-      function abrirHistorial(caravana) {
-        const animal = ANIMALES_PESAJE.find((a) => a.caravana === caravana);
-        const hist = [...HISTORIAL[caravana]].reverse();
+      function abrirHistorial(id) {
+        const animal = ANIMALES_PESAJE.find((a) => a.id === id);
+        const hist = [...HISTORIAL[id]].reverse();
 
         document.getElementById('historial-animal-nombre').textContent = `#${animal.caravana} ${animal.nombre}`;
         document.getElementById('historial-timeline').innerHTML = hist
@@ -336,9 +336,9 @@
       }
 
       function actualizarInfoAnimalModal() {
-        const caravana = document.getElementById('pesaje-animal').value;
-        const animal = ANIMALES_PESAJE.find((a) => a.caravana === caravana);
-        const hist = HISTORIAL[caravana];
+        const id = Number(document.getElementById('pesaje-animal').value);
+        const animal = ANIMALES_PESAJE.find((a) => a.id === id);
+        const hist = HISTORIAL[id];
         const ultimo = hist[hist.length - 1];
 
         document.getElementById('pesaje-animal-categoria').textContent = animal.categoria;
@@ -389,7 +389,7 @@
 
         document.getElementById('tabla-pesajes-body').addEventListener('click', (ev) => {
           const btn = ev.target.closest('.btn-ver-historial');
-          if (btn) abrirHistorial(btn.dataset.caravana);
+          if (btn) abrirHistorial(Number(btn.dataset.id));
         });
 
         ['f-buscar', 'f-categoria', 'f-potrero', 'f-responsable'].forEach((id) => {
@@ -417,8 +417,8 @@
         document.getElementById('modalRegistrarPesaje').addEventListener('shown.bs.modal', actualizarInfoAnimalModal);
 
         document.getElementById('btn-guardar-pesaje').addEventListener('click', () => {
-          const caravana = document.getElementById('pesaje-animal').value;
-          const animal = ANIMALES_PESAJE.find((item) => item.caravana === caravana);
+          const id = Number(document.getElementById('pesaje-animal').value);
+          const animal = ANIMALES_PESAJE.find((item) => item.id === id);
           const peso = document.getElementById('pesaje-peso').value;
           const fecha = document.getElementById('pesaje-fecha').value;
           if (!animal?.id || !peso || !fecha) return;
@@ -437,13 +437,13 @@
             .then(() => {
               const [y, m, d] = fecha.split('-');
               const fechaDDMMYYYY = `${d}/${m}/${y}`;
-              HISTORIAL[caravana] = HISTORIAL[caravana] || [];
-              HISTORIAL[caravana].push({ fecha: fechaDDMMYYYY, peso: Number(peso) });
+              HISTORIAL[id] = HISTORIAL[id] || [];
+              HISTORIAL[id].push({ fecha: fechaDDMMYYYY, peso: Number(peso) });
               reconstruirPesajes();
               renderTabla();
               renderKpis();
-              if (document.getElementById('select-animal-chart').value === caravana) {
-                renderChartEvolucion(caravana);
+              if (Number(document.getElementById('select-animal-chart').value) === id) {
+                renderChartEvolucion(id);
               }
               document.getElementById('pesaje-peso').value = '';
               calcularPesaje();

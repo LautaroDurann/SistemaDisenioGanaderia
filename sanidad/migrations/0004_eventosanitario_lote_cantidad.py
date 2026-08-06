@@ -6,6 +6,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('sanidad', '0003_eventosanitario_castracion'),
+        ('inventario', '0004_remove_composiciondieta_cantidad_por_porcion_and_more'),
     ]
 
     operations = [

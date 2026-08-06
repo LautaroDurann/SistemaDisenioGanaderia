@@ -19,6 +19,9 @@ from inventario.models import Dieta, Insumo, Lote, Consumo
 from sanidad.models import DetalleEvento, EventoSanitario, Enfermedad, Diagnostico
 from usuarios.models import Comprador, RolEstablecimiento, Usuario, Veterinario
 
+# Las inseminaciones se registran y muestran solo desde el módulo de Preñez.
+TIPO_INSEMINACION = 'Inseminación'
+
 
 def _categoria(animal):
     """Clasificación exclusiva de bovinos para el filtro de stock."""
@@ -76,7 +79,7 @@ def _parcela_data(parcela, actual=0):
 def _animal_data(animal):
     estado = 'Vendido' if animal.vendido else ('Muerto' if not animal.vivo else 'Activo')
     return {
-        'id': animal.id, 'caravana': _caravana_text(animal), 'nombre': animal.nombre or 'S/N',
+        'id': animal.idAnimal, 'idAnimal': animal.idAnimal, 'caravana': _caravana_text(animal), 'nombre': animal.nombre or 'S/N',
         'categoria': _categoria(animal), 'sexo': animal.sexo, 'raza': animal.raza or '-',
         'edad': _edad(animal), 'peso': f"{animal.peso_actual or 0} kg",
         'parcela': str(animal.parcela) if animal.parcela else 'Sin asignar',
@@ -127,7 +130,7 @@ def stock(request):
         'animales': [_animal_data(a) for a in animales],
         'parcelas': [{'id': p.id, 'nombre': str(p)} for p in Parcela.objects.select_related('establecimiento')],
         'dietas': [{'id': d.id, 'nombre': str(d)} for d in Dieta.objects.all()],
-        'progenitores': [{'id': a.id, 'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}', 'sexo': a.sexo} for a in animales],
+        'progenitores': [{'id': a.idAnimal, 'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}', 'sexo': a.sexo} for a in animales],
         'compras': [{'id': c.id, 'nombre': str(c)} for c in Compra.objects.all()],
         'ventas': [{'id': v.id, 'nombre': str(v)} for v in Venta.objects.all()],
     })
@@ -389,6 +392,7 @@ def _asignar_evento_sanitario(evento, datos):
     evento.veterinario_id = int(datos['veterinario_id']) if datos.get('veterinario_id') else None
     evento.diagnostico_id = int(datos['diagnostico_id']) if datos.get('diagnostico_id') else None
     evento.lote_id = int(datos['lote_id']) if datos.get('lote_id') else None
+    evento.padre_id = int(datos['padre_id']) if datos.get('padre_id') else None
     return animal_ids
 
 
@@ -397,7 +401,7 @@ def _evento_sanitario_data(evento):
     for detalle in evento.detalles.all():
         animal = detalle.animal
         detalles.append({
-            'id': animal.id,
+            'id': animal.idAnimal,
             'nombre': animal.nombre or 'S/N',
             'caravana': str(animal.id_senasa) if animal.id_senasa is not None else 'S/N',
             'categoria': _categoria(animal),
@@ -434,6 +438,8 @@ def _evento_sanitario_data(evento):
         'lote_insumo_id': evento.lote.insumo_id if evento.lote and evento.lote.insumo_id else None,
         'lote_insumo_tipo': evento.lote.insumo.tipo if evento.lote and evento.lote.insumo else None,
         'cantidad': str(getattr(evento, 'cantidad', '') or ''),
+        'padre_id': evento.padre_id,
+        'padre': str(evento.padre) if evento.padre_id else '-',
     }
 
 
@@ -550,7 +556,7 @@ def actualizar_diagnostico(request, diagnostico_id):
     except (KeyError, ValueError, ValidationError) as error:
         return JsonResponse({'error': str(error)}, status=400)
     _recalcular_estado_enfermo(animal_anterior)
-    if diagnostico.animal_id != animal_anterior.id:
+    if diagnostico.animal_id != animal_anterior.idAnimal:
         _recalcular_estado_enfermo(diagnostico.animal)
     return JsonResponse({'diagnostico': _diagnostico_data(diagnostico)})
 
@@ -602,12 +608,15 @@ def _recalcular_estado_enfermo(animal):
 
 def sanidad(request):
     today = date.today()
-    eventos = EventoSanitario.objects.select_related('veterinario', 'diagnostico', 'lote').prefetch_related('detalles__animal__parcela').order_by('-fecha_aplicacion', '-id')
-    eventos_aplicados_mes = EventoSanitario.objects.filter(
+    # Las inseminaciones se registran desde el módulo de Preñez; no se muestran ni se registran en Sanidad.
+    eventos = EventoSanitario.objects.exclude(tipo=TIPO_INSEMINACION) \
+        .select_related('veterinario', 'diagnostico', 'lote').prefetch_related('detalles__animal__parcela') \
+        .order_by('-fecha_aplicacion', '-id')
+    eventos_aplicados_mes = EventoSanitario.objects.exclude(tipo=TIPO_INSEMINACION).filter(
         estado=True,
         fecha_aplicacion__year=today.year, fecha_aplicacion__month=today.month,
     ).count()
-    proximas_aplicaciones = EventoSanitario.objects.filter(
+    proximas_aplicaciones = EventoSanitario.objects.exclude(tipo=TIPO_INSEMINACION).filter(
         estado=False, fecha_aplicacion__gte=today,
     ).count()
     animales_enfermos = Animal.objects.filter(enfermo=True).count()
@@ -632,9 +641,9 @@ def sanidad(request):
         'veterinarios': [_veterinario_data(v) for v in veterinarios],
         'lotes': [_lote_data(l) for l in lotes],
         'insumos': [_insumo_data(i) for i in Insumo.objects.order_by('nombre')],
-        'tipos_evento': [choice[0] for choice in EventoSanitario.TIPO_CHOICES],
+        'tipos_evento': [choice[0] for choice in EventoSanitario.TIPO_CHOICES if choice[0] != TIPO_INSEMINACION],
         'animales': [{
-            'id': a.id,
+            'id': a.idAnimal,
             'nombre': a.nombre or 'S/N',
             'caravana': str(a.id_senasa) if a.id_senasa is not None else 'S/N',
             'sexo': a.sexo,
@@ -649,6 +658,8 @@ def sanidad(request):
 
 @require_POST
 def crear_evento_sanitario(request):
+    if request.POST.get('tipo') == TIPO_INSEMINACION:
+        return JsonResponse({'error': 'Las inseminaciones se registran desde el módulo de Preñez.'}, status=400)
     try:
         evento = EventoSanitario()
         animal_ids = _asignar_evento_sanitario(evento, request.POST)
@@ -667,6 +678,8 @@ def crear_evento_sanitario(request):
 @require_POST
 def actualizar_evento_sanitario(request, evento_id):
     evento = get_object_or_404(EventoSanitario, pk=evento_id)
+    if evento.tipo == TIPO_INSEMINACION or request.POST.get('tipo') == TIPO_INSEMINACION:
+        return JsonResponse({'error': 'Las inseminaciones se gestionan desde el módulo de Preñez.'}, status=400)
     try:
         animal_ids = _asignar_evento_sanitario(evento, request.POST)
         evento.full_clean()
@@ -705,6 +718,8 @@ def _sync_movimiento_evento(evento):
 @require_POST
 def eliminar_evento_sanitario(request, evento_id):
     evento = get_object_or_404(EventoSanitario, pk=evento_id)
+    if evento.tipo == TIPO_INSEMINACION:
+        return JsonResponse({'error': 'Las inseminaciones se gestionan desde el módulo de Preñez.'}, status=400)
     movimiento_id = evento.mov_financiero_id
     evento.delete()
     if movimiento_id:
@@ -718,7 +733,7 @@ def vacunacion(request):
 
 def pesajes(request):
     animales = list(Animal.objects.select_related('parcela').all())
-    historial = {str(a.id_senasa): [{'fecha': p.fecha.strftime('%d/%m/%Y'), 'peso': float(p.peso)} for p in a.pesajes.all()] for a in animales}
+    historial = {str(a.idAnimal): [{'fecha': p.fecha.strftime('%d/%m/%Y'), 'peso': float(p.peso)} for p in a.pesajes.all()] for a in animales}
     data = {'animales_pesaje': [_animal_data(a) | {'responsable': 'Sistema'} for a in animales], 'historial': historial}
     return _page(request, 'pesajes.html', 'pesajes', data)
 
@@ -775,7 +790,10 @@ def _asignar_campos_animal(animal, datos, es_alta=False):
     animal.padre_id = datos.get('padre_id') or None
     animal.compra_id = datos.get('compra_id') or None
     animal.venta_id = datos.get('venta_id') or None
-    animal.parto_id = datos.get('parto_id') or None
+    # El parto solo se toca cuando el formulario lo envía (módulo de Preñez).
+    # Evita que la edición de la caravana en Stock desvincule a la cría de su parto.
+    if 'parto_id' in datos:
+        animal.parto_id = datos.get('parto_id') or None
     animal.descripcion = datos.get('descripcion', '').strip() or None
     if animal.sexo != 'Macho':
         animal.diametro_escrotal = None
@@ -814,7 +832,7 @@ def crear_animal(request):
                        if request.POST.get('movimiento_tipo') == 'Nacimiento'
                        else 'Alta inicial del animal en el sistema.'),
     )
-    return JsonResponse({'id': animal.id, 'animal': _animal_data(animal)}, status=201)
+    return JsonResponse({'id': animal.idAnimal, 'animal': _animal_data(animal)}, status=201)
 
 
 @require_POST
@@ -892,7 +910,7 @@ def crear_pesaje(request):
                                    observaciones=request.POST.get('observaciones', ''))
     animal.peso_actual = peso
     animal.save(update_fields=['peso_actual'])
-    return JsonResponse({'id': pesaje.id, 'animal_id': animal.id, 'peso': str(pesaje.peso)})
+    return JsonResponse({'id': pesaje.id, 'animal_id': animal.idAnimal, 'peso': str(pesaje.peso)})
 
 
 @require_POST
@@ -1106,17 +1124,17 @@ def _faltante_parto(fecha_estimada):
 def _preniez_data(p):
     fecha_estimada = _fecha_estimada_parto(p)
     crias = [{
-        'id': c.id,
+        'id': c.idAnimal,
         'nombre': c.nombre or 'S/N',
         'caravana': str(c.id_senasa) if c.id_senasa is not None else 'S/N',
         'sexo': c.sexo,
     } for c in p.parto.crias.all()] if p.parto_id else []
+    evento = p.evento_sanitario
     return {
         'id': p.id,
         'fecha': p.fecha.isoformat(),
         'tipo': p.tipo,
         'estado_actual': p.estado_actual,
-        'costo_inseminacion': str(p.costo_inseminacion or ''),
         'detalle': p.detalle or '',
         'madre_id': p.madre_id,
         'madre_nombre': p.madre.nombre or 'S/N',
@@ -1125,9 +1143,10 @@ def _preniez_data(p):
         'madre_parcela': str(p.madre.parcela) if p.madre.parcela else 'Sin asignar',
         'padre_id': p.padre_id,
         'padre': str(p.padre) if p.padre else 'No registrado',
-        'veterinario_id': p.veterinario_id,
-        'veterinario': str(p.veterinario) if p.veterinario else '-',
-        'mov_financiero_id': p.mov_financiero_id,
+        'evento_sanitario_id': p.evento_sanitario_id,
+        'evento_fecha': evento.fecha_aplicacion.isoformat() if evento else '',
+        'evento_veterinario': str(evento.veterinario) if evento and evento.veterinario else '-',
+        'evento_costo': str(evento.costo_total) if evento and evento.costo_total else '',
         'parto_id': p.parto_id,
         'parto_fecha': p.parto.fecha.isoformat() if p.parto_id else '',
         'parto_vivo': p.parto.vivo if p.parto_id else None,
@@ -1139,9 +1158,72 @@ def _preniez_data(p):
     }
 
 
+def _parto_data(parto):
+    preniez = getattr(parto, 'preniez', None)
+    madre = preniez.madre if preniez else None
+    return {
+        'id': parto.id,
+        'fecha': parto.fecha.isoformat(),
+        'vivo': parto.vivo,
+        'preniez_id': preniez.id if preniez else None,
+        'madre_id': madre.idAnimal if madre else None,
+        'madre_nombre': (madre.nombre or 'S/N') if madre else '-',
+        'madre_caravana': str(madre.id_senasa) if madre and madre.id_senasa is not None else 'Sin caravana',
+        'madre_tipo': madre.tipo_animal if madre else '',
+        'tipo_preñez': preniez.tipo if preniez else '',
+        'crias': [{
+            'id': c.idAnimal,
+            'nombre': c.nombre or 'S/N',
+            'caravana': str(c.id_senasa) if c.id_senasa is not None else 'S/N',
+            'sexo': c.sexo,
+        } for c in parto.crias.all()],
+    }
+
+
+def _evento_inseminacion_data(evento):
+    """Datos de un evento sanitario de tipo 'Inseminación' para el módulo de Preñez."""
+    detalles = list(evento.detalles.select_related('animal').order_by('animal__id_senasa'))
+    ids = [d.animal_id for d in detalles]
+    prenies_del_evento = {p.madre_id: p for p in evento.prenieces.all()}
+    activas = set(Preniez.objects.filter(madre_id__in=ids, estado_actual='Preñada', parto__isnull=True)
+                  .values_list('madre_id', flat=True))
+    # Una hembra con preñez originada en este evento (aunque el parto ya se
+    # haya registrado) no puede volver a marcarse como preñada en el mismo
+    # evento. El vínculo por evento_sanitario es estable: no depende de la
+    # caravana ni del estado actual de la preñez.
+    con_preniez_del_evento = set(prenies_del_evento.keys())
+    animales = []
+    for detalle in detalles:
+        a = detalle.animal
+        preniez = prenies_del_evento.get(a.idAnimal)
+        animales.append({
+            'id': a.idAnimal,
+            'nombre': a.nombre or 'S/N',
+            'caravana': str(a.id_senasa) if a.id_senasa is not None else 'S/N',
+            'tipo': a.tipo_animal,
+            'preniada': a.idAnimal in activas or a.idAnimal in con_preniez_del_evento,
+            'de_este_evento': bool(preniez),
+            'preniez_id': preniez.id if preniez else None,
+        })
+    return {
+        'id': evento.id,
+        'fecha_aplicacion': evento.fecha_aplicacion.isoformat(),
+        'estado': evento.estado,
+        'padre_id': evento.padre_id,
+        'padre': str(evento.padre) if evento.padre_id else '-',
+        'veterinario_id': evento.veterinario_id,
+        'veterinario': str(evento.veterinario) if evento.veterinario else '-',
+        'costo_total': str(evento.costo_total or ''),
+        'detalle': evento.detalle or '',
+        'animales': animales,
+        'total_hembras': len(animales),
+        'preñadas': sum(1 for x in animales if x['preniada']),
+    }
+
+
 def prenieces(request):
     today = date.today()
-    prenieces_qs = Preniez.objects.select_related('madre__parcela', 'padre', 'veterinario', 'parto') \
+    prenieces_qs = Preniez.objects.select_related('madre__parcela', 'padre', 'parto', 'evento_sanitario__veterinario') \
         .prefetch_related('parto__crias').order_by('-fecha', '-id')
     prenieces_list = list(prenieces_qs)
 
@@ -1158,6 +1240,12 @@ def prenieces(request):
                            .values_list('madre_id', flat=True))
     padres = Animal.objects.filter(sexo='Macho', vivo=True, vendido=False).order_by('id_senasa')
     veterinarios = Veterinario.objects.order_by('apellido', 'nombre')
+    partos = Parto.objects.select_related('preniez__madre', 'preniez__padre') \
+        .prefetch_related('crias').order_by('-fecha', '-id')
+    eventos_inseminacion = EventoSanitario.objects.filter(tipo='Inseminación') \
+        .select_related('padre', 'veterinario') \
+        .prefetch_related('detalles__animal', 'prenieces') \
+        .order_by('-fecha_aplicacion', '-id')
 
     return _page(request, 'prenieces.html', 'prenieces', {
         'kpis': {
@@ -1171,21 +1259,24 @@ def prenieces(request):
             'proximo_parto_dias': (proximo[0] - today).days if proximo else None,
         },
         'prenieces': [_preniez_data(p) for p in prenieces_list],
+        'partos': [_parto_data(p) for p in partos],
+        'eventos_inseminacion': [_evento_inseminacion_data(e) for e in eventos_inseminacion],
         'madres': [{
-            'id': a.id,
+            'id': a.idAnimal,
             'caravana': str(a.id_senasa) if a.id_senasa is not None else 'S/C',
             'nombre': a.nombre or 'S/N',
             'tipo': a.tipo_animal,
             'parcela': str(a.parcela) if a.parcela else 'Sin asignar',
-            'preniada': a.id in madres_preniadas,
+            'preniada': a.idAnimal in madres_preniadas,
         } for a in madres],
         'padres': [{
-            'id': a.id,
+            'id': a.idAnimal,
             'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}',
         } for a in padres],
         'veterinarios': [_veterinario_data(v) for v in veterinarios],
         'tipos': [c[0] for c in Preniez.TIPO_CHOICES],
         'estados': [c[0] for c in Preniez.ESTADO_CHOICES],
+        'especies': [c[0] for c in Animal.TIPO_CHOICES],
     })
 
 
@@ -1193,11 +1284,9 @@ def _asignar_preniez(preniez, datos):
     preniez.fecha = date.fromisoformat(datos['fecha'])
     preniez.tipo = datos['tipo']
     preniez.estado_actual = datos.get('estado_actual', 'Preñada')
-    preniez.costo_inseminacion = _parse_decimal(datos.get('costo_inseminacion'))
     preniez.detalle = datos.get('detalle', '').strip() or None
     preniez.madre_id = int(datos['madre_id'])
     preniez.padre_id = int(datos['padre_id']) if datos.get('padre_id') else None
-    preniez.veterinario_id = int(datos['veterinario_id']) if datos.get('veterinario_id') else None
 
     madre = Animal.objects.select_related('parcela').filter(pk=preniez.madre_id).first()
     if madre is None or madre.sexo != 'Hembra':
@@ -1211,27 +1300,6 @@ def _asignar_preniez(preniez, datos):
         raise ValueError('El padre seleccionado debe ser macho.')
 
 
-def _sync_movimiento_preniez(preniez):
-    """Registra en Finanzas el gasto de inseminación cuando corresponde, o lo elimina si ya no corresponde."""
-    costo = preniez.costo_inseminacion or Decimal('0')
-    if preniez.tipo == 'Inseminación' and costo > 0:
-        movimiento, _ = MovimientoFinanciero.objects.update_or_create(
-            pk=preniez.mov_financiero_id,
-            defaults={
-                'tipo': 'Egreso',
-                'nombre': f'Inseminación #{preniez.id}',
-                'monto_total': costo,
-                'fecha': preniez.fecha,
-                'detalle': preniez.detalle or f'Inseminación de {preniez.madre} registrada desde el módulo de Preñez.',
-            },
-        )
-        if preniez.mov_financiero_id != movimiento.id:
-            Preniez.objects.filter(pk=preniez.pk).update(mov_financiero=movimiento)
-    elif preniez.mov_financiero_id:
-        MovimientoFinanciero.objects.filter(pk=preniez.mov_financiero_id).delete()
-        Preniez.objects.filter(pk=preniez.pk).update(mov_financiero=None)
-
-
 @require_POST
 def crear_preniez(request):
     try:
@@ -1240,7 +1308,6 @@ def crear_preniez(request):
             _asignar_preniez(preniez, request.POST)
             preniez.full_clean()
             preniez.save()
-            _sync_movimiento_preniez(preniez)
     except (KeyError, ValueError, ValidationError) as error:
         return JsonResponse({'error': str(error)}, status=400)
     return JsonResponse({'preniez': _preniez_data(preniez)}, status=201)
@@ -1254,7 +1321,6 @@ def actualizar_preniez(request, preniez_id):
             _asignar_preniez(preniez, request.POST)
             preniez.full_clean()
             preniez.save()
-            _sync_movimiento_preniez(preniez)
     except (KeyError, ValueError, ValidationError) as error:
         return JsonResponse({'error': str(error)}, status=400)
     return JsonResponse({'preniez': _preniez_data(preniez)})
@@ -1264,14 +1330,11 @@ def actualizar_preniez(request, preniez_id):
 def eliminar_preniez(request, preniez_id):
     preniez = get_object_or_404(Preniez.objects.select_for_update(), pk=preniez_id)
     with transaction.atomic():
-        movimiento_id = preniez.mov_financiero_id
         parto = preniez.parto
         if parto:
             Animal.objects.filter(parto=parto).update(parto=None)
             parto.delete()
         preniez.delete()
-        if movimiento_id:
-            MovimientoFinanciero.objects.filter(pk=movimiento_id).delete()
     return JsonResponse({'ok': True})
 
 
@@ -1294,4 +1357,113 @@ def finalizar_preniez(request, preniez_id):
     return JsonResponse({
         'preniez': _preniez_data(preniez),
         'parto': {'id': parto.id, 'fecha': parto.fecha.isoformat(), 'vivo': parto.vivo},
+    }, status=201)
+
+
+@require_POST
+def crear_evento_inseminacion(request):
+    """Registra un evento sanitario de tipo 'Inseminación' para varias hembras."""
+    try:
+        datos = request.POST.copy()
+        datos['tipo'] = 'Inseminación'
+        evento = EventoSanitario()
+        animal_ids = _asignar_evento_sanitario(evento, datos)
+        _validar_inseminacion(evento, animal_ids)
+        evento.full_clean()
+        with transaction.atomic():
+            evento.save()
+            evento.detalles.all().delete()
+            for animal_id in animal_ids:
+                DetalleEvento.objects.create(evento=evento, animal_id=animal_id)
+            _sync_movimiento_evento(evento)
+    except (KeyError, ValueError, ValidationError) as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    return JsonResponse({'evento': _evento_inseminacion_data(evento)}, status=201)
+
+
+def _validar_inseminacion(evento, animal_ids):
+    if not evento.padre_id:
+        raise ValueError('Seleccioná el padre (macho) para la inseminación.')
+    padre = Animal.objects.filter(pk=evento.padre_id).first()
+    if padre is None or padre.sexo != 'Macho':
+        raise ValueError('El padre seleccionado debe ser macho.')
+    if Animal.objects.filter(pk__in=animal_ids, sexo='Hembra').count() != len(animal_ids):
+        raise ValueError('Solo se pueden inseminar animales hembra.')
+
+
+@require_POST
+def actualizar_evento_inseminacion(request, evento_id):
+    evento = get_object_or_404(EventoSanitario, pk=evento_id)
+    if evento.tipo != 'Inseminación':
+        return JsonResponse({'error': 'El evento no es una inseminación.'}, status=400)
+    try:
+        datos = request.POST.copy()
+        datos['tipo'] = 'Inseminación'
+        animal_ids = _asignar_evento_sanitario(evento, datos)
+        _validar_inseminacion(evento, animal_ids)
+        evento.full_clean()
+        with transaction.atomic():
+            evento.save()
+            evento.detalles.all().delete()
+            for animal_id in animal_ids:
+                DetalleEvento.objects.create(evento=evento, animal_id=animal_id)
+            _sync_movimiento_evento(evento)
+    except (KeyError, ValueError, ValidationError) as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    return JsonResponse({'evento': _evento_inseminacion_data(evento)})
+
+
+@require_POST
+def eliminar_evento_inseminacion(request, evento_id):
+    evento = get_object_or_404(EventoSanitario, pk=evento_id)
+    if evento.tipo != 'Inseminación':
+        return JsonResponse({'error': 'El evento no es una inseminación.'}, status=400)
+    if evento.prenieces.exists():
+        return JsonResponse({
+            'error': 'No se puede eliminar el evento: tiene preñadas asociadas. Eliminá primero esas preñeces.',
+        }, status=400)
+    with transaction.atomic():
+        movimiento_id = evento.mov_financiero_id
+        evento.delete()
+        if movimiento_id:
+            MovimientoFinanciero.objects.filter(pk=movimiento_id).delete()
+    return JsonResponse({'ok': True})
+
+
+@require_POST
+def registrar_preniadas(request, evento_id):
+    """Marca las hembras de la inseminación que quedaron preñadas y crea sus preñeces."""
+    evento = get_object_or_404(EventoSanitario.objects.select_related('padre', 'veterinario'), pk=evento_id)
+    if evento.tipo != 'Inseminación':
+        return JsonResponse({'error': 'El evento no es una inseminación.'}, status=400)
+    animal_ids = [int(value) for value in request.POST.getlist('animales') if str(value).strip()]
+    validos = set(evento.detalles.values_list('animal_id', flat=True))
+    if not animal_ids:
+        return JsonResponse({'error': 'Seleccioná al menos una hembra preñada.'}, status=400)
+    if not set(animal_ids).issubset(validos):
+        return JsonResponse({'error': 'Una de las hembras no pertenece a esta inseminación.'}, status=400)
+    try:
+        with transaction.atomic():
+            creadas = []
+            for animal_id in animal_ids:
+                # Ya tiene una preñez originada en este evento (aunque su parto
+                # ya esté registrado): no se vuelve a marcar como preñada.
+                if Preniez.objects.filter(madre_id=animal_id, evento_sanitario=evento).exists():
+                    continue
+                if Preniez.objects.filter(madre_id=animal_id, estado_actual='Preñada', parto__isnull=True).exists():
+                    continue
+                creadas.append(Preniez.objects.create(
+                    fecha=evento.fecha_aplicacion,
+                    tipo='Inseminación',
+                    estado_actual='Preñada',
+                    madre_id=animal_id,
+                    padre=evento.padre,
+                    detalle=f'Preñada registrada desde la inseminación #{evento.id}.',
+                    evento_sanitario=evento,
+                ))
+    except (KeyError, ValueError, ValidationError) as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    return JsonResponse({
+        'evento': _evento_inseminacion_data(evento),
+        'prenieces': [_preniez_data(p) for p in creadas],
     }, status=201)

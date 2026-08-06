@@ -12,6 +12,7 @@ from establecimientos.models import Establecimiento, Parcela
 from finanzas.models import Compra, MovimientoFinanciero, Venta
 from sanidad.models import DetalleEvento, EventoSanitario
 from usuarios.models import Comprador
+from web.views import _evento_inseminacion_data
 
 
 class WebIntegrationTests(TestCase):
@@ -35,7 +36,7 @@ class WebIntegrationTests(TestCase):
             'tipo': 'Desparasitación',
             'fecha_aplicacion': '2026-08-01',
             'estado': 'true',
-            'animal_id': self.animal.id,
+            'animal_id': self.animal.idAnimal,
             'detalle': 'Desparasitación de prueba',
         })
         self.assertEqual(response.status_code, 201)
@@ -45,7 +46,7 @@ class WebIntegrationTests(TestCase):
     def test_evento_aplicado_con_costo_genera_egreso_en_finanzas(self):
         response = self.client.post(reverse('crear_evento_sanitario'), {
             'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
-            'costo_total': '5000.50', 'animal_id': self.animal.id,
+            'costo_total': '5000.50', 'animal_id': self.animal.idAnimal,
         })
         self.assertEqual(response.status_code, 201)
         evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
@@ -60,7 +61,7 @@ class WebIntegrationTests(TestCase):
     def test_evento_aplicado_sin_costo_no_genera_movimiento(self):
         response = self.client.post(reverse('crear_evento_sanitario'), {
             'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
-            'costo_total': '0', 'animal_id': self.animal.id,
+            'costo_total': '0', 'animal_id': self.animal.idAnimal,
         })
         self.assertEqual(response.status_code, 201)
         evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
@@ -70,7 +71,7 @@ class WebIntegrationTests(TestCase):
     def test_evento_pendiente_con_costo_no_genera_movimiento(self):
         response = self.client.post(reverse('crear_evento_sanitario'), {
             'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'false',
-            'costo_total': '5000.00', 'animal_id': self.animal.id,
+            'costo_total': '5000.00', 'animal_id': self.animal.idAnimal,
         })
         self.assertEqual(response.status_code, 201)
         evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
@@ -80,14 +81,14 @@ class WebIntegrationTests(TestCase):
     def test_cambiar_evento_a_pendiente_elimina_el_movimiento_financiero(self):
         response = self.client.post(reverse('crear_evento_sanitario'), {
             'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
-            'costo_total': '5000.00', 'animal_id': self.animal.id,
+            'costo_total': '5000.00', 'animal_id': self.animal.idAnimal,
         })
         evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
         self.assertEqual(MovimientoFinanciero.objects.count(), 1)
 
         response = self.client.post(reverse('actualizar_evento_sanitario', args=[evento.id]), {
             'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'false',
-            'costo_total': '5000.00', 'animal_id': self.animal.id,
+            'costo_total': '5000.00', 'animal_id': self.animal.idAnimal,
         })
         self.assertEqual(response.status_code, 200)
         evento.refresh_from_db()
@@ -97,7 +98,7 @@ class WebIntegrationTests(TestCase):
     def test_eliminar_evento_con_costo_elimina_el_movimiento_financiero(self):
         response = self.client.post(reverse('crear_evento_sanitario'), {
             'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
-            'costo_total': '5000.00', 'animal_id': self.animal.id,
+            'costo_total': '5000.00', 'animal_id': self.animal.idAnimal,
         })
         evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
         self.assertEqual(MovimientoFinanciero.objects.count(), 1)
@@ -132,7 +133,7 @@ class WebIntegrationTests(TestCase):
         self.animal.save(update_fields=['peso_actual'])
         response = self.client.post(reverse('crear_venta'), {
             'fecha': '2026-08-03', 'tipo': 'Venta de hacienda', 'precio_por_kg': '2500.50',
-            'detalle': 'Venta de prueba', 'animales': [self.animal.id],
+            'detalle': 'Venta de prueba', 'animales': [self.animal.idAnimal],
         })
         self.assertEqual(response.status_code, 201)
         venta = Venta.objects.get(pk=response.json()['id'])
@@ -149,7 +150,7 @@ class WebIntegrationTests(TestCase):
     def test_editar_costo_del_movimiento_sincroniza_el_evento_sanitario(self):
         response = self.client.post(reverse('crear_evento_sanitario'), {
             'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
-            'costo_total': '5000.00', 'animal_id': self.animal.id,
+            'costo_total': '5000.00', 'animal_id': self.animal.idAnimal,
         })
         self.assertEqual(response.status_code, 201)
         evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
@@ -191,7 +192,7 @@ class WebIntegrationTests(TestCase):
 
         mensaje = str(error.exception)
         self.assertIn(str(self.animal.id_senasa), mensaje)
-        self.assertNotIn(f'El animal {self.animal.id}', mensaje)
+        self.assertNotIn(f'El animal {self.animal.idAnimal}', mensaje)
 
     def test_api_stock_y_registro_de_pesaje(self):
         response = self.client.get(reverse('stock_api'))
@@ -199,7 +200,7 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(response.json()['animales'][0]['caravana'], '12345')
 
         response = self.client.post(reverse('crear_pesaje'), {
-            'animal_id': self.animal.id, 'fecha': '2026-08-01', 'peso': '350.50',
+            'animal_id': self.animal.idAnimal, 'fecha': '2026-08-01', 'peso': '350.50',
         })
         self.assertEqual(response.status_code, 200)
         self.animal.refresh_from_db()
@@ -245,7 +246,7 @@ class WebIntegrationTests(TestCase):
         self.assertTrue(animal.foto.name)
 
     def test_actualizar_y_eliminar_animal(self):
-        response = self.client.post(reverse('actualizar_animal', args=[self.animal.id]), {
+        response = self.client.post(reverse('actualizar_animal', args=[self.animal.idAnimal]), {
             'id_senasa': '12345', 'nombre': 'Luna actualizada', 'sexo': 'Hembra',
             'tipo_animal': 'Bovino', 'raza': 'Hereford', 'peso_actual': '412.00', 'parcela_id': self.parcela.id,
         })
@@ -253,14 +254,14 @@ class WebIntegrationTests(TestCase):
         self.animal.refresh_from_db()
         self.assertEqual(self.animal.nombre, 'Luna actualizada')
         self.assertEqual(str(self.animal.peso_actual), '412.00')
-        response = self.client.post(reverse('eliminar_animal', args=[self.animal.id]))
+        response = self.client.post(reverse('eliminar_animal', args=[self.animal.idAnimal]))
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Animal.objects.filter(pk=self.animal.id).exists())
+        self.assertFalse(Animal.objects.filter(pk=self.animal.idAnimal).exists())
 
     def test_movimiento_actualiza_ubicacion(self):
         destino = Parcela.objects.create(ancho=30, largo=20, establecimiento=self.parcela.establecimiento)
         response = self.client.post(reverse('crear_movimiento'), {
-            'animal_id': self.animal.id, 'fecha': '2026-08-01', 'tipo': 'Traslado',
+            'animal_id': self.animal.idAnimal, 'fecha': '2026-08-01', 'tipo': 'Traslado',
             'origen_id': self.parcela.id, 'destino_id': destino.id,
         })
         self.assertEqual(response.status_code, 200)
@@ -310,7 +311,7 @@ class WebIntegrationTests(TestCase):
         )
         response = self.client.post(reverse('crear_venta'), {
             'fecha': '2026-08-03', 'tipo': 'Venta de hacienda', 'precio_por_kg': '2500.50',
-            'detalle': 'Venta de prueba', 'animales': [self.animal.id, segundo.id],
+            'detalle': 'Venta de prueba', 'animales': [self.animal.idAnimal, segundo.idAnimal],
         })
         self.assertEqual(response.status_code, 201)
         venta = Venta.objects.get(pk=response.json()['id'])
@@ -351,7 +352,7 @@ class WebIntegrationTests(TestCase):
         response = self.client.post(reverse('crear_venta'), {
             'fecha': '2026-08-04', 'tipo': 'Venta de prueba', 'precio_por_kg': '1500.00',
             'peso_total': '420.00', 'peso_manual': 'on', 'comprador_id': comprador.id,
-            'detalle': 'Venta con peso manual', 'animales': [self.animal.id],
+            'detalle': 'Venta con peso manual', 'animales': [self.animal.idAnimal],
         })
         self.assertEqual(response.status_code, 201)
         venta = Venta.objects.get(pk=response.json()['id'])
@@ -390,7 +391,7 @@ class PreniezModuleTests(TestCase):
             id_senasa=77777, nombre='Toro padre', tipo_animal='Bovino', sexo='Macho', vivo=True,
         )
         self.datos = {
-            'madre_id': self.vaca.id, 'padre_id': self.toro.id, 'fecha': '2026-08-01',
+            'madre_id': self.vaca.idAnimal, 'padre_id': self.toro.idAnimal, 'fecha': '2026-08-01',
             'tipo': 'Natural', 'estado_actual': 'Preñada',
         }
 
@@ -414,7 +415,7 @@ class PreniezModuleTests(TestCase):
 
     def test_no_permite_macho_como_madre(self):
         response = self.client.post(reverse('crear_preniez'), {
-            'madre_id': self.toro.id, 'fecha': '2026-08-01', 'tipo': 'Natural', 'estado_actual': 'Preñada',
+            'madre_id': self.toro.idAnimal, 'fecha': '2026-08-01', 'tipo': 'Natural', 'estado_actual': 'Preñada',
         })
         self.assertEqual(response.status_code, 400)
         self.assertIn('hembra', response.json()['error'])
@@ -422,26 +423,25 @@ class PreniezModuleTests(TestCase):
     def test_no_permite_doble_preñez_activa(self):
         self.assertEqual(self.crear_preniez().status_code, 201)
         response = self.client.post(reverse('crear_preniez'), {
-            'madre_id': self.vaca.id, 'fecha': '2026-08-02', 'tipo': 'Natural', 'estado_actual': 'Preñada',
+            'madre_id': self.vaca.idAnimal, 'fecha': '2026-08-02', 'tipo': 'Natural', 'estado_actual': 'Preñada',
         })
         self.assertEqual(response.status_code, 400)
         self.assertIn('ya tiene una preñez activa', response.json()['error'])
 
-    def test_inseminacion_con_costo_genera_egreso_en_finanzas(self):
+    def test_inseminacion_directa_no_genera_movimiento_financiero(self):
+        # El costo y el egreso de la inseminación se manejan en el EventoSanitario,
+        # no en la preñez. Una preñez directa no debe crear movimientos en Finanzas.
         response = self.client.post(reverse('crear_preniez'), {
-            'madre_id': self.vaca.id, 'fecha': '2026-08-01', 'tipo': 'Inseminación',
-            'estado_actual': 'Preñada', 'costo_inseminacion': '800.00',
+            'madre_id': self.vaca.idAnimal, 'fecha': '2026-08-01', 'tipo': 'Inseminación',
+            'estado_actual': 'Preñada',
         })
         self.assertEqual(response.status_code, 201)
-        preniez = Preniez.objects.get(pk=response.json()['preniez']['id'])
-        self.assertIsNotNone(preniez.mov_financiero)
-        self.assertEqual(preniez.mov_financiero.tipo, 'Egreso')
-        self.assertEqual(preniez.mov_financiero.monto_total, Decimal('800.00'))
+        self.assertEqual(MovimientoFinanciero.objects.count(), 0)
 
     def test_actualizar_preñez(self):
         preniez_id = self.crear_preniez().json()['preniez']['id']
         response = self.client.post(reverse('actualizar_preniez', args=[preniez_id]), {
-            'madre_id': self.vaca.id, 'padre_id': self.toro.id, 'fecha': '2026-08-10',
+            'madre_id': self.vaca.idAnimal, 'padre_id': self.toro.idAnimal, 'fecha': '2026-08-10',
             'tipo': 'Inseminación', 'estado_actual': 'A confirmar', 'detalle': 'Actualizada',
         })
         self.assertEqual(response.status_code, 200)
@@ -468,7 +468,7 @@ class PreniezModuleTests(TestCase):
 
         # Cargar la cría vinculada al parto
         response = self.client.post(reverse('crear_animal'), {
-            'tipo_animal': 'Bovino', 'sexo': 'Hembra', 'nombre': 'Cría', 'madre_id': self.vaca.id,
+            'tipo_animal': 'Bovino', 'sexo': 'Hembra', 'nombre': 'Cría', 'madre_id': self.vaca.idAnimal,
             'fecha_nacimiento': '2027-05-01', 'parto_id': preniez.parto.id,
             'movimiento_tipo': 'Nacimiento', 'movimiento_fecha': '2027-05-01',
         })
@@ -478,11 +478,39 @@ class PreniezModuleTests(TestCase):
         self.assertEqual(cria.madre, self.vaca)
         self.assertTrue(MovimientoAnimal.objects.filter(animal=cria, tipo='Nacimiento').exists())
 
-    def test_eliminar_preñez_elimina_parto_y_movimiento(self):
-        response = self.client.post(reverse('crear_preniez'), {
-            'madre_id': self.vaca.id, 'fecha': '2026-08-01', 'tipo': 'Inseminación',
-            'estado_actual': 'Preñada', 'costo_inseminacion': '800.00',
+    def test_cambiar_caravana_en_stock_no_desvincula_la_cría_del_parto(self):
+        # La edición desde el módulo de Stock no envía 'parto_id'; no debe
+        # desvincular a la cría de su parto (bug: se perdía el vínculo).
+        preniez_id = self.crear_preniez().json()['preniez']['id']
+        parto = Preniez.objects.get(pk=preniez_id)
+        parto_id = self.client.post(reverse('finalizar_preniez', args=[preniez_id]), {
+            'fecha': '2027-05-01', 'vivo': 'true',
+        }).json()['parto']['id']
+        response = self.client.post(reverse('crear_animal'), {
+            'tipo_animal': 'Bovino', 'sexo': 'Hembra', 'nombre': 'Cría Stock', 'madre_id': self.vaca.idAnimal,
+            'fecha_nacimiento': '2027-05-01', 'parto_id': parto_id,
+            'movimiento_tipo': 'Nacimiento', 'movimiento_fecha': '2027-05-01',
         })
+        self.assertEqual(response.status_code, 201)
+        cria_id = response.json()['id']
+
+        # Mismos campos que envía el formulario de Stock (sin 'parto_id').
+        response = self.client.post(reverse('actualizar_animal', args=[cria_id]), {
+            'tipo_animal': 'Bovino', 'sexo': 'Hembra', 'nombre': 'Cría Stock',
+            'madre_id': self.vaca.idAnimal, 'id_senasa': '50000', 'vivo': 'on',
+            'fecha_nacimiento': '2027-05-01',
+        })
+        self.assertEqual(response.status_code, 200)
+        cria = Animal.objects.get(pk=cria_id)
+        self.assertEqual(cria.id_senasa, 50000)
+        self.assertEqual(cria.parto_id, parto_id)
+
+    def test_eliminar_preñez_elimina_parto(self):
+        response = self.client.post(reverse('crear_preniez'), {
+            'madre_id': self.vaca.idAnimal, 'fecha': '2026-08-01', 'tipo': 'Inseminación',
+            'estado_actual': 'Preñada',
+        })
+        self.assertEqual(response.status_code, 201)
         preniez_id = response.json()['preniez']['id']
         response = self.client.post(reverse('finalizar_preniez', args=[preniez_id]), {
             'fecha': '2027-05-01', 'vivo': 'false',
@@ -493,4 +521,207 @@ class PreniezModuleTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Preniez.objects.filter(pk=preniez_id).exists())
         self.assertFalse(Parto.objects.exists())
-        self.assertFalse(MovimientoFinanciero.objects.exists())
+
+    def test_pagina_preñez_incluye_especies_y_partos(self):
+        response = self.client.get(reverse('prenieces'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('especies', response.context['page_data'])
+        self.assertEqual(response.context['page_data']['especies'], ['Bovino', 'Porcino', 'Ovino'])
+        self.assertIn('partos', response.context['page_data'])
+
+        response = self.client.post(reverse('crear_preniez'), {
+            'madre_id': self.vaca.idAnimal, 'fecha': '2026-08-01', 'tipo': 'Natural',
+            'estado_actual': 'Preñada',
+        })
+        self.assertEqual(response.status_code, 201)
+        preniez_id = response.json()['preniez']['id']
+        response = self.client.post(reverse('finalizar_preniez', args=[preniez_id]), {
+            'fecha': '2026-12-01', 'vivo': 'true',
+        })
+        self.assertEqual(response.status_code, 201)
+
+        response = self.client.get(reverse('prenieces'))
+        page_data = response.context['page_data']
+        self.assertEqual(page_data['kpis']['partos_anio'], 1)
+        parto = page_data['partos'][0]
+        self.assertEqual(parto['vivo'], True)
+        self.assertEqual(parto['madre_tipo'], 'Bovino')
+        self.assertEqual(parto['tipo_preñez'], 'Natural')
+        self.assertEqual(parto['crias'], [])
+
+
+class InseminacionModuleTests(TestCase):
+    def setUp(self):
+        self.vaca1 = Animal.objects.create(
+            id_senasa=90001, nombre='Vaca Uno', tipo_animal='Bovino', sexo='Hembra', vivo=True,
+        )
+        self.vaca2 = Animal.objects.create(
+            id_senasa=90002, nombre='Vaca Dos', tipo_animal='Bovino', sexo='Hembra', vivo=True,
+        )
+        self.toro = Animal.objects.create(
+            id_senasa=90003, nombre='Toro Insemina', tipo_animal='Bovino', sexo='Macho', vivo=True,
+        )
+
+    def crear_evento(self, animales=None, estado='false', costo=''):
+        return self.client.post(reverse('crear_evento_inseminacion'), {
+            'fecha_aplicacion': '2026-08-06',
+            'estado': estado,
+            'padre_id': self.toro.idAnimal,
+            'costo_total': costo,
+            'animales': animales or [self.vaca1.idAnimal, self.vaca2.idAnimal],
+        })
+
+    def test_agendar_inseminacion_multiple(self):
+        response = self.crear_evento()
+        self.assertEqual(response.status_code, 201)
+        evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
+        self.assertEqual(evento.tipo, 'Inseminación')
+        self.assertFalse(evento.estado)
+        self.assertEqual(evento.padre, self.toro)
+        self.assertEqual(evento.detalles.count(), 2)
+        self.assertEqual(response.json()['evento']['total_hembras'], 2)
+
+    def test_solo_hembras_y_padre_macho(self):
+        response = self.client.post(reverse('crear_evento_inseminacion'), {
+            'fecha_aplicacion': '2026-08-06', 'estado': 'true', 'padre_id': self.toro.idAnimal,
+            'animales': [self.toro.idAnimal],
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('hembra', response.json()['error'].lower())
+
+        response = self.client.post(reverse('crear_evento_inseminacion'), {
+            'fecha_aplicacion': '2026-08-06', 'estado': 'true', 'padre_id': self.vaca1.idAnimal,
+            'animales': [self.vaca1.idAnimal],
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('macho', response.json()['error'].lower())
+
+    def test_registrar_preniadas_desde_el_evento(self):
+        evento_id = self.crear_evento(estado='true', costo='1500.00').json()['evento']['id']
+        response = self.client.post(reverse('registrar_preniadas', args=[evento_id]), {
+            'animales': [self.vaca1.idAnimal],
+        })
+        self.assertEqual(response.status_code, 201)
+        preniez = Preniez.objects.get(madre=self.vaca1)
+        self.assertEqual(preniez.tipo, 'Inseminación')
+        self.assertEqual(preniez.estado_actual, 'Preñada')
+        self.assertEqual(preniez.padre, self.toro)
+        self.assertEqual(preniez.evento_sanitario_id, evento_id)
+        self.assertEqual(preniez.fecha.isoformat(), '2026-08-06')
+        # El egreso financiero lo genera el evento, no la preñez.
+        self.assertEqual(MovimientoFinanciero.objects.count(), 1)
+        self.assertEqual(response.json()['evento']['preñadas'], 1)
+
+    def test_no_duplica_preniada_y_permite_varias(self):
+        evento_id = self.crear_evento().json()['evento']['id']
+        self.assertEqual(self.client.post(reverse('registrar_preniadas', args=[evento_id]), {
+            'animales': [self.vaca1.idAnimal],
+        }).status_code, 201)
+        response = self.client.post(reverse('registrar_preniadas', args=[evento_id]), {
+            'animales': [self.vaca1.idAnimal, self.vaca2.idAnimal],
+        })
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Preniez.objects.count(), 2)
+        self.assertEqual(response.json()['evento']['preñadas'], 2)
+
+    def test_parto_no_rehabilita_la_vaca_para_el_mismo_evento(self):
+        # Tras registrar el parto, la hembra no debe poder volver a marcarse
+        # como preñada en el mismo evento de inseminación.
+        evento_id = self.crear_evento().json()['evento']['id']
+        self.client.post(reverse('registrar_preniadas', args=[evento_id]), {
+            'animales': [self.vaca1.idAnimal],
+        })
+        preniez = Preniez.objects.get(madre=self.vaca1)
+
+        # Registrar el parto de esa preñez.
+        response = self.client.post(reverse('finalizar_preniez', args=[preniez.id]), {
+            'fecha': '2027-05-06', 'vivo': 'true',
+        })
+        self.assertEqual(response.status_code, 201)
+
+        # La hembra sigue contando como preñada del evento.
+        evento = EventoSanitario.objects.get(pk=evento_id)
+        data = _evento_inseminacion_data(evento)
+        self.assertEqual(data['preñadas'], 1)
+        self.assertEqual(data['animales'][0]['preniada'], True)
+        self.assertEqual(data['animales'][0]['de_este_evento'], True)
+
+        # Intentar marcarla de nuevo no crea una segunda preñez.
+        response = self.client.post(reverse('registrar_preniadas', args=[evento_id]), {
+            'animales': [self.vaca1.idAnimal],
+        })
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Preniez.objects.filter(madre=self.vaca1).count(), 1)
+        self.assertEqual(response.json()['evento']['preñadas'], 1)
+
+    def test_evento_aplicado_genera_egreso_financiero(self):
+        evento_id = self.crear_evento(estado='true', costo='1500.00').json()['evento']['id']
+        evento = EventoSanitario.objects.get(pk=evento_id)
+        self.assertIsNotNone(evento.mov_financiero)
+        self.assertEqual(evento.mov_financiero.tipo, 'Egreso')
+        self.assertEqual(evento.mov_financiero.monto_total, Decimal('1500.00'))
+
+    def test_parto_y_cria_con_padre_por_defecto(self):
+        evento_id = self.crear_evento().json()['evento']['id']
+        self.client.post(reverse('registrar_preniadas', args=[evento_id]), {'animales': [self.vaca1.idAnimal]})
+        preniez = Preniez.objects.get(madre=self.vaca1)
+
+        response = self.client.post(reverse('finalizar_preniez', args=[preniez.id]), {
+            'fecha': '2027-05-06', 'vivo': 'true',
+        })
+        self.assertEqual(response.status_code, 201)
+        parto_id = response.json()['parto']['id']
+
+        response = self.client.post(reverse('crear_animal'), {
+            'tipo_animal': 'Bovino', 'sexo': 'Hembra', 'nombre': 'Cría inseminada',
+            'madre_id': self.vaca1.idAnimal, 'padre_id': self.toro.idAnimal,
+            'fecha_nacimiento': '2027-05-06', 'parto_id': parto_id,
+            'movimiento_tipo': 'Nacimiento', 'movimiento_fecha': '2027-05-06',
+        })
+        self.assertEqual(response.status_code, 201)
+        cria = Animal.objects.get(nombre='Cría inseminada')
+        self.assertEqual(cria.madre, self.vaca1)
+        self.assertEqual(cria.padre, self.toro)
+        self.assertEqual(cria.tipo_animal, 'Bovino')
+
+    def test_cambiar_caravana_desde_stock_no_desvincula_la_cria_del_parto(self):
+        evento_id = self.crear_evento().json()['evento']['id']
+        self.client.post(reverse('registrar_preniadas', args=[evento_id]), {'animales': [self.vaca1.idAnimal]})
+        preniez = Preniez.objects.get(madre=self.vaca1)
+        parto_id = self.client.post(reverse('finalizar_preniez', args=[preniez.id]), {
+            'fecha': '2027-05-06', 'vivo': 'true',
+        }).json()['parto']['id']
+        cria_id = self.client.post(reverse('crear_animal'), {
+            'tipo_animal': 'Bovino', 'sexo': 'Hembra', 'nombre': 'Cría con caravana',
+            'id_senasa': '77777', 'madre_id': self.vaca1.idAnimal, 'padre_id': self.toro.idAnimal,
+            'fecha_nacimiento': '2027-05-06', 'parto_id': parto_id,
+            'movimiento_tipo': 'Nacimiento', 'movimiento_fecha': '2027-05-06',
+        }).json()['id']
+
+        # Cambio de caravana desde Stock (endpoint de edición, sin parto_id)
+        response = self.client.post(reverse('actualizar_animal', args=[cria_id]), {
+            'id_senasa': '99999', 'tipo_animal': 'Bovino', 'sexo': 'Hembra',
+            'nombre': 'Cría con caravana', 'madre_id': self.vaca1.idAnimal,
+        })
+        self.assertEqual(response.status_code, 200)
+        cria = Animal.objects.get(pk=cria_id)
+        self.assertEqual(cria.id_senasa, 99999)
+        self.assertEqual(cria.parto_id, parto_id)
+
+        # La cría sigue figurando en el módulo de Preñez
+        page_data = self.client.get(reverse('prenieces')).context['page_data']
+        crias = [c for p in page_data['prenieces'] for c in p['crias']]
+        self.assertTrue(any(c['id'] == cria_id for c in crias))
+
+    def test_no_elimina_evento_con_preniadas(self):
+        evento_id = self.crear_evento().json()['evento']['id']
+        self.client.post(reverse('registrar_preniadas', args=[evento_id]), {'animales': [self.vaca1.idAnimal]})
+        response = self.client.post(reverse('eliminar_evento_inseminacion', args=[evento_id]))
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(EventoSanitario.objects.filter(pk=evento_id).exists())
+
+    def test_pagina_incluye_eventos_inseminacion(self):
+        response = self.client.get(reverse('prenieces'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('eventos_inseminacion', response.context['page_data'])
+        self.assertEqual(response.context['page_data']['eventos_inseminacion'], [])
