@@ -27,7 +27,7 @@
 					<div class="card vacapp-card h-100">
 						<div class="card-body">
 							<small class="text-secondary">Movimientos (mes)</small>
-							<h4 class="mb-0">{{ page_data.kpis.total_movimientos_mes }}</h4>
+							<h4 class="mb-0" id="kpi-total">{{ page_data.kpis.total_movimientos_mes }}</h4>
 						</div>
 					</div>
 				</div>
@@ -35,7 +35,7 @@
 					<div class="card vacapp-card h-100">
 						<div class="card-body">
 							<small class="text-secondary">Ingresos (mes)</small>
-							<h4 class="mb-0">$ {{ page_data.kpis.ingresos_mes }}</h4>
+							<h4 class="mb-0" id="kpi-ingresos">$ {{ page_data.kpis.ingresos_mes }}</h4>
 						</div>
 					</div>
 				</div>
@@ -43,7 +43,7 @@
 					<div class="card vacapp-card h-100">
 						<div class="card-body">
 							<small class="text-secondary">Egresos (mes)</small>
-							<h4 class="mb-0">$ {{ page_data.kpis.egresos_mes }}</h4>
+							<h4 class="mb-0" id="kpi-egresos">$ {{ page_data.kpis.egresos_mes }}</h4>
 						</div>
 					</div>
 				</div>
@@ -51,7 +51,7 @@
 					<div class="card vacapp-card h-100">
 						<div class="card-body">
 							<small class="text-secondary">Balance (mes)</small>
-							<h4 class="mb-0">$ {{ page_data.kpis.balance_mes }}</h4>
+							<h4 class="mb-0" id="kpi-balance">$ {{ page_data.kpis.balance_mes }}</h4>
 						</div>
 					</div>
 				</div>
@@ -79,7 +79,7 @@
 							</thead>
 							<tbody id="tabla-finanzas-body">
 								{% for movimiento in page_data.movimientos %}
-									<tr data-id="{{ movimiento.id }}">
+									<tr data-id="{{ movimiento.id }}" data-tipo="{{ movimiento.tipo }}" data-monto="{{ movimiento.monto_total }}" data-fecha="{{ movimiento.fecha }}">
 										<td>{{ movimiento.fecha }}</td>
 										<td><span class="badge {% if movimiento.tipo == 'Ingreso' %}text-bg-success{% else %}text-bg-danger{% endif %}">{{ movimiento.tipo }}</span></td>
 										<td>{{ movimiento.nombre }}</td>

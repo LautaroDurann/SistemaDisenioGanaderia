@@ -683,7 +683,8 @@ def pesajes(request):
 
 def alimentacion(request):
     data = {'alimentos': [{'id': str(i.id), 'nombre': i.nombre, 'categoria': 'Insumo',
-                           'stock': float(i.stock_actual), 'unidad': i.unidad_de_medida,
+                           'stock': float(i.lotes.aggregate(total=Sum('stockActual'))['total'] or Decimal('0')),
+                           'unidad': i.unidadDeMedida,
                            'consumoMensual': 0, 'stockMinimo': 0, 'ultimaCompra': '-', 'precioUnitario': 0}
                           for i in Insumo.objects.all()]}
     return _page(request, 'alimentacion.html', 'alimentacion', data)

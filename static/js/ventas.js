@@ -7,6 +7,8 @@
   let modal;
   let modalComprador;
   let chartInstance;
+  let chartLabels = [];
+  let chartSeries = [];
   const $ = (id) => document.getElementById(id);
   const dinero = (valor) => `$ ${Number(valor || 0).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
   const categoria = (a) => a.categoria || '-';
@@ -110,18 +112,24 @@
     const chartEl = $('chart-ventas');
     if (!chartEl) return;
     const chartData = data.chart || {};
-    const labels = chartData.labels_json ? JSON.parse(chartData.labels_json) : [];
-    const series = chartData.series_json ? JSON.parse(chartData.series_json) : [];
+    chartLabels = chartData.labels_json ? JSON.parse(chartData.labels_json) : [];
+    chartSeries = chartData.series_json ? JSON.parse(chartData.series_json) : [];
     chartInstance?.destroy();
     chartInstance = new ApexCharts(chartEl, {
       chart: { type: 'bar', height: 320, toolbar: { show: false } },
-      series: [{ name: 'Ganancia', data: series }],
-      xaxis: { categories: labels },
+      series: [{ name: 'Ganancia', data: chartSeries }],
+      xaxis: { categories: chartLabels },
       colors: ['#198754'],
       dataLabels: { enabled: false },
       tooltip: { y: { formatter: value => dinero(value) } },
     });
     chartInstance.render();
+  }
+
+  function actualizarChartAnio(fechaISO, monto, signo) {
+    const idx = chartLabels.indexOf(String(fechaISO || '').slice(0, 4));
+    if (idx === -1) return;
+    chartSeries[idx] = Number(chartSeries[idx] || 0) + signo * Number(monto || 0);
   }
 
   function abrirNueva() {
@@ -173,14 +181,38 @@
     if (!confirm('¿Eliminar este comprador?')) return;
     const r = await fetch(`/api/compradores/${id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf() } });
     if (!r.ok) return mostrar('No se pudo eliminar el comprador.', 'danger');
-    location.reload();
+    data.compradores = (data.compradores || []).filter(c => c.id !== id);
+    data.summary = data.summary || {};
+    data.summary.compradores = Math.max(0, Number(data.summary.compradores || 0) - 1);
+    renderCompradores();
+    renderSummary();
+    mostrar('Comprador eliminado.', 'success');
   }
 
   async function eliminarVenta(id) {
     if (!confirm('¿Eliminar la venta y restaurar sus animales al stock?')) return;
     const r = await fetch(`/api/ventas/${id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf() } });
     if (!r.ok) return mostrar('No se pudo eliminar la venta.', 'danger');
-    location.reload();
+    const venta = ventas.find(v => v.id === id);
+    if (venta) {
+      ventas = ventas.filter(v => v.id !== id);
+      (venta.animales || []).forEach(a => {
+        if (!disponibles.some(d => d.id === a.id)) disponibles.push(a);
+      });
+      data.summary = data.summary || {};
+      data.summary.total_ventas = Math.max(0, Number(data.summary.total_ventas || 0) - 1);
+      const monto = Number(venta.monto_total || 0);
+      data.summary.ganancia_total = Math.max(0, Number(data.summary.ganancia_total || 0) - monto);
+      if (String(venta.fecha || '').slice(0, 4) === String(new Date().getFullYear())) {
+        data.summary.ganancia_anio_actual = Math.max(0, Number(data.summary.ganancia_anio_actual || 0) - monto);
+      }
+      actualizarChartAnio(venta.fecha, monto, -1);
+    }
+    renderVentas();
+    renderSummary();
+    renderChart();
+    renderAnimales();
+    mostrar('Venta eliminada. Los animales volvieron al stock.', 'success');
   }
 
   function actualizarFiltroCategoria() {
@@ -247,7 +279,49 @@
       const r = await fetch(id ? `/api/ventas/${id}/` : '/api/ventas/', { method: 'POST', headers: { 'X-CSRFToken': csrf() }, body: form });
       const respuesta = await r.json();
       if (!r.ok) return mostrar(respuesta.error || 'No se pudo guardar la venta.', 'danger');
-      location.reload();
+      const ventaData = respuesta.venta;
+      const montoNuevo = Number(ventaData.monto_total || 0);
+      const anioActual = String(new Date().getFullYear());
+      const esNueva = !id;
+
+      data.summary = data.summary || {};
+      if (esNueva) {
+        ventas.unshift(ventaData);
+        ventaData.animales.forEach(a => { disponibles = disponibles.filter(d => d.id !== a.id); });
+        data.summary.total_ventas = Number(data.summary.total_ventas || 0) + 1;
+        data.summary.ganancia_total = Number(data.summary.ganancia_total || 0) + montoNuevo;
+        if (String(ventaData.fecha || '').slice(0, 4) === anioActual) {
+          data.summary.ganancia_anio_actual = Number(data.summary.ganancia_anio_actual || 0) + montoNuevo;
+        }
+        actualizarChartAnio(ventaData.fecha, montoNuevo, 1);
+      } else {
+        const idx = ventas.findIndex(v => v.id === Number(id));
+        const vieja = idx !== -1 ? ventas[idx] : null;
+        if (vieja) {
+          const montoViejo = Number(vieja.monto_total || 0);
+          data.summary.ganancia_total = Number(data.summary.ganancia_total || 0) - montoViejo + montoNuevo;
+          if (String(vieja.fecha || '').slice(0, 4) === anioActual) {
+            data.summary.ganancia_anio_actual = Math.max(0, Number(data.summary.ganancia_anio_actual || 0) - montoViejo);
+          }
+          actualizarChartAnio(vieja.fecha, montoViejo, -1);
+          vieja.animales.forEach(a => {
+            if (!disponibles.some(d => d.id === a.id)) disponibles.push(a);
+          });
+          ventas[idx] = ventaData;
+        }
+        if (String(ventaData.fecha || '').slice(0, 4) === anioActual) {
+          data.summary.ganancia_anio_actual = Number(data.summary.ganancia_anio_actual || 0) + montoNuevo;
+        }
+        actualizarChartAnio(ventaData.fecha, montoNuevo, 1);
+      }
+      ventaData.animales.forEach(a => { disponibles = disponibles.filter(d => d.id !== a.id); });
+      seleccionados = new Set();
+      renderVentas();
+      renderSummary();
+      renderChart();
+      renderAnimales();
+      modal.hide();
+      mostrar('Venta guardada.', 'success');
     });
 
     $('form-comprador').addEventListener('submit', async e => {
@@ -258,8 +332,19 @@
       const r = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrf() }, body: form });
       const respuesta = await r.json();
       if (!r.ok) return mostrar(respuesta.error || 'No se pudo guardar el comprador.', 'danger');
+      data.compradores = data.compradores || [];
+      if (compradorId) {
+        const idx = data.compradores.findIndex(c => c.id === Number(compradorId));
+        if (idx !== -1) data.compradores[idx] = respuesta.comprador;
+      } else {
+        data.compradores.push(respuesta.comprador);
+        data.summary = data.summary || {};
+        data.summary.compradores = Number(data.summary.compradores || 0) + 1;
+      }
+      renderCompradores();
+      renderSummary();
       modalComprador.hide();
-      location.reload();
+      mostrar('Comprador guardado.', 'success');
     });
   });
 })();

@@ -19,6 +19,7 @@ let paginaActual = 1;
 let eventoEnEdicion = null;
 let guardandoEvento = false;
 let seleccionAnimalesEvento = new Set();
+let diagnosticoBloqueo = null;
 let fechaSeleccionada = null;
 
 function formatFecha(iso) {
@@ -184,7 +185,7 @@ function renderTabla() {
       (evento) => `
       <tr>
         <td>${formatFecha(evento.fecha_aplicacion)}</td>
-        <td>#${evento.caravana}</td>
+        <td>${evento.caravana}</td>
         <td>${evento.tipo}</td>
         <td>${evento.veterinario}</td>
         <td>${evento.diagnostico}</td>
@@ -307,7 +308,7 @@ function showCalendarDetails(fecha) {
             .map((evento) => `
               <tr>
                 <td>${formatFecha(evento.fecha_aplicacion)}</td>
-                <td>#${escapeHtml(evento.caravana || evento.animal || '-')}</td>
+                <td>${escapeHtml(evento.caravana || evento.animal || '-')}</td>
                 <td>${escapeHtml(evento.tipo || '-')}</td>
                 <td>${escapeHtml(evento.veterinario || '-')}</td>
                 <td>${escapeHtml(evento.diagnostico || '-')}</td>
@@ -418,7 +419,7 @@ function renderDiagnosticos() {
   }
   tbody.innerHTML = DIAGNOSTICOS.map((diag) => `
     <tr>
-      <td>#${diag.caravana} - ${diag.animal}</td>
+      <td>#${diag.caravana}</td>
       <td>${diag.enfermedad}</td>
       <td>${diag.estado_actual}</td>
       <td class="text-end">
@@ -631,14 +632,18 @@ function renderAnimalSelectionTable() {
       return matchFilter && matchTipo && matchCategoria;
     })
     .sort((a, b) => String(a.caravana).localeCompare(String(b.caravana), undefined, { numeric: true }))
-    .map((a) => `
+    .map((a) => {
+      const esBloqueado = diagnosticoBloqueo !== null && String(a.id) !== String(diagnosticoBloqueo);
+      const checked = seleccionAnimalesEvento.has(String(a.id));
+      return `
       <tr>
-        <td><input type="checkbox" class="form-check-input evento-animal-checkbox" value="${a.id}" ${seleccionAnimalesEvento.has(String(a.id)) ? 'checked' : ''}></td>
+        <td><input type="checkbox" class="form-check-input evento-animal-checkbox" value="${a.id}" ${checked ? 'checked' : ''} ${esBloqueado ? 'disabled' : ''}></td>
         <td>#${a.caravana}</td>
         <td>${a.nombre || 'S/N'}</td>
         <td>${a.tipo_animal || '-'}</td>
         <td>${a.categoria || '-'}</td>
-      </tr>`)
+      </tr>`;
+    })
     .join('');
 
   document.getElementById('tabla-animales-evento').innerHTML = rows || '<tr><td colspan="5" class="text-center text-secondary">No se encontraron animales.</td></tr>';
@@ -651,6 +656,57 @@ function renderAnimalSelectionTable() {
     });
   });
   renderSelectedAnimales();
+  updateAnimalLockUI();
+}
+
+function updateAnimalLockUI() {
+  const bloqueado = diagnosticoBloqueo !== null;
+  const search = document.getElementById('s-animal-search');
+  const tipo = document.getElementById('s-animal-tipo');
+  const categoria = document.getElementById('s-animal-categoria');
+  const selectAll = document.getElementById('s-animal-select-all');
+  const hint = document.getElementById('evento-animales-hint');
+  if (search) search.disabled = bloqueado;
+  if (tipo) tipo.disabled = bloqueado;
+  if (categoria) categoria.disabled = bloqueado;
+  if (selectAll) selectAll.disabled = bloqueado;
+  if (hint) {
+    hint.textContent = bloqueado
+      ? 'El animal se fija automáticamente según el diagnóstico seleccionado.'
+      : 'Seleccioná uno o varios animales para el mismo evento.';
+  }
+}
+
+function renderDiagnosticoInfo() {
+  const info = document.getElementById('diagnostico-info');
+  if (!info) return;
+  const diagnosticoId = document.getElementById('s-diagnostico').value;
+  const diagnostico = DIAGNOSTICOS.find((d) => String(d.id) === String(diagnosticoId));
+  if (diagnostico) {
+    document.getElementById('diag-info-animal').textContent = `#${diagnostico.caravana}`;
+    document.getElementById('diag-info-enfermedad').textContent = diagnostico.enfermedad;
+    document.getElementById('diag-info-fecha').textContent = formatFecha(diagnostico.fecha_deteccion);
+    info.classList.remove('d-none');
+  } else {
+    info.classList.add('d-none');
+  }
+}
+
+function aplicarBloqueoDiagnostico({ limpiarAlDesbloquear = true } = {}) {
+  const diagnosticoId = document.getElementById('s-diagnostico').value;
+  const diagnostico = DIAGNOSTICOS.find((d) => String(d.id) === String(diagnosticoId));
+  if (diagnostico && diagnostico.animal_id) {
+    diagnosticoBloqueo = String(diagnostico.animal_id);
+    seleccionAnimalesEvento = new Set([String(diagnostico.animal_id)]);
+  } else {
+    const estabaBloqueado = diagnosticoBloqueo !== null;
+    diagnosticoBloqueo = null;
+    if (estabaBloqueado && limpiarAlDesbloquear) {
+      seleccionAnimalesEvento = new Set();
+    }
+  }
+  renderDiagnosticoInfo();
+  renderAnimalSelectionTable();
 }
 
 function renderAnimalOptions(select, filter = '', selectedIds = []) {
@@ -805,6 +861,7 @@ async function guardarDiagnostico() {
   modalRegistrarDiagnostico.hide();
   renderDiagnosticos();
   bindDiagnosticosTable();
+  renderFiltros();
 }
 
 async function guardarVeterinario() {
@@ -875,6 +932,7 @@ async function eliminarDiagnostico(id) {
   if (index !== -1) DIAGNOSTICOS.splice(index, 1);
   renderDiagnosticos();
   bindDiagnosticosTable();
+  renderFiltros();
 }
 
 async function eliminarVeterinario(id) {
@@ -904,7 +962,7 @@ function renderFiltros() {
   setOptions(document.getElementById('s-veterinario'), [{ value: '', label: 'Sin veterinario' }, ...veterinarioOptions]);
   renderVeterinarioOptions(document.getElementById('s-veterinario'));
 
-  const diagnosticoOptions = [{ value: '', label: 'Sin diagnóstico' }, ...DIAGNOSTICOS.map((d) => ({ value: d.id, label: `${d.enfermedad} - ${d.animal}` }))];
+  const diagnosticoOptions = [{ value: '', label: 'Sin diagnóstico' }, ...DIAGNOSTICOS.map((d) => ({ value: d.id, label: `#${d.caravana} - ${d.enfermedad} - ${formatFecha(d.fecha_deteccion)}` }))];
   setOptions(document.getElementById('s-diagnostico'), diagnosticoOptions, false);
 
   renderAnimalTipoOptions();
@@ -985,9 +1043,11 @@ function resetEventoForm() {
   document.getElementById('s-animal-categoria').value = '';
   document.getElementById('s-animal-categoria').classList.add('d-none');
   seleccionAnimalesEvento.clear();
+  diagnosticoBloqueo = null;
   renderAnimalSelectionTable();
   document.getElementById('s-veterinario').value = '';
   document.getElementById('s-diagnostico').value = '';
+  renderDiagnosticoInfo();
   document.getElementById('s-insumo-search').value = '';
   document.getElementById('s-insumo').value = '';
   renderInsumoOptions();
@@ -1019,6 +1079,7 @@ function openEventoModal(evento = null) {
     renderAnimalSelectionTable();
     document.getElementById('s-veterinario').value = evento.veterinario_id || '';
     document.getElementById('s-diagnostico').value = evento.diagnostico_id || '';
+    aplicarBloqueoDiagnostico({ limpiarAlDesbloquear: false });
     renderInsumoOptions();
     document.getElementById('s-insumo').value = evento.lote_insumo_id || '';
     renderLoteOptions();
@@ -1246,6 +1307,7 @@ function setupListeners() {
   document.getElementById('i-cantidad').addEventListener('input', updateStockWarning);
   document.getElementById('d-fecha').addEventListener('change', updateEstadoByFecha);
   document.getElementById('s-animal-select-all').addEventListener('click', () => {
+    if (diagnosticoBloqueo !== null) return;
     const checkboxes = Array.from(document.querySelectorAll('#tabla-animales-evento .evento-animal-checkbox'));
     const visibleIds = checkboxes.map((checkbox) => String(checkbox.value));
     const allSelected = visibleIds.length > 0 && visibleIds.every((id) => seleccionAnimalesEvento.has(id));
@@ -1256,6 +1318,7 @@ function setupListeners() {
     renderAnimalSelectionTable();
   });
   document.getElementById('s-veterinario-search').addEventListener('input', (event) => renderVeterinarioOptions(document.getElementById('s-veterinario'), event.target.value));
+  document.getElementById('s-diagnostico').addEventListener('change', aplicarBloqueoDiagnostico);
   document.getElementById('btn-vista-calendario').addEventListener('click', () => toggleVista('calendario'));
   document.getElementById('btn-vista-lista').addEventListener('click', () => toggleVista('lista'));
   document.getElementById('btn-cal-prev').addEventListener('click', () => changeCalendarMonth(-1));

@@ -133,21 +133,29 @@
       };
 
       // Tabla de registros = ultimo pesaje de cada animal, con su comparativa contra el anterior
-      const PESAJES = ANIMALES_PESAJE.map((a) => {
-        const hist = HISTORIAL[a.caravana];
-        const actual = hist[hist.length - 1];
-        const anterior = hist.length > 1 ? hist[hist.length - 2] : null;
-        const diferencia = anterior ? actual.peso - anterior.peso : 0;
-        const gpd = anterior ? diferencia / diasEntre(anterior.fecha, actual.fecha) : 0;
-        return {
-          ...a,
-          fecha: actual.fecha,
-          pesoActual: actual.peso,
-          pesoAnterior: anterior ? anterior.peso : null,
-          diferencia,
-          gpd,
-        };
-      }).sort((a, b) => aFechaISO(b.fecha).localeCompare(aFechaISO(a.fecha)));
+      let PESAJES = [];
+      function reconstruirPesajes() {
+        PESAJES = ANIMALES_PESAJE
+          .map((a) => {
+            const hist = HISTORIAL[a.caravana];
+            if (!hist || !hist.length) return null;
+            const actual = hist[hist.length - 1];
+            const anterior = hist.length > 1 ? hist[hist.length - 2] : null;
+            const diferencia = anterior ? actual.peso - anterior.peso : 0;
+            const gpd = anterior ? diferencia / diasEntre(anterior.fecha, actual.fecha) : 0;
+            return {
+              ...a,
+              fecha: actual.fecha,
+              pesoActual: actual.peso,
+              pesoAnterior: anterior ? anterior.peso : null,
+              diferencia,
+              gpd,
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => aFechaISO(b.fecha).localeCompare(aFechaISO(a.fecha)));
+      }
+      reconstruirPesajes();
 
       function aFechaISO(fechaDDMMYYYY) {
         const [d, m, y] = fechaDDMMYYYY.split('/');
@@ -426,7 +434,21 @@
               if (!response.ok) throw new Error('No se pudo guardar el pesaje');
               return response.json();
             })
-            .then(() => window.location.reload())
+            .then(() => {
+              const [y, m, d] = fecha.split('-');
+              const fechaDDMMYYYY = `${d}/${m}/${y}`;
+              HISTORIAL[caravana] = HISTORIAL[caravana] || [];
+              HISTORIAL[caravana].push({ fecha: fechaDDMMYYYY, peso: Number(peso) });
+              reconstruirPesajes();
+              renderTabla();
+              renderKpis();
+              if (document.getElementById('select-animal-chart').value === caravana) {
+                renderChartEvolucion(caravana);
+              }
+              document.getElementById('pesaje-peso').value = '';
+              calcularPesaje();
+              bootstrap.Modal.getInstance(document.getElementById('modalRegistrarPesaje'))?.hide();
+            })
             .catch(() => alert('No se pudo guardar el pesaje. Inténtalo nuevamente.'));
         });
       });

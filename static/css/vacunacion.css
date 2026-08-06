@@ -80,4 +80,12 @@
         cursor: default;
         border-color: transparent;
       }
+
+      /* Recuadro de selección de animales en el modal de evento sanitario */
+      .evento-animales-box {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.75rem;
+        padding: 0.75rem;
+        background-color: var(--bs-tertiary-bg);
+      }
     

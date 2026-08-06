@@ -343,7 +343,13 @@
             fetch(`/api/animales/${animal.id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf || '' } })
               .then((response) => {
                 if (!response.ok) throw new Error();
-                window.location.reload();
+                const index = ANIMALES.findIndex((item) => item.id === animal.id);
+                if (index !== -1) ANIMALES.splice(index, 1);
+                if (caravanaSeleccionada === animal.caravana) {
+                  caravanaSeleccionada = null;
+                  if (ANIMALES.length) renderFichaAnimal(ANIMALES[0].caravana);
+                }
+                renderTabla();
               })
               .catch(() => alert('No se pudo eliminar el animal.'));
             return;
@@ -422,7 +428,18 @@
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'No se pudo guardar el animal.');
-            window.location.reload();
+            const guardado = result.animal;
+            const estabaSeleccionado = animalEnEdicion && caravanaSeleccionada === animalEnEdicion.caravana;
+            if (animalEnEdicion) {
+              const index = ANIMALES.findIndex((item) => item.id === animalEnEdicion.id);
+              if (index !== -1) ANIMALES[index] = guardado;
+              else ANIMALES.push(guardado);
+            } else {
+              ANIMALES.push(guardado);
+            }
+            if (estabaSeleccionado) renderFichaAnimal(guardado.caravana);
+            renderTabla();
+            bootstrap.Modal.getInstance(document.getElementById('modalNuevoAnimal'))?.hide();
           } catch (exception) {
             error.textContent = exception.message;
             error.classList.remove('d-none');
