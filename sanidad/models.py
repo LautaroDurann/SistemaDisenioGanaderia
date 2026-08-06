@@ -68,7 +68,10 @@ class EventoSanitario(models.Model):
 
     # Solo se usa para el tipo 'Inseminación': el macho que sirve de padre en el evento.
     padre = models.ForeignKey('animales.Animal', on_delete=models.SET_NULL, null=True, blank=True, related_name='eventos_inseminacion')
-    
+
+    # Solo se usa para el tipo 'Inseminación': características del padre donante de semen.
+    padre_donante = models.CharField(max_length=255, blank=True, null=True)
+
     # ATENCIÓN: El campo 'animal' fue removido de aquí.
 
     def __str__(self):

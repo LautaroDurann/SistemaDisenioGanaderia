@@ -125,6 +125,7 @@
   }
 
   function renderTabla() {
+    $('prenieces-count').textContent = PRENIECES.length;
     const datos = aplicarFiltros();
     const totalPaginas = Math.max(1, Math.ceil(datos.length / FILAS_POR_PAGINA));
     if (paginaActual > totalPaginas) paginaActual = totalPaginas;
@@ -309,7 +310,14 @@
         const deEste = PRENIECES.find((p) => p.madre_id === a.id && p.evento_sanitario_id === e.id);
         const activa = PRENIECES.find((p) => p.madre_id === a.id && p.estado_actual === 'Preñada' && !p.parto_id);
         const preniez = deEste || activa;
-        return { ...a, preniada: !!preniez, de_este_evento: !!deEste, preniez_id: preniez?.id || null };
+        return {
+          ...a,
+          preniada: !!preniez,
+          parida: !!(deEste && deEste.parto_id),
+          parto_fecha: (deEste && deEste.parto_id) ? deEste.parto_fecha : '',
+          de_este_evento: !!deEste,
+          preniez_id: preniez?.id || null,
+        };
       });
       return { ...e, animales, preñadas: animales.filter((a) => a.preniada).length };
     });
@@ -354,6 +362,7 @@
     $('insem-fecha').value = e.fecha_aplicacion;
     $('insem-estado').value = String(e.estado);
     $('insem-padre').value = e.padre_id || '';
+    $('insem-padre-donante').value = e.padre_donante || '';
     $('insem-veterinario').value = e.veterinario_id || '';
     $('insem-costo').value = e.costo_total || '';
     $('insem-detalle').value = e.detalle || '';
@@ -373,6 +382,7 @@
     formData.append('fecha_aplicacion', $('insem-fecha').value);
     formData.append('estado', $('insem-estado').value);
     formData.append('padre_id', $('insem-padre').value);
+    formData.append('padre_donante', $('insem-padre-donante').value || '');
     formData.append('veterinario_id', $('insem-veterinario').value || '');
     formData.append('costo_total', $('insem-costo').value || '');
     formData.append('detalle', $('insem-detalle').value || '');
@@ -409,13 +419,22 @@
   function abrirModalPreniadas(e) {
     if (!e) return;
     $('preniadas-lista').dataset.eventoId = e.id;
-    $('preniadas-info').innerHTML = `Inseminación del <strong>${fmtFecha(e.fecha_aplicacion)}</strong> · Padre: <strong>${escapeHtml(e.padre)}</strong>`;
-    $('preniadas-lista').innerHTML = e.animales.map((a) => `
+    const prenadas = e.animales.filter((a) => a.preniada && !a.parida).length;
+    const paridas = e.animales.filter((a) => a.parida).length;
+    const noPrenadas = e.animales.filter((a) => !a.preniada && !a.parida).length;
+    $('preniadas-info').innerHTML = `Inseminación del <strong>${fmtFecha(e.fecha_aplicacion)}</strong> · Padre: <strong>${escapeHtml(e.padre)}</strong>`
+      + `<div class="small text-secondary mt-1">${prenadas} preñada(s) · ${paridas} parida(s) · ${noPrenadas} sin servicio</div>`;
+    $('preniadas-lista').innerHTML = e.animales.map((a) => {
+      const estado = a.parida
+        ? `<span class="badge text-bg-primary">Parida · ${fmtFecha(a.parto_fecha)}</span>`
+        : (a.preniada ? '<span class="badge text-bg-success">Preñada</span>' : '');
+      return `
       <label class="list-group-item d-flex align-items-center gap-2 py-1">
-        <input class="form-check-input m-0 preniada-check" type="checkbox" value="${a.id}" ${a.preniada ? 'checked disabled' : ''}>
+        <input class="form-check-input m-0 preniada-check" type="checkbox" value="${a.id}" ${a.preniada || a.parida ? 'checked disabled' : ''}>
         <span class="flex-grow-1 small">#${escapeHtml(a.caravana)} ${escapeHtml(a.nombre)} <span class="text-secondary">(${a.tipo})</span></span>
-        ${a.preniada ? '<span class="badge text-bg-success">Preñada</span>' : ''}
-      </label>`).join('') || '<li class="list-group-item text-secondary small">Este evento no tiene hembras asociadas.</li>';
+        ${estado}
+      </label>`;
+    }).join('') || '<li class="list-group-item text-secondary small">Este evento no tiene hembras asociadas.</li>';
     bootstrap.Modal.getOrCreateInstance($('modalPreniadas')).show();
   }
 
@@ -488,6 +507,7 @@
     renderMadresSelect('');
     $('p-madre').value = p.madre_id;
     $('p-padre').value = p.padre_id || '';
+    $('p-padre-donante').value = p.padre_donante || '';
     $('p-fecha').value = p.fecha;
     $('p-tipo').value = p.tipo;
     $('p-estado').value = p.estado_actual;
@@ -501,6 +521,7 @@
     const formData = new FormData();
     formData.append('madre_id', $('p-madre').value);
     formData.append('padre_id', $('p-padre').value || '');
+    formData.append('padre_donante', $('p-padre-donante').value || '');
     formData.append('fecha', $('p-fecha').value);
     formData.append('tipo', $('p-tipo').value);
     formData.append('estado_actual', $('p-estado').value);
@@ -540,6 +561,7 @@
     $('det-tipo').textContent = p.tipo;
     $('det-estado').textContent = p.parto_id ? 'Parida' : p.estado_actual;
     $('det-padre').textContent = p.padre;
+    $('det-padre-donante').textContent = p.padre_donante || '-';
     $('det-evento').textContent = p.evento_sanitario_id
       ? `Evento #${p.evento_sanitario_id} · ${fmtFecha(p.evento_fecha)}`
       : '—';

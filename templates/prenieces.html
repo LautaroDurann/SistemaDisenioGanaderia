@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/prenieces.css' %}?v=20260806">
+  <link rel="stylesheet" href="{% static 'css/prenieces.css' %}?v=20260808">
 {% endblock %}
 
 {% block content %}
@@ -10,9 +10,9 @@
     <div class="container-fluid">
       <div class="row align-items-center">
         <div class="col-lg-6">
-          <h3 class="mb-0">Preñez y Partos</h3>
+          <h3 class="mb-0"><i class="bi bi-egg-fill me-2 text-success"></i> Preñez y Partos</h3>
           <p class="text-secondary mb-0">
-            Registrá preñeces, estimá fechas de parto y cargá los partos junto con las crías nacidas.
+            Gestioná el ciclo reproductivo: inseminaciones, preñeces y partos.
           </p>
         </div>
         <div class="col-lg-6 text-lg-end mt-3 mt-lg-0">
@@ -36,7 +36,7 @@
         <div class="col-xl-3 col-md-6">
           <div class="card vacapp-card h-100">
             <div class="card-body d-flex align-items-center gap-3">
-              <div class="text-bg-success rounded-3 p-2"><i class="bi bi-egg-fill fs-4"></i></div>
+              <div class="text-bg-success rounded-3 p-2"><i class="bi bi-flower1 fs-4"></i></div>
               <div>
                 <h4 class="mb-0" id="kpi-partos-anio">0</h4>
                 <small class="text-secondary d-block">Partos este año</small>
@@ -79,179 +79,212 @@
         </div>
       </div>
 
-      <div class="card vacapp-card mb-3">
-        <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <h5 class="card-title mb-0">
-            Inseminaciones
-            <span class="badge text-bg-success align-middle" id="insem-count">0</span>
-          </h5>
-          <small class="text-secondary">Agendá la inseminación de varias hembras y luego registrá cuáles quedaron preñadas.</small>
-        </div>
-        <div class="card-body">
-          <div class="row g-2 align-items-end mb-3">
-            <div class="col-md-4">
-              <label class="form-label small mb-1">Buscar</label>
-              <input type="text" id="f-insem-buscar" class="form-control form-control-sm" placeholder="Padre, hembra, fecha..." />
-            </div>
-            <div class="col-md-3">
-              <label class="form-label small mb-1">Estado</label>
-              <select id="f-insem-estado" class="form-select form-select-sm">
-                <option value="">Todos</option>
-                <option value="true">Aplicada</option>
-                <option value="false">Programada</option>
-              </select>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label small mb-1">Padre</label>
-              <select id="f-insem-padre" class="form-select form-select-sm"></select>
-            </div>
-            <div class="col-md-2 text-end align-self-end">
-              <button id="f-insem-limpiar" type="button" class="btn btn-outline-secondary btn-sm w-100">
-                <i class="bi bi-x-lg me-1"></i> Limpiar
+      <div class="card vacapp-card vacapp-tab-card">
+        <div class="card-header bg-transparent border-0 pb-0">
+          <ul class="nav nav-pills vacapp-tabs gap-2" id="crud-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="tab-insem-tab" data-bs-toggle="pill" data-bs-target="#pane-inseminaciones" type="button" role="tab">
+                <i class="bi bi-egg me-1"></i> Inseminaciones
+                <span class="badge text-bg-success ms-1" id="insem-count">0</span>
               </button>
-            </div>
-          </div>
-
-          <div class="table-responsive">
-            <table class="table table-hover table-vacapp align-middle">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Estado</th>
-                  <th>Padre</th>
-                  <th>Hembras</th>
-                  <th>Costo</th>
-                  <th class="text-end">Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="tabla-inseminaciones-body"></tbody>
-            </table>
-          </div>
-
-          <div class="d-flex justify-content-between align-items-center mt-2">
-            <small class="text-secondary" id="insem-info"></small>
-            <nav>
-              <ul class="pagination pagination-sm mb-0" id="insem-paginacion"></ul>
-            </nav>
-          </div>
-        </div>
-      </div>
-
-      <div class="card vacapp-card mb-3">
-        <div class="card-body">
-          <div class="row g-2 align-items-end mb-3">
-            <div class="col-md-3">
-              <label class="form-label small mb-1">Buscar</label>
-              <input type="text" id="f-buscar" class="form-control form-control-sm" placeholder="Caravana, animal, padre..." />
-            </div>
-            <div class="col-md-3">
-              <label class="form-label small mb-1">Especie</label>
-              <select id="f-especie" class="form-select form-select-sm">
-                <option value="">Todas</option>
-              </select>
-            </div>
-            <div class="col-md-2">
-              <label class="form-label small mb-1">Tipo de preñez</label>
-              <select id="f-tipo" class="form-select form-select-sm">
-                <option value="">Todos</option>
-              </select>
-            </div>
-            <div class="col-md-2">
-              <label class="form-label small mb-1">Estado</label>
-              <select id="f-estado" class="form-select form-select-sm">
-                <option value="">Todos</option>
-              </select>
-            </div>
-            <div class="col-md-2 text-end align-self-end">
-              <button id="f-limpiar" type="button" class="btn btn-outline-secondary btn-sm w-100">
-                <i class="bi bi-x-lg me-1"></i> Limpiar
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="tab-prenieces-tab" data-bs-toggle="pill" data-bs-target="#pane-prenieces" type="button" role="tab">
+                <i class="bi bi-heart-pulse me-1"></i> Preñeces
+                <span class="badge text-bg-primary ms-1" id="prenieces-count">0</span>
               </button>
-            </div>
-          </div>
-
-          <div class="table-responsive">
-            <table class="table table-hover table-vacapp align-middle">
-              <thead>
-                <tr>
-                  <th>Madre</th>
-                  <th>Tipo</th>
-                  <th>Fecha de servicio</th>
-                  <th>Estado</th>
-                  <th>Parto estimado</th>
-                  <th>Falta para parto</th>
-                  <th>Parto</th>
-                  <th class="text-end">Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="tabla-prenieces-body"></tbody>
-            </table>
-          </div>
-
-          <div class="d-flex justify-content-between align-items-center mt-2">
-            <small class="text-secondary" id="tabla-info"></small>
-            <nav>
-              <ul class="pagination pagination-sm mb-0" id="tabla-paginacion"></ul>
-            </nav>
-          </div>
-        </div>
-      </div>
-
-      <div class="card vacapp-card mb-3" id="card-partos">
-        <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <h5 class="card-title mb-0">
-            Partos registrados
-            <span class="badge text-bg-primary align-middle" id="partos-count">0</span>
-          </h5>
-          <small class="text-secondary">Cada parto queda asociado a su preñez y a las crías nacidas.</small>
-        </div>
-        <div class="card-body">
-          <div class="row g-2 align-items-end mb-3">
-            <div class="col-md-4">
-              <label class="form-label small mb-1">Buscar</label>
-              <input type="text" id="f-parto-buscar" class="form-control form-control-sm" placeholder="Madre, caravana, cría..." />
-            </div>
-            <div class="col-md-3">
-              <label class="form-label small mb-1">Nacimiento</label>
-              <select id="f-parto-estado" class="form-select form-select-sm">
-                <option value="">Todos</option>
-                <option value="true">Vivo</option>
-                <option value="false">Muerto</option>
-              </select>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label small mb-1">Especie</label>
-              <select id="f-parto-especie" class="form-select form-select-sm">
-                <option value="">Todas</option>
-              </select>
-            </div>
-            <div class="col-md-2 text-end align-self-end">
-              <button id="f-parto-limpiar" type="button" class="btn btn-outline-secondary btn-sm w-100">
-                <i class="bi bi-x-lg me-1"></i> Limpiar
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="tab-partos-tab" data-bs-toggle="pill" data-bs-target="#pane-partos" type="button" role="tab">
+                <i class="bi bi-flower1 me-1"></i> Partos
+                <span class="badge text-bg-info ms-1" id="partos-count">0</span>
               </button>
+            </li>
+          </ul>
+        </div>
+
+        <div class="card-body">
+          <div class="tab-content" id="crud-tabs-content">
+
+            <div class="tab-pane fade show active" id="pane-inseminaciones" role="tabpanel">
+              <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                <div>
+                  <h6 class="mb-0 fw-bold">Inseminaciones agendadas</h6>
+                  <small class="text-secondary">Agendá la inseminación de varias hembras y luego registrá cuáles quedaron preñadas.</small>
+                </div>
+                <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalInseminacion">
+                  <i class="bi bi-egg-fill me-1"></i> Agendar Inseminación
+                </button>
+              </div>
+              <div class="row g-2 align-items-end mb-3">
+                <div class="col-md-4">
+                  <label class="form-label small mb-1">Buscar</label>
+                  <input type="text" id="f-insem-buscar" class="form-control form-control-sm" placeholder="Padre, hembra, fecha..." />
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small mb-1">Estado</label>
+                  <select id="f-insem-estado" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    <option value="true">Aplicada</option>
+                    <option value="false">Programada</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small mb-1">Padre</label>
+                  <select id="f-insem-padre" class="form-select form-select-sm"></select>
+                </div>
+                <div class="col-md-2 text-end align-self-end">
+                  <button id="f-insem-limpiar" type="button" class="btn btn-outline-secondary btn-sm w-100">
+                    <i class="bi bi-x-lg me-1"></i> Limpiar
+                  </button>
+                </div>
+              </div>
+
+              <div class="table-responsive">
+                <table class="table table-hover table-vacapp align-middle">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Estado</th>
+                      <th>Padre</th>
+                      <th>Hembras</th>
+                      <th>Costo</th>
+                      <th class="text-end">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tabla-inseminaciones-body"></tbody>
+                </table>
+              </div>
+
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <small class="text-secondary" id="insem-info"></small>
+                <nav>
+                  <ul class="pagination pagination-sm mb-0" id="insem-paginacion"></ul>
+                </nav>
+              </div>
             </div>
-          </div>
 
-          <div class="table-responsive">
-            <table class="table table-hover table-vacapp align-middle">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Madre</th>
-                  <th>Especie</th>
-                  <th>Tipo de preñez</th>
-                  <th>Nacimiento</th>
-                  <th>Crías</th>
-                </tr>
-              </thead>
-              <tbody id="tabla-partos-body"></tbody>
-            </table>
-          </div>
+            <div class="tab-pane fade" id="pane-prenieces" role="tabpanel">
+              <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                <div>
+                  <h6 class="mb-0 fw-bold">Preñeces registradas</h6>
+                  <small class="text-secondary">Registrá preñeces, estimá fechas de parto y cargá los partos junto con las crías nacidas.</small>
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalPreniez">
+                  <i class="bi bi-plus-lg me-1"></i> Registrar Preñez
+                </button>
+              </div>
+              <div class="row g-2 align-items-end mb-3">
+                <div class="col-md-3">
+                  <label class="form-label small mb-1">Buscar</label>
+                  <input type="text" id="f-buscar" class="form-control form-control-sm" placeholder="Caravana, animal, padre..." />
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small mb-1">Especie</label>
+                  <select id="f-especie" class="form-select form-select-sm">
+                    <option value="">Todas</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small mb-1">Tipo de preñez</label>
+                  <select id="f-tipo" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small mb-1">Estado</label>
+                  <select id="f-estado" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                  </select>
+                </div>
+                <div class="col-md-2 text-end align-self-end">
+                  <button id="f-limpiar" type="button" class="btn btn-outline-secondary btn-sm w-100">
+                    <i class="bi bi-x-lg me-1"></i> Limpiar
+                  </button>
+                </div>
+              </div>
 
-          <div class="d-flex justify-content-between align-items-center mt-2">
-            <small class="text-secondary" id="partos-info"></small>
-            <nav>
-              <ul class="pagination pagination-sm mb-0" id="partos-paginacion"></ul>
-            </nav>
+              <div class="table-responsive">
+                <table class="table table-hover table-vacapp align-middle">
+                  <thead>
+                    <tr>
+                      <th>Madre</th>
+                      <th>Tipo</th>
+                      <th>Fecha de servicio</th>
+                      <th>Estado</th>
+                      <th>Parto estimado</th>
+                      <th>Falta para parto</th>
+                      <th>Parto</th>
+                      <th class="text-end">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tabla-prenieces-body"></tbody>
+                </table>
+              </div>
+
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <small class="text-secondary" id="tabla-info"></small>
+                <nav>
+                  <ul class="pagination pagination-sm mb-0" id="tabla-paginacion"></ul>
+                </nav>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="pane-partos" role="tabpanel">
+              <div class="mb-3">
+                <h6 class="mb-0 fw-bold">Partos registrados</h6>
+                <small class="text-secondary">Cada parto queda asociado a su preñez y a las crías nacidas.</small>
+              </div>
+              <div class="row g-2 align-items-end mb-3">
+                <div class="col-md-4">
+                  <label class="form-label small mb-1">Buscar</label>
+                  <input type="text" id="f-parto-buscar" class="form-control form-control-sm" placeholder="Madre, caravana, cría..." />
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small mb-1">Nacimiento</label>
+                  <select id="f-parto-estado" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    <option value="true">Vivo</option>
+                    <option value="false">Muerto</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small mb-1">Especie</label>
+                  <select id="f-parto-especie" class="form-select form-select-sm">
+                    <option value="">Todas</option>
+                  </select>
+                </div>
+                <div class="col-md-2 text-end align-self-end">
+                  <button id="f-parto-limpiar" type="button" class="btn btn-outline-secondary btn-sm w-100">
+                    <i class="bi bi-x-lg me-1"></i> Limpiar
+                  </button>
+                </div>
+              </div>
+
+              <div class="table-responsive">
+                <table class="table table-hover table-vacapp align-middle">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Madre</th>
+                      <th>Especie</th>
+                      <th>Tipo de preñez</th>
+                      <th>Nacimiento</th>
+                      <th>Crías</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tabla-partos-body"></tbody>
+                </table>
+              </div>
+
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <small class="text-secondary" id="partos-info"></small>
+                <nav>
+                  <ul class="pagination pagination-sm mb-0" id="partos-paginacion"></ul>
+                </nav>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -286,6 +319,10 @@
                   <option value="">Seleccionar...</option>
                 </select>
               </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small mb-1">Padre donante (características)</label>
+              <input type="text" id="insem-padre-donante" class="form-control" placeholder="Ej: Toro Angus 2020, circunferencia escrotal 38 cm, EPD destete +18 kg..." />
             </div>
             <div class="row g-2 mb-3">
               <div class="col-md-6">
@@ -362,6 +399,10 @@
                 </select>
               </div>
             </div>
+            <div class="mb-3">
+              <label class="form-label small mb-1">Padre donante (características)</label>
+              <input type="text" id="p-padre-donante" class="form-control" placeholder="Ej: Semen de toro Brangus propio, destacado por peso de destete..." />
+            </div>
             <div class="row g-2 mb-3">
               <div class="col-md-4">
                 <label class="form-label small mb-1">Fecha de servicio *</label>
@@ -415,6 +456,12 @@
             <div class="col-md-4"><small class="text-secondary d-block">Padre</small><strong id="det-padre">-</strong></div>
             <div class="col-md-4"><small class="text-secondary d-block">Inseminación</small><strong id="det-evento">-</strong></div>
             <div class="col-md-4"><small class="text-secondary d-block">Veterinario</small><strong id="det-veterinario">-</strong></div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-12">
+              <small class="text-secondary d-block">Padre donante</small>
+              <strong id="det-padre-donante">-</strong>
+            </div>
           </div>
           <div class="row g-3 mb-3">
             <div class="col-md-4">
@@ -538,5 +585,5 @@
 {% endblock %}
 
 {% block page_js %}
-  <script src="{% static 'js/prenieces.js' %}?v=20260806"></script>
+  <script src="{% static 'js/prenieces.js' %}?v=20260808"></script>
 {% endblock %}

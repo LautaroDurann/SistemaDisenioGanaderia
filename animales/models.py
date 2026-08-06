@@ -88,7 +88,10 @@ class Preniez(models.Model):
     detalle = models.TextField(blank=True, null=True)
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
     estado_actual = models.CharField(max_length=20, choices=ESTADO_CHOICES)
-    
+
+    # Características del padre donante de semen en caso de inseminación.
+    padre_donante = models.CharField(max_length=255, blank=True, null=True)
+
     # --- RELACIONES ---
     madre = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='prenieces_madre')
     padre = models.ForeignKey(Animal, on_delete=models.SET_NULL, null=True, blank=True, related_name='prenieces_padre')

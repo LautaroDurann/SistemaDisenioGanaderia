@@ -393,6 +393,7 @@ def _asignar_evento_sanitario(evento, datos):
     evento.diagnostico_id = int(datos['diagnostico_id']) if datos.get('diagnostico_id') else None
     evento.lote_id = int(datos['lote_id']) if datos.get('lote_id') else None
     evento.padre_id = int(datos['padre_id']) if datos.get('padre_id') else None
+    evento.padre_donante = datos.get('padre_donante', '').strip() or None
     return animal_ids
 
 
@@ -1143,6 +1144,7 @@ def _preniez_data(p):
         'madre_parcela': str(p.madre.parcela) if p.madre.parcela else 'Sin asignar',
         'padre_id': p.padre_id,
         'padre': str(p.padre) if p.padre else 'No registrado',
+        'padre_donante': p.padre_donante or '',
         'evento_sanitario_id': p.evento_sanitario_id,
         'evento_fecha': evento.fecha_aplicacion.isoformat() if evento else '',
         'evento_veterinario': str(evento.veterinario) if evento and evento.veterinario else '-',
@@ -1202,6 +1204,8 @@ def _evento_inseminacion_data(evento):
             'caravana': str(a.id_senasa) if a.id_senasa is not None else 'S/N',
             'tipo': a.tipo_animal,
             'preniada': a.idAnimal in activas or a.idAnimal in con_preniez_del_evento,
+            'parida': bool(preniez and preniez.parto_id),
+            'parto_fecha': preniez.parto.fecha.isoformat() if preniez and preniez.parto_id else '',
             'de_este_evento': bool(preniez),
             'preniez_id': preniez.id if preniez else None,
         })
@@ -1211,6 +1215,7 @@ def _evento_inseminacion_data(evento):
         'estado': evento.estado,
         'padre_id': evento.padre_id,
         'padre': str(evento.padre) if evento.padre_id else '-',
+        'padre_donante': evento.padre_donante or '',
         'veterinario_id': evento.veterinario_id,
         'veterinario': str(evento.veterinario) if evento.veterinario else '-',
         'costo_total': str(evento.costo_total or ''),
@@ -1287,6 +1292,7 @@ def _asignar_preniez(preniez, datos):
     preniez.detalle = datos.get('detalle', '').strip() or None
     preniez.madre_id = int(datos['madre_id'])
     preniez.padre_id = int(datos['padre_id']) if datos.get('padre_id') else None
+    preniez.padre_donante = datos.get('padre_donante', '').strip() or None
 
     madre = Animal.objects.select_related('parcela').filter(pk=preniez.madre_id).first()
     if madre is None or madre.sexo != 'Hembra':
@@ -1458,6 +1464,7 @@ def registrar_preniadas(request, evento_id):
                     estado_actual='Preñada',
                     madre_id=animal_id,
                     padre=evento.padre,
+                    padre_donante=evento.padre_donante,
                     detalle=f'Preñada registrada desde la inseminación #{evento.id}.',
                     evento_sanitario=evento,
                 ))
