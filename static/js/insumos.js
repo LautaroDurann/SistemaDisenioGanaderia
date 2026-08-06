@@ -26,10 +26,94 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const state = {
     items: [],
+    visibleDetailId: null,
+    lotesByInsumo: {},
     editingId: null,
   };
 
-  const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  const escapeHtml = (value) =>
+    String(value ?? '').replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    }[char]));
+
+  const renderLoteRows = (insumoId, lotes = []) => {
+    if (!lotes.length) {
+      return '<tr><td colspan="4" class="text-center text-secondary">No hay lotes registrados.</td></tr>';
+    }
+
+    return lotes
+      .map(
+        (lote) => `
+      <tr>
+        <td>${escapeHtml(lote.nombre || '—')}</td>
+        <td>${escapeHtml(lote.fecha_vencimiento || '—')}</td>
+        <td>${escapeHtml(lote.stock_actual)}</td>
+        <td class="text-end">
+          <button type="button" class="btn btn-sm btn-outline-secondary me-1 btn-edit-lote" data-id="${lote.id}" data-insumo-id="${insumoId}"><i class="bi bi-pencil"></i></button>
+          <button type="button" class="btn btn-sm btn-outline-danger btn-delete-lote" data-id="${lote.id}" data-insumo-id="${insumoId}"><i class="bi bi-trash"></i></button>
+        </td>
+      </tr>
+    `,
+      )
+      .join('');
+  };
+
+  const renderDetailRow = (item) => {
+    const lotes = state.lotesByInsumo[item.id] || [];
+    const detailBgClass = 'bg-body-secondary bg-opacity-10';
+    return `
+      <tr class="insumo-detail-row d-none border-bottom" data-id="${item.id}">
+        <td colspan="5" class="p-0 ${detailBgClass}">
+          <div class="py-2">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div><strong>Lotes de ${escapeHtml(item.nombre)}</strong></div>
+              <button type="button" class="btn btn-sm btn-outline-success btn-add-lote" data-insumo-id="${item.id}">Agregar lote</button>
+            </div>
+            <div class="mb-3 lote-form d-none" data-insumo-id="${item.id}">
+              <div class="row g-3">
+                <input type="hidden" id="lote-id-${item.id}" />
+                <div class="col-md-4">
+                  <label class="form-label">Nombre</label>
+                  <input type="text" id="lote-nombre-${item.id}" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Fecha de vencimiento</label>
+                  <input type="date" id="lote-vencimiento-${item.id}" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Stock actual</label>
+                  <input type="number" step="0.01" min="0" id="lote-stock-${item.id}" class="form-control" value="0" />
+                </div>
+              </div>
+              <div class="mt-3 text-end">
+                <button type="button" class="btn btn-outline-secondary btn-sm btn-cancel-lote" data-insumo-id="${item.id}">Cancelar</button>
+                <button type="button" class="btn btn-success btn-sm btn-save-lote" data-insumo-id="${item.id}">Guardar lote</button>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Fecha de vencimiento</th>
+                    <th>Stock actual</th>
+                    <th class="text-end">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody class="insumo-lotes-body" data-insumo-id="${item.id}">
+                  ${renderLoteRows(item.id, lotes)}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
+  };
 
   const renderRows = () => {
     const query = buscarInput.value.trim().toLowerCase();
@@ -42,19 +126,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!tbody) return;
 
-    tbody.innerHTML = filtered.length ? filtered.map((item) => `
-      <tr>
+    tbody.innerHTML = filtered.length
+      ? filtered
+          .map(
+            (item) => `
+      <tr class="insumo-row" data-id="${item.id}">
         <td>${escapeHtml(item.nombre)}</td>
         <td>${escapeHtml(item.tipo)}</td>
         <td>${escapeHtml(item.unidad_de_medida)}</td>
-        <td>${escapeHtml(item.stock_actual)}</td>
-        <td>${escapeHtml(item.fecha_vencimiento || '—')}</td>
+        <td>${escapeHtml(item.cantidad_total)}</td>
         <td class="text-end">
-          <button class="btn btn-sm btn-outline-primary me-1 btn-editar" data-id="${item.id}"><i class="bi bi-pencil"></i></button>
-          <button class="btn btn-sm btn-outline-danger btn-eliminar" data-id="${item.id}"><i class="bi bi-trash"></i></button>
+          <button class="btn btn-sm btn-outline-primary me-1 btn-toggle-lotes" data-id="${item.id}" title="Ver lotes"><i class="bi bi-eye"></i></button>
+          <button class="btn btn-sm btn-outline-secondary me-1 btn-edit-insumo" data-id="${item.id}" title="Editar insumo"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-sm btn-outline-danger btn-delete-insumo" data-id="${item.id}" title="Eliminar insumo"><i class="bi bi-trash"></i></button>
         </td>
       </tr>
-    `).join('') : '<tr><td colspan="6" class="text-center text-secondary">No hay insumos para mostrar.</td></tr>';
+      ${renderDetailRow(item)}
+    `,
+          )
+          .join('')
+      : '<tr><td colspan="5" class="text-center text-secondary">No hay insumos para mostrar.</td></tr>';
   };
 
   const loadItems = async () => {
@@ -72,37 +163,62 @@ document.addEventListener('DOMContentLoaded', () => {
     const total = state.items.length;
     const vacunas = state.items.filter((item) => item.tipo === 'Vacuna').length;
     const medicamentos = state.items.filter((item) => item.tipo === 'Medicamento').length;
-    const stockTotal = state.items.reduce((acc, item) => acc + Number(item.stock_actual || 0), 0);
+    const stockTotal = state.items.reduce((acc, item) => acc + Number(item.cantidad_total || 0), 0);
     document.getElementById('kpi-total-insumos').textContent = total;
     document.getElementById('kpi-vacunas').textContent = vacunas;
     document.getElementById('kpi-medicamentos').textContent = medicamentos;
     document.getElementById('kpi-stock-total').textContent = stockTotal.toFixed(2);
   };
 
-  const resetForm = () => {
-    form.reset();
-    document.getElementById('insumo-id').value = '';
-    document.getElementById('insumo-unidad').value = 'kg';
-    document.getElementById('insumo-stock').value = '0';
-    document.getElementById('insumo-tipo').value = 'Vacuna';
-    modalTitle.textContent = 'Registrar insumo';
-    state.editingId = null;
+  const toggleDetailRow = async (insumoId, row) => {
+    const detailRow = row.nextElementSibling;
+    if (!detailRow || !detailRow.classList.contains('insumo-detail-row')) return;
+
+    if (!detailRow.classList.contains('d-none')) {
+      detailRow.classList.add('d-none');
+      state.visibleDetailId = null;
+      return;
+    }
+
+    const lotes = await fetchLotes(insumoId);
+    state.lotesByInsumo[insumoId] = lotes;
+
+    const body = detailRow.querySelector('.insumo-lotes-body');
+    if (body) body.innerHTML = renderLoteRows(insumoId, lotes);
+    detailRow.classList.remove('d-none');
+    state.visibleDetailId = insumoId;
   };
 
-  const openModal = (item = null) => {
-    resetForm();
+  const fetchLotes = async (insumoId) => {
+    const response = await fetch(`/api/insumos/${insumoId}/`, { headers: buildHeaders() });
+    if (!response.ok) return [];
+    const payload = await response.json();
+    return payload.insumo.lotes || [];
+  };
+
+  const openModal = async (item = null) => {
+    form.reset();
+    document.getElementById('insumo-id').value = '';
+    modalTitle.textContent = 'Registrar insumo';
+    state.editingId = null;
+
     if (item) {
-      document.getElementById('insumo-id').value = item.id;
-      document.getElementById('insumo-nombre').value = item.nombre;
-      document.getElementById('insumo-tipo').value = item.tipo;
-      document.getElementById('insumo-unidad').value = item.unidad_de_medida;
-      document.getElementById('insumo-stock').value = item.stock_actual;
-      document.getElementById('insumo-vencimiento').value = item.fecha_vencimiento || '';
+      const response = await fetch(`/api/insumos/${item.id}/`, { headers: buildHeaders() });
+      if (!response.ok) {
+        alert('No se pudo cargar el detalle del insumo.');
+        return;
+      }
+      const payload = await response.json();
+      const detail = payload.insumo;
+      document.getElementById('insumo-id').value = detail.id;
+      document.getElementById('insumo-nombre').value = detail.nombre || '';
+      document.getElementById('insumo-tipo').value = detail.tipo || 'Otros';
+      document.getElementById('insumo-unidad').value = detail.unidad_de_medida || 'kg';
       modalTitle.textContent = 'Editar insumo';
-      state.editingId = item.id;
+      state.editingId = detail.id;
     }
-    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    modal.show();
+
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
   };
 
   const saveInsumo = async () => {
@@ -110,17 +226,9 @@ document.addEventListener('DOMContentLoaded', () => {
     payload.set('nombre', document.getElementById('insumo-nombre').value.trim());
     payload.set('tipo', document.getElementById('insumo-tipo').value);
     payload.set('unidad_de_medida', document.getElementById('insumo-unidad').value.trim() || 'kg');
-    payload.set('stock_actual', document.getElementById('insumo-stock').value);
-    payload.set('fecha_vencimiento', document.getElementById('insumo-vencimiento').value || '');
 
     const url = state.editingId ? `/api/insumos/${state.editingId}/` : '/api/insumos/';
-    const method = state.editingId ? 'POST' : 'POST';
-
-    const response = await fetch(url, {
-      method,
-      body: payload,
-      headers: buildHeaders(),
-    });
+    const response = await fetch(url, { method: 'POST', body: payload, headers: buildHeaders() });
     const result = await response.json();
     if (!response.ok) {
       alert(result.error || 'No se pudo guardar el insumo');
@@ -128,8 +236,91 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     bootstrap.Modal.getInstance(modalEl)?.hide();
-    resetForm();
     await loadItems();
+  };
+
+  const showInlineLoteForm = (insumoId, lote = null) => {
+    const formSection = document.querySelector(`.lote-form[data-insumo-id="${insumoId}"]`);
+    if (!formSection) return;
+    const idField = formSection.querySelector(`#lote-id-${insumoId}`);
+    const nombreField = formSection.querySelector(`#lote-nombre-${insumoId}`);
+    const vencimientoField = formSection.querySelector(`#lote-vencimiento-${insumoId}`);
+    const stockField = formSection.querySelector(`#lote-stock-${insumoId}`);
+
+    if (lote) {
+      idField.value = lote.id;
+      nombreField.value = lote.nombre || '';
+      vencimientoField.value = lote.fecha_vencimiento || '';
+      stockField.value = lote.stock_actual || '0';
+    } else {
+      idField.value = '';
+      nombreField.value = '';
+      vencimientoField.value = '';
+      stockField.value = '0';
+    }
+
+    formSection.classList.remove('d-none');
+  };
+
+  const hideInlineLoteForm = (insumoId) => {
+    const formSection = document.querySelector(`.lote-form[data-insumo-id="${insumoId}"]`);
+    if (!formSection) return;
+    formSection.classList.add('d-none');
+  };
+
+  const saveInlineLote = async (insumoId) => {
+    const formSection = document.querySelector(`.lote-form[data-insumo-id="${insumoId}"]`);
+    if (!formSection) return;
+    const idField = formSection.querySelector(`#lote-id-${insumoId}`);
+    const nombreField = formSection.querySelector(`#lote-nombre-${insumoId}`);
+    const vencimientoField = formSection.querySelector(`#lote-vencimiento-${insumoId}`);
+    const stockField = formSection.querySelector(`#lote-stock-${insumoId}`);
+
+    const payload = new FormData();
+    payload.set('nombre', nombreField.value.trim());
+    payload.set('fecha_vencimiento', vencimientoField.value || '');
+    payload.set('stock_actual', stockField.value || '0');
+
+    const loteId = idField.value;
+    const url = loteId ? `/api/lotes/${loteId}/` : `/api/insumos/${insumoId}/lotes/`;
+    const response = await fetch(url, { method: 'POST', body: payload, headers: buildHeaders() });
+    const result = await response.json();
+    if (!response.ok) {
+      alert(result.error || 'No se pudo guardar el lote');
+      return;
+    }
+
+    hideInlineLoteForm(insumoId);
+    const row = document.querySelector(`tr.insumo-row[data-id="${insumoId}"]`);
+    if (row) await toggleDetailRow(insumoId, row);
+    if (row) await toggleDetailRow(insumoId, row);
+  };
+
+  const deleteInlineLote = async (loteId, insumoId) => {
+    if (!confirm('¿Desea eliminar este lote?')) return;
+    const response = await fetch(`/api/lotes/${loteId}/`, { method: 'DELETE', headers: buildHeaders() });
+    if (!response.ok) {
+      alert('No se pudo eliminar el lote');
+      return;
+    }
+    const row = document.querySelector(`tr.insumo-row[data-id="${insumoId}"]`);
+    if (row) await toggleDetailRow(insumoId, row);
+    if (row) await toggleDetailRow(insumoId, row);
+  };
+
+  const editInlineLote = async (loteId, insumoId) => {
+    const lotes = await fetchLotes(insumoId);
+    const lote = lotes.find((item) => item.id === loteId);
+    if (!lote) return;
+    state.lotesByInsumo[insumoId] = lotes;
+    const row = document.querySelector(`tr.insumo-row[data-id="${insumoId}"]`);
+    if (!row) return;
+    const detailRow = row.nextElementSibling;
+    if (!detailRow || !detailRow.classList.contains('insumo-detail-row')) return;
+    if (detailRow.classList.contains('d-none')) {
+      await toggleDetailRow(insumoId, row);
+    }
+    showInlineLoteForm(insumoId, lote);
   };
 
   guardarBtn.addEventListener('click', saveInsumo);
@@ -142,21 +333,69 @@ document.addEventListener('DOMContentLoaded', () => {
   tipoSelect.addEventListener('change', loadItems);
 
   tbody.addEventListener('click', async (event) => {
-    const editButton = event.target.closest('.btn-editar');
-    const deleteButton = event.target.closest('.btn-eliminar');
-    if (editButton) {
-      const id = Number(editButton.dataset.id);
+    const toggleLotesButton = event.target.closest('.btn-toggle-lotes');
+    const editInsumoButton = event.target.closest('.btn-edit-insumo');
+    const deleteInsumoButton = event.target.closest('.btn-delete-insumo');
+    const addLoteButton = event.target.closest('.btn-add-lote');
+    const saveLoteButton = event.target.closest('.btn-save-lote');
+    const cancelLoteButton = event.target.closest('.btn-cancel-lote');
+    const editLoteButton = event.target.closest('.btn-edit-lote');
+    const deleteLoteButton = event.target.closest('.btn-delete-lote');
+    const row = event.target.closest('tr.insumo-row');
+
+    if (toggleLotesButton && row) {
+      const insumoId = Number(toggleLotesButton.dataset.id);
+      await toggleDetailRow(insumoId, row);
+      return;
+    }
+
+    if (editInsumoButton) {
+      const id = Number(editInsumoButton.dataset.id);
       const item = state.items.find((entry) => entry.id === id);
       if (item) openModal(item);
       return;
     }
-    if (deleteButton) {
-      const id = Number(deleteButton.dataset.id);
+
+    if (deleteInsumoButton) {
+      const id = Number(deleteInsumoButton.dataset.id);
       if (!confirm('¿Desea eliminar este insumo?')) return;
       const response = await fetch(`/api/insumos/${id}/`, { method: 'DELETE', headers: buildHeaders() });
       if (response.ok) {
         await loadItems();
       }
+      return;
+    }
+
+    if (addLoteButton) {
+      const insumoId = Number(addLoteButton.dataset.insumoId);
+      showInlineLoteForm(insumoId);
+      return;
+    }
+
+    if (saveLoteButton) {
+      const insumoId = Number(saveLoteButton.dataset.insumoId);
+      await saveInlineLote(insumoId);
+      return;
+    }
+
+    if (cancelLoteButton) {
+      const insumoId = Number(cancelLoteButton.dataset.insumoId);
+      hideInlineLoteForm(insumoId);
+      return;
+    }
+
+    if (editLoteButton) {
+      const loteId = Number(editLoteButton.dataset.id);
+      const insumoId = Number(editLoteButton.dataset.insumoId);
+      await editInlineLote(loteId, insumoId);
+      return;
+    }
+
+    if (deleteLoteButton) {
+      const loteId = Number(deleteLoteButton.dataset.id);
+      const insumoId = Number(deleteLoteButton.dataset.insumoId);
+      await deleteInlineLote(loteId, insumoId);
+      return;
     }
   });
 

@@ -20,16 +20,22 @@ class Insumo(models.Model):
         return f"{self.nombre or 'Insumo sin nombre'} (ID: {self.id})"
 
 
+# 2. LOTE (Nueva Tabla)
 class Lote(models.Model):
+    # NUEVO ATRIBUTO: nombre
+    nombre = models.CharField(max_length=100, null=True, blank=True)
+    
+    # CNN: - (Permitimos nulos)
     fechaVencimiento = models.DateField(null=True, blank=True)
     stockActual = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    
+    # CF: idInsumo -> Insumo(idInsumo)
     insumo = models.ForeignKey(Insumo, on_delete=models.CASCADE, related_name='lotes', null=True, blank=True)
 
-    class Meta:
-        ordering = ['fechaVencimiento', 'id']
-
     def __str__(self):
-        return f"Lote {self.id} - {self.insumo}"
+        # Ahora el panel mostrará el nombre del lote si lo tiene, o su ID si no le pusiste nombre
+        nombre_mostrar = self.nombre if self.nombre else f"ID {self.id}"
+        return f"Lote {nombre_mostrar} - {self.insumo}"
 
 
 class DetalleCompra(models.Model):
