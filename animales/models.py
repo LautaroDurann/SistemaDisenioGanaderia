@@ -60,6 +60,7 @@ class Animal(models.Model):
     
     compra = models.ForeignKey('finanzas.Compra', on_delete=models.SET_NULL, null=True, blank=True)
     venta = models.ForeignKey('finanzas.Venta', on_delete=models.SET_NULL, null=True, blank=True)
+    parto = models.ForeignKey('animales.Parto', on_delete=models.SET_NULL, null=True, blank=True, related_name='crias')
 
     def __str__(self):
         caravana = self.id_senasa if self.id_senasa is not None else 'Sin caravana'

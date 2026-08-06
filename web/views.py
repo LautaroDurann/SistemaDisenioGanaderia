@@ -1,6 +1,6 @@
 import calendar
 import json
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db.models import Avg, Count, Sum, Q
@@ -12,7 +12,7 @@ from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 
-from animales.models import Animal, MovimientoAnimal, Pesaje
+from animales.models import Animal, MovimientoAnimal, Parto, Pesaje, Preniez
 from establecimientos.models import Parcela
 from finanzas.models import Compra, MovimientoFinanciero, Venta
 from inventario.models import Dieta, Insumo, Lote, Consumo
@@ -775,6 +775,7 @@ def _asignar_campos_animal(animal, datos, es_alta=False):
     animal.padre_id = datos.get('padre_id') or None
     animal.compra_id = datos.get('compra_id') or None
     animal.venta_id = datos.get('venta_id') or None
+    animal.parto_id = datos.get('parto_id') or None
     animal.descripcion = datos.get('descripcion', '').strip() or None
     if animal.sexo != 'Macho':
         animal.diametro_escrotal = None
@@ -784,6 +785,12 @@ def _asignar_campos_animal(animal, datos, es_alta=False):
         raise ValueError('La madre seleccionada debe ser hembra.')
     if animal.padre_id and animal.padre.sexo != 'Macho':
         raise ValueError('El padre seleccionado debe ser macho.')
+    if animal.parto_id:
+        parto = Parto.objects.filter(pk=animal.parto_id).first()
+        if parto is None:
+            raise ValueError('El parto seleccionado no existe.')
+        if not parto.vivo:
+            raise ValueError('No se puede registrar una cría de un parto con nacido muerto.')
 
 
 @require_POST
@@ -801,8 +808,11 @@ def crear_animal(request):
         return JsonResponse({'error': 'La caravana SENASA ya se encuentra registrada.'}, status=400)
 
     MovimientoAnimal.objects.create(
-        animal=animal, fecha=date.today(), tipo='Alta', destino=animal.parcela,
-        observaciones='Alta inicial del animal en el sistema.',
+        animal=animal, fecha=request.POST.get('movimiento_fecha') or date.today(),
+        tipo=request.POST.get('movimiento_tipo') or 'Alta', destino=animal.parcela,
+        observaciones=('Nacimiento registrado desde el módulo de Preñez.'
+                       if request.POST.get('movimiento_tipo') == 'Nacimiento'
+                       else 'Alta inicial del animal en el sistema.'),
     )
     return JsonResponse({'id': animal.id, 'animal': _animal_data(animal)}, status=201)
 
@@ -1040,3 +1050,248 @@ def eliminar_venta(request, venta_id):
         if movimiento_id:
             MovimientoFinanciero.objects.filter(pk=movimiento_id).delete()
     return JsonResponse({'ok': True})
+
+
+# ---------------------------------------------------------------------------
+# Módulo de Preñez y Partos
+# ---------------------------------------------------------------------------
+
+GESTACION_MESES = {
+    'Bovino': 9,
+    'Ovino': 5,
+    'Porcino': 3,  # + 3 semanas
+}
+
+MESES_NOMBRE = [
+    '', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+]
+
+
+def _sumar_meses(fecha, meses):
+    mes = fecha.month + meses
+    anio = fecha.year + (mes - 1) // 12
+    mes = (mes - 1) % 12 + 1
+    dia = min(fecha.day, calendar.monthrange(anio, mes)[1])
+    return date(anio, mes, dia)
+
+
+def _fecha_estimada_parto(preniez):
+    """Estima la fecha de parto según la especie de la madre.
+    Bovino: 9 meses · Porcino: 3 meses y 3 semanas · Ovino: 5 meses."""
+    tipo = preniez.madre.tipo_animal if preniez.madre else 'Bovino'
+    if tipo == 'Porcino':
+        return _sumar_meses(preniez.fecha, 3) + timedelta(days=21)
+    return _sumar_meses(preniez.fecha, GESTACION_MESES.get(tipo, 9))
+
+
+def _mes_semana_parto(fecha):
+    return f"{MESES_NOMBRE[fecha.month]} · Semana {(fecha.day - 1) // 7 + 1}"
+
+
+def _faltante_parto(fecha_estimada):
+    """Muestra cuánto falta para el parto: meses y semanas, o semanas y días si falta poco."""
+    hoy = date.today()
+    if fecha_estimada < hoy:
+        return 'Vencido'
+    dias = (fecha_estimada - hoy).days
+    if dias >= 30:
+        meses = dias // 30
+        semanas = (dias % 30) // 7
+        return f'{meses} meses y {semanas} semanas'
+    semanas = dias // 7
+    return f'{semanas} semanas y {dias % 7} días'
+
+
+def _preniez_data(p):
+    fecha_estimada = _fecha_estimada_parto(p)
+    crias = [{
+        'id': c.id,
+        'nombre': c.nombre or 'S/N',
+        'caravana': str(c.id_senasa) if c.id_senasa is not None else 'S/N',
+        'sexo': c.sexo,
+    } for c in p.parto.crias.all()] if p.parto_id else []
+    return {
+        'id': p.id,
+        'fecha': p.fecha.isoformat(),
+        'tipo': p.tipo,
+        'estado_actual': p.estado_actual,
+        'costo_inseminacion': str(p.costo_inseminacion or ''),
+        'detalle': p.detalle or '',
+        'madre_id': p.madre_id,
+        'madre_nombre': p.madre.nombre or 'S/N',
+        'madre_caravana': str(p.madre.id_senasa) if p.madre.id_senasa is not None else 'Sin caravana',
+        'madre_tipo': p.madre.tipo_animal,
+        'madre_parcela': str(p.madre.parcela) if p.madre.parcela else 'Sin asignar',
+        'padre_id': p.padre_id,
+        'padre': str(p.padre) if p.padre else 'No registrado',
+        'veterinario_id': p.veterinario_id,
+        'veterinario': str(p.veterinario) if p.veterinario else '-',
+        'mov_financiero_id': p.mov_financiero_id,
+        'parto_id': p.parto_id,
+        'parto_fecha': p.parto.fecha.isoformat() if p.parto_id else '',
+        'parto_vivo': p.parto.vivo if p.parto_id else None,
+        'crias': crias,
+        'fecha_estimada': fecha_estimada.isoformat(),
+        'fecha_estimada_text': fecha_estimada.strftime('%d/%m/%Y'),
+        'mes_semana_parto': _mes_semana_parto(fecha_estimada),
+        'faltante_parto': _faltante_parto(fecha_estimada),
+    }
+
+
+def prenieces(request):
+    today = date.today()
+    prenieces_qs = Preniez.objects.select_related('madre__parcela', 'padre', 'veterinario', 'parto') \
+        .prefetch_related('parto__crias').order_by('-fecha', '-id')
+    prenieces_list = list(prenieces_qs)
+
+    preniadas = [p for p in prenieces_list if p.estado_actual == 'Preñada' and p.parto_id is None]
+    proximo = None
+    for p in preniadas:
+        estimada = _fecha_estimada_parto(p)
+        if proximo is None or estimada < proximo[0]:
+            proximo = (estimada, p)
+
+    madres = Animal.objects.filter(sexo='Hembra', vivo=True, vendido=False) \
+        .select_related('parcela').order_by('id_senasa')
+    madres_preniadas = set(Preniez.objects.filter(estado_actual='Preñada', parto__isnull=True)
+                           .values_list('madre_id', flat=True))
+    padres = Animal.objects.filter(sexo='Macho', vivo=True, vendido=False).order_by('id_senasa')
+    veterinarios = Veterinario.objects.order_by('apellido', 'nombre')
+
+    return _page(request, 'prenieces.html', 'prenieces', {
+        'kpis': {
+            'partos_anio': Parto.objects.filter(fecha__year=today.year).count(),
+            'vacas_preniadas': len(preniadas),
+            'total_prenieces': len(prenieces_list),
+            'proximo_parto': proximo[0].strftime('%d/%m/%Y') if proximo else '-',
+            'proximo_parto_animal': (f"{proximo[1].madre.nombre or 'S/N'} "
+                                     f"#{proximo[1].madre.id_senasa if proximo[1].madre.id_senasa is not None else 'S/C'}")
+                                     if proximo else '-',
+            'proximo_parto_dias': (proximo[0] - today).days if proximo else None,
+        },
+        'prenieces': [_preniez_data(p) for p in prenieces_list],
+        'madres': [{
+            'id': a.id,
+            'caravana': str(a.id_senasa) if a.id_senasa is not None else 'S/C',
+            'nombre': a.nombre or 'S/N',
+            'tipo': a.tipo_animal,
+            'parcela': str(a.parcela) if a.parcela else 'Sin asignar',
+            'preniada': a.id in madres_preniadas,
+        } for a in madres],
+        'padres': [{
+            'id': a.id,
+            'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}',
+        } for a in padres],
+        'veterinarios': [_veterinario_data(v) for v in veterinarios],
+        'tipos': [c[0] for c in Preniez.TIPO_CHOICES],
+        'estados': [c[0] for c in Preniez.ESTADO_CHOICES],
+    })
+
+
+def _asignar_preniez(preniez, datos):
+    preniez.fecha = date.fromisoformat(datos['fecha'])
+    preniez.tipo = datos['tipo']
+    preniez.estado_actual = datos.get('estado_actual', 'Preñada')
+    preniez.costo_inseminacion = _parse_decimal(datos.get('costo_inseminacion'))
+    preniez.detalle = datos.get('detalle', '').strip() or None
+    preniez.madre_id = int(datos['madre_id'])
+    preniez.padre_id = int(datos['padre_id']) if datos.get('padre_id') else None
+    preniez.veterinario_id = int(datos['veterinario_id']) if datos.get('veterinario_id') else None
+
+    madre = Animal.objects.select_related('parcela').filter(pk=preniez.madre_id).first()
+    if madre is None or madre.sexo != 'Hembra':
+        raise ValueError('Seleccioná un animal hembra para cargar la preñez.')
+    if not madre.vivo or madre.vendido:
+        raise ValueError('El animal debe estar vivo y no vendido.')
+    if preniez.pk is None and Preniez.objects.filter(
+            madre_id=preniez.madre_id, estado_actual='Preñada', parto__isnull=True).exists():
+        raise ValueError('El animal ya tiene una preñez activa registrada.')
+    if preniez.padre_id and preniez.padre.sexo != 'Macho':
+        raise ValueError('El padre seleccionado debe ser macho.')
+
+
+def _sync_movimiento_preniez(preniez):
+    """Registra en Finanzas el gasto de inseminación cuando corresponde, o lo elimina si ya no corresponde."""
+    costo = preniez.costo_inseminacion or Decimal('0')
+    if preniez.tipo == 'Inseminación' and costo > 0:
+        movimiento, _ = MovimientoFinanciero.objects.update_or_create(
+            pk=preniez.mov_financiero_id,
+            defaults={
+                'tipo': 'Egreso',
+                'nombre': f'Inseminación #{preniez.id}',
+                'monto_total': costo,
+                'fecha': preniez.fecha,
+                'detalle': preniez.detalle or f'Inseminación de {preniez.madre} registrada desde el módulo de Preñez.',
+            },
+        )
+        if preniez.mov_financiero_id != movimiento.id:
+            Preniez.objects.filter(pk=preniez.pk).update(mov_financiero=movimiento)
+    elif preniez.mov_financiero_id:
+        MovimientoFinanciero.objects.filter(pk=preniez.mov_financiero_id).delete()
+        Preniez.objects.filter(pk=preniez.pk).update(mov_financiero=None)
+
+
+@require_POST
+def crear_preniez(request):
+    try:
+        with transaction.atomic():
+            preniez = Preniez()
+            _asignar_preniez(preniez, request.POST)
+            preniez.full_clean()
+            preniez.save()
+            _sync_movimiento_preniez(preniez)
+    except (KeyError, ValueError, ValidationError) as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    return JsonResponse({'preniez': _preniez_data(preniez)}, status=201)
+
+
+@require_POST
+def actualizar_preniez(request, preniez_id):
+    preniez = get_object_or_404(Preniez.objects.select_for_update(), pk=preniez_id)
+    try:
+        with transaction.atomic():
+            _asignar_preniez(preniez, request.POST)
+            preniez.full_clean()
+            preniez.save()
+            _sync_movimiento_preniez(preniez)
+    except (KeyError, ValueError, ValidationError) as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    return JsonResponse({'preniez': _preniez_data(preniez)})
+
+
+@require_POST
+def eliminar_preniez(request, preniez_id):
+    preniez = get_object_or_404(Preniez.objects.select_for_update(), pk=preniez_id)
+    with transaction.atomic():
+        movimiento_id = preniez.mov_financiero_id
+        parto = preniez.parto
+        if parto:
+            Animal.objects.filter(parto=parto).update(parto=None)
+            parto.delete()
+        preniez.delete()
+        if movimiento_id:
+            MovimientoFinanciero.objects.filter(pk=movimiento_id).delete()
+    return JsonResponse({'ok': True})
+
+
+@require_POST
+def finalizar_preniez(request, preniez_id):
+    """Carga el parto de la preñez. Si el parto fue vivo, la cría se registra aparte."""
+    try:
+        with transaction.atomic():
+            preniez = get_object_or_404(Preniez.objects.select_for_update(), pk=preniez_id)
+            if preniez.parto_id:
+                raise ValueError('Esta preñez ya tiene un parto cargado.')
+            parto = Parto.objects.create(
+                fecha=date.fromisoformat(request.POST['fecha']),
+                vivo=request.POST.get('vivo') in ('true', 'on', '1', 'True'),
+            )
+            preniez.parto = parto
+            preniez.save(update_fields=['parto'])
+    except (KeyError, ValueError, ValidationError) as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    return JsonResponse({
+        'preniez': _preniez_data(preniez),
+        'parto': {'id': parto.id, 'fecha': parto.fecha.isoformat(), 'vivo': parto.vivo},
+    }, status=201)

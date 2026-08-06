@@ -1,0 +1,17 @@
+.vacapp-card {
+  border: 0;
+  border-radius: 0.75rem;
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
+}
+
+.table-vacapp thead th {
+  white-space: nowrap;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--bs-secondary-color);
+}
+
+#kpi-proximo-parto-animal {
+  max-width: 100%;
+}

@@ -7,7 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
-from animales.models import Animal, MovimientoAnimal, Pesaje
+from animales.models import Animal, MovimientoAnimal, Parto, Pesaje, Preniez
 from establecimientos.models import Establecimiento, Parcela
 from finanzas.models import Compra, MovimientoFinanciero, Venta
 from sanidad.models import DetalleEvento, EventoSanitario
@@ -26,7 +26,7 @@ class WebIntegrationTests(TestCase):
         )
 
     def test_paginas_principales_responden(self):
-        for url_name in ('dashboard', 'stock', 'movimientos', 'potreros', 'vacunacion', 'sanidad', 'pesajes', 'alimentacion', 'usuarios', 'configuracion'):
+        for url_name in ('dashboard', 'stock', 'movimientos', 'potreros', 'vacunacion', 'sanidad', 'pesajes', 'alimentacion', 'usuarios', 'configuracion', 'prenieces'):
             with self.subTest(url_name=url_name):
                 self.assertEqual(self.client.get(reverse(url_name)).status_code, 200)
 
@@ -379,3 +379,118 @@ class WebIntegrationTests(TestCase):
         response = self.client.post(reverse('eliminar_comprador', args=[comprador.id]))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Comprador.objects.filter(pk=comprador.id).exists())
+
+
+class PreniezModuleTests(TestCase):
+    def setUp(self):
+        self.vaca = Animal.objects.create(
+            id_senasa=88888, nombre='Vaca madre', tipo_animal='Bovino', sexo='Hembra', vivo=True,
+        )
+        self.toro = Animal.objects.create(
+            id_senasa=77777, nombre='Toro padre', tipo_animal='Bovino', sexo='Macho', vivo=True,
+        )
+        self.datos = {
+            'madre_id': self.vaca.id, 'padre_id': self.toro.id, 'fecha': '2026-08-01',
+            'tipo': 'Natural', 'estado_actual': 'Preñada',
+        }
+
+    def crear_preniez(self):
+        return self.client.post(reverse('crear_preniez'), self.datos)
+
+    def test_crear_y_ver_preñez(self):
+        response = self.crear_preniez()
+        self.assertEqual(response.status_code, 201)
+        preniez = Preniez.objects.get(pk=response.json()['preniez']['id'])
+        self.assertEqual(preniez.madre, self.vaca)
+        self.assertEqual(preniez.padre, self.toro)
+        self.assertEqual(preniez.estado_actual, 'Preñada')
+        # La fecha estimada para un bovino es fecha + 9 meses
+        self.assertEqual(preniez.fecha.isoformat(), '2026-08-01')
+
+        data = response.json()['preniez']
+        self.assertEqual(data['fecha_estimada'], '2027-05-01')
+        self.assertIn('Mayo', data['mes_semana_parto'])
+        self.assertIn('meses', data['faltante_parto'])
+
+    def test_no_permite_macho_como_madre(self):
+        response = self.client.post(reverse('crear_preniez'), {
+            'madre_id': self.toro.id, 'fecha': '2026-08-01', 'tipo': 'Natural', 'estado_actual': 'Preñada',
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('hembra', response.json()['error'])
+
+    def test_no_permite_doble_preñez_activa(self):
+        self.assertEqual(self.crear_preniez().status_code, 201)
+        response = self.client.post(reverse('crear_preniez'), {
+            'madre_id': self.vaca.id, 'fecha': '2026-08-02', 'tipo': 'Natural', 'estado_actual': 'Preñada',
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('ya tiene una preñez activa', response.json()['error'])
+
+    def test_inseminacion_con_costo_genera_egreso_en_finanzas(self):
+        response = self.client.post(reverse('crear_preniez'), {
+            'madre_id': self.vaca.id, 'fecha': '2026-08-01', 'tipo': 'Inseminación',
+            'estado_actual': 'Preñada', 'costo_inseminacion': '800.00',
+        })
+        self.assertEqual(response.status_code, 201)
+        preniez = Preniez.objects.get(pk=response.json()['preniez']['id'])
+        self.assertIsNotNone(preniez.mov_financiero)
+        self.assertEqual(preniez.mov_financiero.tipo, 'Egreso')
+        self.assertEqual(preniez.mov_financiero.monto_total, Decimal('800.00'))
+
+    def test_actualizar_preñez(self):
+        preniez_id = self.crear_preniez().json()['preniez']['id']
+        response = self.client.post(reverse('actualizar_preniez', args=[preniez_id]), {
+            'madre_id': self.vaca.id, 'padre_id': self.toro.id, 'fecha': '2026-08-10',
+            'tipo': 'Inseminación', 'estado_actual': 'A confirmar', 'detalle': 'Actualizada',
+        })
+        self.assertEqual(response.status_code, 200)
+        preniez = Preniez.objects.get(pk=preniez_id)
+        self.assertEqual(preniez.fecha.isoformat(), '2026-08-10')
+        self.assertEqual(preniez.estado_actual, 'A confirmar')
+        self.assertEqual(preniez.detalle, 'Actualizada')
+
+    def test_finalizar_preñez_con_parto_y_cría(self):
+        parto_id = self.crear_preniez().json()['preniez']['id']
+        response = self.client.post(reverse('finalizar_preniez', args=[parto_id]), {
+            'fecha': '2027-05-01', 'vivo': 'true',
+        })
+        self.assertEqual(response.status_code, 201)
+        preniez = Preniez.objects.get(pk=parto_id)
+        self.assertIsNotNone(preniez.parto)
+        self.assertTrue(preniez.parto.vivo)
+
+        # No se puede finalizar dos veces
+        response = self.client.post(reverse('finalizar_preniez', args=[parto_id]), {
+            'fecha': '2027-05-02', 'vivo': 'true',
+        })
+        self.assertEqual(response.status_code, 400)
+
+        # Cargar la cría vinculada al parto
+        response = self.client.post(reverse('crear_animal'), {
+            'tipo_animal': 'Bovino', 'sexo': 'Hembra', 'nombre': 'Cría', 'madre_id': self.vaca.id,
+            'fecha_nacimiento': '2027-05-01', 'parto_id': preniez.parto.id,
+            'movimiento_tipo': 'Nacimiento', 'movimiento_fecha': '2027-05-01',
+        })
+        self.assertEqual(response.status_code, 201)
+        cria = Animal.objects.get(nombre='Cría')
+        self.assertEqual(cria.parto, preniez.parto)
+        self.assertEqual(cria.madre, self.vaca)
+        self.assertTrue(MovimientoAnimal.objects.filter(animal=cria, tipo='Nacimiento').exists())
+
+    def test_eliminar_preñez_elimina_parto_y_movimiento(self):
+        response = self.client.post(reverse('crear_preniez'), {
+            'madre_id': self.vaca.id, 'fecha': '2026-08-01', 'tipo': 'Inseminación',
+            'estado_actual': 'Preñada', 'costo_inseminacion': '800.00',
+        })
+        preniez_id = response.json()['preniez']['id']
+        response = self.client.post(reverse('finalizar_preniez', args=[preniez_id]), {
+            'fecha': '2027-05-01', 'vivo': 'false',
+        })
+        self.assertEqual(response.status_code, 201)
+
+        response = self.client.post(reverse('eliminar_preniez', args=[preniez_id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Preniez.objects.filter(pk=preniez_id).exists())
+        self.assertFalse(Parto.objects.exists())
+        self.assertFalse(MovimientoFinanciero.objects.exists())
