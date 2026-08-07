@@ -1259,8 +1259,9 @@ def prenieces(request):
             'total_prenieces': len(prenieces_list),
             'proximo_parto': proximo[0].strftime('%d/%m/%Y') if proximo else '-',
             'proximo_parto_animal': (f"{proximo[1].madre.nombre or 'S/N'} "
-                                     f"#{proximo[1].madre.id_senasa if proximo[1].madre.id_senasa is not None else 'S/C'}")
-                                     if proximo else '-',
+                                     f"#{proximo[1].madre.id_senasa if proximo[1].madre.id_senasa is not None else 'S/C'} · "
+                                     f"en {(proximo[0] - today).days} días")
+                                     if proximo else '',
             'proximo_parto_dias': (proximo[0] - today).days if proximo else None,
         },
         'prenieces': [_preniez_data(p) for p in prenieces_list],

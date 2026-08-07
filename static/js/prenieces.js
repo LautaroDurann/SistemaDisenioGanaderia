@@ -78,7 +78,7 @@
     $('kpi-vacas-preniadas').textContent = KPIS.vacas_preniadas || 0;
     $('kpi-total-prenieces').textContent = PRENIECES.length;
     $('kpi-proximo-parto').textContent = KPIS.proximo_parto || '-';
-    $('kpi-proximo-parto-animal').textContent = KPIS.proximo_parto_animal || 'Próximo parto estimado';
+    $('kpi-proximo-parto-animal').textContent = KPIS.proximo_parto_animal || 'Sin preñeces en curso';
   }
 
   function recomputarKpis() {
@@ -98,7 +98,7 @@
       proximo_parto: proxima ? fmtFecha(proxima.fecha_estimada) : '-',
       proximo_parto_animal: proxima
         ? `${proxima.madre_nombre} #${proxima.madre_caravana} · en ${Math.max(0, Math.round((new Date(`${proxima.fecha_estimada}T00:00:00`) - hoyInicio()) / 86400000))} días`
-        : '-',
+        : '',
     };
     renderKpis();
   }
