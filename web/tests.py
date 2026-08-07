@@ -420,6 +420,17 @@ class PreniezModuleTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('hembra', response.json()['error'])
 
+    def test_no_permite_padre_de_otro_tipo(self):
+        oveja = Animal.objects.create(
+            id_senasa=88889, nombre='Oveja madre', tipo_animal='Ovino', sexo='Hembra', vivo=True,
+        )
+        response = self.client.post(reverse('crear_preniez'), {
+            'madre_id': oveja.idAnimal, 'padre_id': self.toro.idAnimal,
+            'fecha': '2026-08-01', 'tipo': 'Natural', 'estado_actual': 'Preñada',
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('mismo tipo', response.json()['error'])
+
     def test_no_permite_doble_preñez_activa(self):
         self.assertEqual(self.crear_preniez().status_code, 201)
         response = self.client.post(reverse('crear_preniez'), {
@@ -566,6 +577,7 @@ class InseminacionModuleTests(TestCase):
         return self.client.post(reverse('crear_evento_inseminacion'), {
             'fecha_aplicacion': '2026-08-06',
             'estado': estado,
+            'tipo_animal': 'Bovino',
             'padre_id': self.toro.idAnimal,
             'costo_total': costo,
             'animales': animales or [self.vaca1.idAnimal, self.vaca2.idAnimal],
@@ -583,18 +595,43 @@ class InseminacionModuleTests(TestCase):
 
     def test_solo_hembras_y_padre_macho(self):
         response = self.client.post(reverse('crear_evento_inseminacion'), {
-            'fecha_aplicacion': '2026-08-06', 'estado': 'true', 'padre_id': self.toro.idAnimal,
-            'animales': [self.toro.idAnimal],
+            'fecha_aplicacion': '2026-08-06', 'estado': 'true', 'tipo_animal': 'Bovino',
+            'padre_id': self.toro.idAnimal, 'animales': [self.toro.idAnimal],
         })
         self.assertEqual(response.status_code, 400)
         self.assertIn('hembra', response.json()['error'].lower())
 
         response = self.client.post(reverse('crear_evento_inseminacion'), {
-            'fecha_aplicacion': '2026-08-06', 'estado': 'true', 'padre_id': self.vaca1.idAnimal,
-            'animales': [self.vaca1.idAnimal],
+            'fecha_aplicacion': '2026-08-06', 'estado': 'true', 'tipo_animal': 'Bovino',
+            'padre_id': self.vaca1.idAnimal, 'animales': [self.vaca1.idAnimal],
         })
         self.assertEqual(response.status_code, 400)
         self.assertIn('macho', response.json()['error'].lower())
+
+    def test_inseminacion_exige_mismo_tipo_de_animal(self):
+        oveja = Animal.objects.create(
+            id_senasa=90004, nombre='Oveja Insemina', tipo_animal='Ovino', sexo='Hembra', vivo=True,
+        )
+        response = self.client.post(reverse('crear_evento_inseminacion'), {
+            'fecha_aplicacion': '2026-08-06', 'estado': 'true', 'tipo_animal': 'Bovino',
+            'padre_id': self.toro.idAnimal, 'animales': [oveja.idAnimal],
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('tipo', response.json()['error'].lower())
+
+        response = self.client.post(reverse('crear_evento_inseminacion'), {
+            'fecha_aplicacion': '2026-08-06', 'estado': 'true', 'tipo_animal': 'Bovino',
+            'padre_id': self.toro.idAnimal, 'animales': [self.vaca1.idAnimal],
+        })
+        self.assertEqual(response.status_code, 201)
+
+    def test_inseminacion_requiere_tipo_animal(self):
+        response = self.client.post(reverse('crear_evento_inseminacion'), {
+            'fecha_aplicacion': '2026-08-06', 'estado': 'true',
+            'padre_id': self.toro.idAnimal, 'animales': [self.vaca1.idAnimal],
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('tipo', response.json()['error'].lower())
 
     def test_registrar_preniadas_desde_el_evento(self):
         evento_id = self.crear_evento(estado='true', costo='1500.00').json()['evento']['id']

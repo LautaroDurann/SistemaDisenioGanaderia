@@ -1278,6 +1278,7 @@ def prenieces(request):
         'padres': [{
             'id': a.idAnimal,
             'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}',
+            'tipo': a.tipo_animal,
         } for a in padres],
         'veterinarios': [_veterinario_data(v) for v in veterinarios],
         'tipos': [c[0] for c in Preniez.TIPO_CHOICES],
@@ -1305,6 +1306,8 @@ def _asignar_preniez(preniez, datos):
         raise ValueError('El animal ya tiene una preñez activa registrada.')
     if preniez.padre_id and preniez.padre.sexo != 'Macho':
         raise ValueError('El padre seleccionado debe ser macho.')
+    if preniez.padre_id and preniez.padre.tipo_animal != madre.tipo_animal:
+        raise ValueError('El padre debe ser del mismo tipo de animal que la madre.')
 
 
 @require_POST
@@ -1375,7 +1378,7 @@ def crear_evento_inseminacion(request):
         datos['tipo'] = 'Inseminación'
         evento = EventoSanitario()
         animal_ids = _asignar_evento_sanitario(evento, datos)
-        _validar_inseminacion(evento, animal_ids)
+        _validar_inseminacion(evento, animal_ids, datos.get('tipo_animal', ''))
         evento.full_clean()
         with transaction.atomic():
             evento.save()
@@ -1388,14 +1391,20 @@ def crear_evento_inseminacion(request):
     return JsonResponse({'evento': _evento_inseminacion_data(evento)}, status=201)
 
 
-def _validar_inseminacion(evento, animal_ids):
+def _validar_inseminacion(evento, animal_ids, tipo_animal=''):
+    if not tipo_animal or tipo_animal not in [c[0] for c in Animal.TIPO_CHOICES]:
+        raise ValueError('Seleccioná el tipo de animal para la inseminación.')
     if not evento.padre_id:
         raise ValueError('Seleccioná el padre (macho) para la inseminación.')
     padre = Animal.objects.filter(pk=evento.padre_id).first()
     if padre is None or padre.sexo != 'Macho':
         raise ValueError('El padre seleccionado debe ser macho.')
+    if padre.tipo_animal != tipo_animal:
+        raise ValueError('El padre debe ser del mismo tipo de animal que las hembras a inseminar.')
     if Animal.objects.filter(pk__in=animal_ids, sexo='Hembra').count() != len(animal_ids):
         raise ValueError('Solo se pueden inseminar animales hembra.')
+    if Animal.objects.filter(pk__in=animal_ids).exclude(tipo_animal=tipo_animal).exists():
+        raise ValueError('Todas las hembras deben ser del mismo tipo de animal que el seleccionado.')
 
 
 @require_POST
@@ -1407,7 +1416,7 @@ def actualizar_evento_inseminacion(request, evento_id):
         datos = request.POST.copy()
         datos['tipo'] = 'Inseminación'
         animal_ids = _asignar_evento_sanitario(evento, datos)
-        _validar_inseminacion(evento, animal_ids)
+        _validar_inseminacion(evento, animal_ids, datos.get('tipo_animal', ''))
         evento.full_clean()
         with transaction.atomic():
             evento.save()

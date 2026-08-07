@@ -323,12 +323,22 @@
     });
   }
 
+  function renderPadresInsem() {
+    const tipo = $('insem-tipo').value;
+    const opciones = PADRES.filter((p) => p.tipo === tipo);
+    $('insem-padre').innerHTML = '<option value="">Seleccionar...</option>' +
+      (opciones.length
+        ? opciones.map((padre) => `<option value="${padre.id}">${escapeHtml(padre.nombre)}</option>`).join('')
+        : '<option value="" disabled>No hay machos de este tipo</option>');
+  }
+
   function renderInsemAnimales(search) {
     const termino = (search || '').toLowerCase();
+    const tipo = $('insem-tipo').value;
     const seleccionadas = new Set(
       Array.from($('insem-animales').querySelectorAll('input:checked')).map((i) => Number(i.value)),
     );
-    const opciones = MADRES.filter((m) => !termino || `#${m.caravana} ${m.nombre} ${m.tipo}`.toLowerCase().includes(termino));
+    const opciones = MADRES.filter((m) => m.tipo === tipo && (!termino || `#${m.caravana} ${m.nombre} ${m.tipo}`.toLowerCase().includes(termino)));
     $('insem-animales').innerHTML = opciones.length
       ? opciones.map((m) => `
         <label class="list-group-item d-flex align-items-center gap-2 py-1">
@@ -350,7 +360,9 @@
     $('form-inseminacion').reset();
     $('insem-fecha').value = hoyInicio().toISOString().slice(0, 10);
     $('insem-estado').value = 'false';
+    $('insem-tipo').value = ESPECIES[0];
     $('insem-animales-search').value = '';
+    renderPadresInsem();
     renderInsemAnimales('');
   }
 
@@ -359,8 +371,10 @@
     $('insem-evento-id').value = e.id;
     $('modalInseminacionTitle').textContent = 'Editar Inseminación';
     $('form-inseminacion').reset();
+    $('insem-tipo').value = e.animales[0]?.tipo || ESPECIES[0];
     $('insem-fecha').value = e.fecha_aplicacion;
     $('insem-estado').value = String(e.estado);
+    renderPadresInsem();
     $('insem-padre').value = e.padre_id || '';
     $('insem-padre-donante').value = e.padre_donante || '';
     $('insem-veterinario').value = e.veterinario_id || '';
@@ -381,6 +395,7 @@
     const formData = new FormData();
     formData.append('fecha_aplicacion', $('insem-fecha').value);
     formData.append('estado', $('insem-estado').value);
+    formData.append('tipo_animal', $('insem-tipo').value);
     formData.append('padre_id', $('insem-padre').value);
     formData.append('padre_donante', $('insem-padre-donante').value || '');
     formData.append('veterinario_id', $('insem-veterinario').value || '');
@@ -475,6 +490,14 @@
     $('p-madre').innerHTML = opciones || '<option value="">Sin animales hembra disponibles</option>';
   }
 
+  function renderPadresPreniez(tipo) {
+    const opciones = PADRES.filter((p) => p.tipo === tipo);
+    const base = '<option value="">No registrado</option>';
+    $('p-padre').innerHTML = base + (tipo && !opciones.length
+      ? '<option value="" disabled>No hay machos de este tipo</option>'
+      : opciones.map((padre) => `<option value="${padre.id}">${escapeHtml(padre.nombre)}</option>`).join(''));
+  }
+
   function actualizarEstimacion() {
     const madre = MADRES.find((m) => String(m.id) === String($('p-madre').value));
     const fecha = estimarParto(madre?.tipo, $('p-fecha').value);
@@ -493,6 +516,7 @@
     $('modalPreniezTitle').textContent = 'Registrar Preñez';
     $('form-preniez').reset();
     renderMadresSelect('');
+    renderPadresPreniez('');
     $('p-fecha').value = hoyInicio().toISOString().slice(0, 10);
     $('p-tipo').value = TIPOS[0] || 'Natural';
     $('p-estado').value = 'Preñada';
@@ -506,6 +530,7 @@
     $('form-preniez').reset();
     renderMadresSelect('');
     $('p-madre').value = p.madre_id;
+    renderPadresPreniez(p.madre_tipo);
     $('p-padre').value = p.padre_id || '';
     $('p-padre-donante').value = p.padre_donante || '';
     $('p-fecha').value = p.fecha;
@@ -744,18 +769,25 @@
       renderInseminaciones();
     });
 
-    $('p-padre').innerHTML = '<option value="">No registrado</option>' +
-      PADRES.map((padre) => `<option value="${padre.id}">${escapeHtml(padre.nombre)}</option>`).join('');
+    renderPadresPreniez('');
     $('p-tipo').innerHTML = TIPOS.map((t) => `<option>${t}</option>`).join('');
     $('p-estado').innerHTML = ESTADOS.map((e) => `<option>${e}</option>`).join('');
 
     $('p-madre-search').addEventListener('input', () => renderMadresSelect($('p-madre-search').value));
-    $('p-madre').addEventListener('change', actualizarEstimacion);
+    $('p-madre').addEventListener('change', () => {
+      const madre = MADRES.find((m) => String(m.id) === String($('p-madre').value));
+      renderPadresPreniez(madre?.tipo || '');
+      actualizarEstimacion();
+    });
     $('p-fecha').addEventListener('change', actualizarEstimacion);
 
-    const opcionesPadres = '<option value="">Seleccionar...</option>' +
-      PADRES.map((padre) => `<option value="${padre.id}">${escapeHtml(padre.nombre)}</option>`).join('');
-    $('insem-padre').innerHTML = opcionesPadres;
+    renderPadresInsem();
+    $('insem-tipo').addEventListener('change', () => {
+      $('insem-padre').value = '';
+      $('insem-animales-search').value = '';
+      renderPadresInsem();
+      renderInsemAnimales('');
+    });
     $('f-insem-padre').innerHTML = '<option value="">Todos</option>' +
       PADRES.map((padre) => `<option value="${padre.id}">${escapeHtml(padre.nombre)}</option>`).join('');
     $('insem-veterinario').innerHTML = '<option value="">No registrado</option>' +

@@ -306,6 +306,15 @@
             <input type="hidden" id="insem-evento-id" />
             <div class="row g-2 mb-3">
               <div class="col-md-4">
+                <label class="form-label small mb-1">Tipo de animal *</label>
+                <select id="insem-tipo" class="form-select" required>
+                  <option value="Bovino">Bovino</option>
+                  <option value="Ovino">Ovino</option>
+                  <option value="Porcino">Porcino</option>
+                </select>
+                <small class="text-secondary d-block">Filtra las hembras y el padre.</small>
+              </div>
+              <div class="col-md-4">
                 <label class="form-label small mb-1">Fecha *</label>
                 <input type="date" id="insem-fecha" class="form-control" required />
               </div>
@@ -316,7 +325,9 @@
                   <option value="true">Aplicada</option>
                 </select>
               </div>
-              <div class="col-md-4">
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-md-6">
                 <label class="form-label small mb-1">Padre (macho) *</label>
                 <select id="insem-padre" class="form-select" required>
                   <option value="">Seleccionar...</option>
@@ -588,5 +599,5 @@
 {% endblock %}
 
 {% block page_js %}
-  <script src="{% static 'js/prenieces.js' %}?v=20260809"></script>
+  <script src="{% static 'js/prenieces.js' %}?v=20260810"></script>
 {% endblock %}
