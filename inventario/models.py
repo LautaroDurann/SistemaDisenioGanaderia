@@ -11,6 +11,7 @@ class Insumo(models.Model):
 
     nombre = models.CharField(max_length=100, null=True, blank=True)
     unidadDeMedida = models.CharField(max_length=50, null=True, blank=True)
+    stockMinimo = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, null=True, blank=True)
 
     class Meta:

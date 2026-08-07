@@ -76,26 +76,48 @@
     
 
       // ------------------------------------------------------------------
-      // MOCK DATA: reemplazar por datos reales cuando se conecte con Django
+      // Datos de backend o mock si no hay datos disponibles
       // ------------------------------------------------------------------
-      const ALIMENTOS = window.GANASTOCK_DATA?.alimentos ?? [
-        { id: 'balanceado-engorde', nombre: 'Balanceado Engorde', categoria: 'Balanceado', stock: 3200, unidad: 'kg', consumoMensual: 1800, stockMinimo: 1000, ultimaCompra: '05/07/2026', precioUnitario: 450 },
-        { id: 'maiz-grano', nombre: 'Maiz grano', categoria: 'Maiz', stock: 850, unidad: 'kg', consumoMensual: 1200, stockMinimo: 1000, ultimaCompra: '20/06/2026', precioUnitario: 320 },
-        { id: 'rollos-alfalfa', nombre: 'Rollos de alfalfa', categoria: 'Rollos', stock: 45, unidad: 'rollos', consumoMensual: 60, stockMinimo: 30, ultimaCompra: '01/07/2026', precioUnitario: 18000 },
-        { id: 'silaje-maiz', nombre: 'Silaje de maiz', categoria: 'Silaje', stock: 12000, unidad: 'kg', consumoMensual: 9000, stockMinimo: 5000, ultimaCompra: '15/05/2026', precioUnitario: 90 },
-        { id: 'pastura-diferida', nombre: 'Pastura diferida P.4', categoria: 'Pastura', stock: 25, unidad: 'ha', consumoMensual: 6, stockMinimo: 10, ultimaCompra: '-', precioUnitario: 0 },
-        { id: 'suplemento-mineral', nombre: 'Suplemento mineral', categoria: 'Suplementos', stock: 180, unidad: 'kg', consumoMensual: 220, stockMinimo: 150, ultimaCompra: '10/06/2026', precioUnitario: 1200 },
-        { id: 'sal-comun', nombre: 'Sal comun', categoria: 'Otros', stock: 0, unidad: 'kg', consumoMensual: 40, stockMinimo: 50, ultimaCompra: '02/05/2026', precioUnitario: 150 },
-        { id: 'rollos-moha', nombre: 'Rollos de moha', categoria: 'Rollos', stock: 15, unidad: 'rollos', consumoMensual: 25, stockMinimo: 20, ultimaCompra: '18/06/2026', precioUnitario: 16500 },
-        { id: 'balanceado-recria', nombre: 'Balanceado Recria', categoria: 'Balanceado', stock: 900, unidad: 'kg', consumoMensual: 700, stockMinimo: 400, ultimaCompra: '28/02/2026', precioUnitario: 470, vencePronto: true },
-        { id: 'expeller-soja', nombre: 'Expeller de soja', categoria: 'Suplementos', stock: 600, unidad: 'kg', consumoMensual: 500, stockMinimo: 300, ultimaCompra: '22/06/2026', precioUnitario: 380 },
-      ];
+      const ALIMENTOS = window.GANASTOCK_DATA?.alimentos?.length > 0
+        ? window.GANASTOCK_DATA.alimentos
+        : [
+            { id: 'balanceado-engorde', nombre: 'Balanceado Engorde', categoria: 'Balanceado', stock: 3200, unidad: 'kg', consumoMensual: 1800, stockMinimo: 1000, ultimaCompra: '05/07/2026', precioUnitario: 450 },
+            { id: 'maiz-grano', nombre: 'Maiz grano', categoria: 'Maiz', stock: 850, unidad: 'kg', consumoMensual: 1200, stockMinimo: 1000, ultimaCompra: '20/06/2026', precioUnitario: 320 },
+            { id: 'rollos-alfalfa', nombre: 'Rollos de alfalfa', categoria: 'Rollos', stock: 45, unidad: 'rollos', consumoMensual: 60, stockMinimo: 30, ultimaCompra: '01/07/2026', precioUnitario: 18000 },
+            { id: 'silaje-maiz', nombre: 'Silaje de maiz', categoria: 'Silaje', stock: 12000, unidad: 'kg', consumoMensual: 9000, stockMinimo: 5000, ultimaCompra: '15/05/2026', precioUnitario: 90 },
+            { id: 'pastura-diferida', nombre: 'Pastura diferida P.4', categoria: 'Pastura', stock: 25, unidad: 'ha', consumoMensual: 6, stockMinimo: 10, ultimaCompra: '-', precioUnitario: 0 },
+            { id: 'suplemento-mineral', nombre: 'Suplemento mineral', categoria: 'Suplementos', stock: 180, unidad: 'kg', consumoMensual: 220, stockMinimo: 150, ultimaCompra: '10/06/2026', precioUnitario: 1200 },
+            { id: 'sal-comun', nombre: 'Sal comun', categoria: 'Otros', stock: 0, unidad: 'kg', consumoMensual: 40, stockMinimo: 50, ultimaCompra: '02/05/2026', precioUnitario: 150 },
+            { id: 'rollos-moha', nombre: 'Rollos de moha', categoria: 'Rollos', stock: 15, unidad: 'rollos', consumoMensual: 25, stockMinimo: 20, ultimaCompra: '18/06/2026', precioUnitario: 16500 },
+            { id: 'balanceado-recria', nombre: 'Balanceado Recria', categoria: 'Balanceado', stock: 900, unidad: 'kg', consumoMensual: 700, stockMinimo: 400, ultimaCompra: '28/02/2026', precioUnitario: 470, vencePronto: true },
+            { id: 'expeller-soja', nombre: 'Expeller de soja', categoria: 'Suplementos', stock: 600, unidad: 'kg', consumoMensual: 500, stockMinimo: 300, ultimaCompra: '22/06/2026', precioUnitario: 380 },
+          ];
 
       function estadoAlimento(a) {
-        if (a.stock === 0) return 'Agotado';
+        if ((a.stock ?? 0) === 0) return 'Agotado';
         if (a.vencePronto) return 'Proximo a vencer';
-        if (a.stock < a.stockMinimo) return 'Stock Bajo';
+        if ((a.stock ?? 0) < (a.stockMinimo ?? 0)) return 'Stock Bajo';
         return 'Disponible';
+      }
+
+      function renderCategoriaOptions() {
+        const categorias = Array.from(
+          new Set(ALIMENTOS.map((a) => a.categoria || 'Otros')),
+        ).sort();
+        document.getElementById('f-categoria').innerHTML = [
+          '<option value="">Todas</option>',
+          ...categorias.map((cat) => `<option>${cat}</option>`),
+        ].join('');
+      }
+
+      function renderUnidadOptions() {
+        const unidades = Array.from(
+          new Set(ALIMENTOS.map((a) => a.unidad || '').filter(Boolean)),
+        ).sort();
+        document.getElementById('f-unidad').innerHTML = [
+          '<option value="">Todas</option>',
+          ...unidades.map((unidad) => `<option>${unidad}</option>`),
+        ].join('');
       }
 
       const ESTADO_BADGE = {
@@ -347,6 +369,8 @@
 
       document.addEventListener('DOMContentLoaded', () => {
         renderKpis();
+        renderCategoriaOptions();
+        renderUnidadOptions();
         renderTabla();
         renderPlan();
         renderSelectsAlimento();

@@ -12,12 +12,13 @@ const mesActualClave = () => {
 };
 
 let chartInstance = null;
-let chartIngresos = [];
-let chartEgresos = [];
-let kpiTotal = KPI_TOTAL;
-let kpiIngresos = KPI_INGRESOS;
-let kpiEgresos = KPI_EGRESOS;
-let kpiBalance = KPI_BALANCE;
+let chartLabels = Array.isArray(window.CHART_LABELS) ? [...window.CHART_LABELS] : [];
+let chartIngresos = Array.isArray(window.CHART_INGRESOS) ? [...window.CHART_INGRESOS] : [];
+let chartEgresos = Array.isArray(window.CHART_EGRESOS) ? [...window.CHART_EGRESOS] : [];
+let kpiTotal = typeof KPI_TOTAL !== 'undefined' ? Number(KPI_TOTAL || 0) : 0;
+let kpiIngresos = typeof KPI_INGRESOS !== 'undefined' ? Number(KPI_INGRESOS || 0) : 0;
+let kpiEgresos = typeof KPI_EGRESOS !== 'undefined' ? Number(KPI_EGRESOS || 0) : 0;
+let kpiBalance = typeof KPI_BALANCE !== 'undefined' ? Number(KPI_BALANCE || 0) : 0;
 
 function filaMovimientoHTML(m) {
   const esIngreso = m.tipo === 'Ingreso';
@@ -74,6 +75,7 @@ function aplicarFiltros() {
   const desde = document.getElementById('filtro-desde')?.value || '';
   const hasta = document.getElementById('filtro-hasta')?.value || '';
   const concepto = (document.getElementById('filtro-concepto')?.value || '').trim().toLowerCase();
+  const tipoFiltro = (document.getElementById('f-tipo')?.value || '').trim();
 
   const hayDatos = tbody.querySelector('tr[data-id]');
   let visibles = 0;
@@ -81,9 +83,11 @@ function aplicarFiltros() {
     const fecha = row.dataset.fecha || '';
     const nombre = (row.dataset.nombre || '').toLowerCase();
     const detalle = (row.children[3]?.textContent || '').toLowerCase();
+    const tipo = row.dataset.tipo || '';
     let mostrar = true;
     if (desde && fecha < desde) mostrar = false;
     if (hasta && fecha > hasta) mostrar = false;
+    if (tipoFiltro && tipoFiltro !== '' && tipo !== tipoFiltro) mostrar = false;
     if (concepto && !(nombre.includes(concepto) || detalle.includes(concepto))) mostrar = false;
     row.style.display = mostrar ? '' : 'none';
     if (mostrar) visibles++;
@@ -141,7 +145,7 @@ function actualizarKPIs(tipo, monto, signo, fechaISO) {
 
 function actualizarChart(tipo, monto, signo, fechaISO) {
   if (!chartInstance) return;
-  const idx = CHART_LABELS.indexOf(mesClave(fechaISO));
+  const idx = chartLabels.indexOf(mesClave(fechaISO));
   if (idx === -1) return;
   const arr = tipo === 'Ingreso' ? chartIngresos : chartEgresos;
   arr[idx] = Number(arr[idx] || 0) + signo * Number(monto || 0);
@@ -152,38 +156,53 @@ function actualizarChart(tipo, monto, signo, fechaISO) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-  // Render chart
-  chartIngresos = CHART_INGRESOS.slice();
-  chartEgresos = CHART_EGRESOS.slice();
+  console.log('finanzas.js loaded');
+  chartLabels = Array.isArray(window.CHART_LABELS) ? [...window.CHART_LABELS] : [];
+  chartIngresos = Array.isArray(window.CHART_INGRESOS) ? [...window.CHART_INGRESOS] : [];
+  chartEgresos = Array.isArray(window.CHART_EGRESOS) ? [...window.CHART_EGRESOS] : [];
   try {
-    chartInstance = new ApexCharts(document.querySelector('#chart-finanzas'), {
-      chart: { height: 320, type: 'bar', toolbar: { show: false } },
-      series: [
-        { name: 'Ingresos', data: chartIngresos.slice() },
-        { name: 'Egresos', data: chartEgresos.slice() },
-      ],
-      xaxis: { categories: CHART_LABELS },
-      colors: ['#198754', '#dc3545'],
-      dataLabels: { enabled: false },
-      stroke: { show: true, width: 2, colors: ['transparent'] },
-    });
-    chartInstance.render().catch(() => {});
+    const chartElement = document.querySelector('#chart-finanzas');
+    if (chartElement && chartLabels.length > 0) {
+      chartInstance = new ApexCharts(chartElement, {
+        chart: { height: 320, type: 'bar', toolbar: { show: false } },
+        series: [
+          { name: 'Ingresos', data: chartIngresos.slice() },
+          { name: 'Egresos', data: chartEgresos.slice() },
+        ],
+        xaxis: { categories: chartLabels },
+        colors: ['#198754', '#dc3545'],
+        dataLabels: { enabled: false },
+        stroke: { show: true, width: 2, colors: ['transparent'] },
+      });
+      chartInstance.render().catch(() => {});
+    }
   } catch (e) {
     console.error('Error renderizando gráfico de finanzas', e);
   }
 
-  // Form submit (crear o editar)
   const form = document.getElementById('form-registrar-mov-financiero');
   const modalRegistrar = document.getElementById('modalRegistrarMovimientoFinanciero');
+  console.log('finanzas: form', form);
+  console.log('finanzas: modalRegistrar', modalRegistrar);
   if (form) {
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
+      console.log('finanzas: submit movimiento');
       const id = document.getElementById('mov-id').value;
       const fd = new FormData(form);
       const url = id ? `/api/finanzas/movimientos/${id}/` : '/api/finanzas/movimientos/';
-      enviarMovimiento(fd, url).then(res => res.json()).then(data => {
+      enviarMovimiento(fd, url).then(res => {
+        return res.json().then(data => ({ ok: res.ok, data }));
+      }).then(({ ok, data }) => {
+        if (!ok) {
+          const message = data?.error || 'Error al guardar el movimiento.';
+          alert(message);
+          console.error('finanzas: error response', data);
+          return;
+        }
         if (data.error) {
           alert(data.error);
+          console.error('finanzas: backend error', data.error);
           return;
         }
         const tbody = document.getElementById('tabla-finanzas-body');
@@ -219,7 +238,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // Eliminar (delegado para filas agregadas dinámicamente)
   const tbody = document.getElementById('tabla-finanzas-body');
   if (tbody) {
     tbody.addEventListener('click', function (e) {
@@ -258,20 +276,18 @@ document.addEventListener('DOMContentLoaded', function () {
             aplicarFiltros();
           }
         } else {
-          alert('No se pudo eliminar.');
+          alert(data.error || 'No se pudo eliminar el movimiento.');
         }
       }).catch(err => {
         console.error(err);
-        alert('Error al eliminar movimiento.');
+        alert('Error al eliminar el movimiento.');
       });
     });
   }
 
-  // Filtros de búsqueda
-  ['filtro-desde', 'filtro-hasta', 'filtro-concepto'].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', aplicarFiltros);
-  });
-  const btnLimpiar = document.getElementById('btn-limpiar-filtros');
-  if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltros);
+  document.getElementById('filtro-limpiar')?.addEventListener('click', limpiarFiltros);
+  document.getElementById('filtro-desde')?.addEventListener('input', aplicarFiltros);
+  document.getElementById('filtro-hasta')?.addEventListener('input', aplicarFiltros);
+  document.getElementById('filtro-concepto')?.addEventListener('input', aplicarFiltros);
 });
+

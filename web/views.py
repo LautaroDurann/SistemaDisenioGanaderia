@@ -1,6 +1,6 @@
 import calendar
 import json
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db.models import Avg, Count, Sum, Q
@@ -173,8 +173,12 @@ def _comprador_data(comprador):
 
 def _movimientos_financieros_data():
     return [{
-        'id': m.id, 'fecha': m.fecha.isoformat(), 'tipo': m.tipo, 'nombre': m.nombre,
-        'detalle': m.detalle or '', 'monto_total': str(m.monto_total),
+        'id': m.id,
+        'fecha': m.fecha.isoformat(),
+        'tipo': m.tipo,
+        'nombre': m.nombre,
+        'detalle': m.detalle or '',
+        'monto_total': str(m.monto_total),
     } for m in MovimientoFinanciero.objects.order_by('-fecha', '-id')]
 
 
@@ -287,46 +291,6 @@ def _sincronizar_costo_entidades(movimiento):
     Venta.objects.filter(mov_financiero_id=movimiento.id).update(monto_total=monto)
     Compra.objects.filter(mov_financiero_id=movimiento.id).update(monto_total=monto)
     EventoSanitario.objects.filter(mov_financiero_id=movimiento.id).update(costo_total=monto)
-
-
-def ventas(request):
-    animales = Animal.objects.filter(vivo=True, vendido=False).select_related('parcela')
-    ventas_registradas = Venta.objects.select_related('comprador').prefetch_related('animal_set').order_by('-fecha', '-id')
-    today = date.today()
-    total_ventas = ventas_registradas.count()
-    ganancia_total = ventas_registradas.aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
-    ganancia_anio_actual = ventas_registradas.filter(fecha__year=today.year).aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
-    compradores = list(Comprador.objects.order_by('apellido', 'nombre'))
-    chart_years = [today.year - i for i in range(4, -1, -1)]
-    chart_labels = [str(year) for year in chart_years]
-    chart_series = []
-    for year in chart_years:
-        total = Venta.objects.filter(fecha__year=year).aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
-        chart_series.append(float(total))
-
-    return _page(request, 'ventas.html', 'ventas', {
-        'animales': [_animal_data(a) for a in animales],
-        'ventas': [_venta_data(v) for v in ventas_registradas],
-        'compradores': [_comprador_data(c) for c in compradores],
-        'summary': {
-            'total_ventas': total_ventas,
-            'ganancia_total': float(ganancia_total),
-            'ganancia_anio_actual': float(ganancia_anio_actual),
-            'compradores': len(compradores),
-        },
-        'chart': {
-            'labels_json': json.dumps(chart_labels),
-            'series_json': json.dumps(chart_series),
-        },
-    })
-
-
-def compras(request):
-    compras_registradas = Compra.objects.select_related('proveedor').order_by('-fecha', '-id')
-    return _page(request, 'compras.html', 'compras', {'compras': [{
-        'id': c.id, 'tipo': c.tipo, 'fecha': c.fecha.isoformat(), 'monto_total': str(c.monto_total),
-        'proveedor': str(c.proveedor) if c.proveedor else 'Sin proveedor', 'detalle': c.detalle or '',
-    } for c in compras_registradas]})
 
 
 def potreros(request):
@@ -724,12 +688,54 @@ def pesajes(request):
 
 
 def alimentacion(request):
-    data = {'alimentos': [{'id': str(i.id), 'nombre': i.nombre, 'categoria': 'Insumo',
-                           'stock': float(i.lotes.aggregate(total=Sum('stockActual'))['total'] or Decimal('0')),
-                           'unidad': i.unidadDeMedida,
-                           'consumoMensual': 0, 'stockMinimo': 0, 'ultimaCompra': '-', 'precioUnitario': 0}
-                          for i in Insumo.objects.all()]}
-    return _page(request, 'alimentacion.html', 'alimentacion', data)
+    hoy = date.today()
+    periodo_inicio = hoy - timedelta(days=30)
+
+    alimentos_qs = (
+        Insumo.objects.filter(tipo='Alimento')
+        .prefetch_related('lotes__detalles_compra', 'lotes__consumos__evento_sanitario')
+    )
+
+    alimentos = []
+    for insumo in alimentos_qs:
+        lotes = list(insumo.lotes.all())
+        stock_total = sum((lote.stockActual or Decimal('0')) for lote in lotes)
+
+        detalles_compra = [detalle for lote in lotes for detalle in lote.detalles_compra.all()]
+        ultima_compra = '-'
+        precio_unitario = Decimal('0')
+        if detalles_compra:
+            detalles_ordenados = sorted(
+                detalles_compra,
+                key=lambda d: d.compra.fecha if d.compra and d.compra.fecha is not None else date.min,
+                reverse=True,
+            )
+            detalle_reciente = detalles_ordenados[0]
+            if detalle_reciente.precioUnitario is not None:
+                precio_unitario = detalle_reciente.precioUnitario
+            if detalle_reciente.compra and detalle_reciente.compra.fecha:
+                ultima_compra = detalle_reciente.compra.fecha.strftime('%d/%m/%Y')
+
+        consumo_mensual = Decimal('0')
+        for lote in lotes:
+            for consumo in lote.consumos.all():
+                fecha_evento = getattr(consumo.evento_sanitario, 'fecha_aplicacion', None)
+                if fecha_evento and fecha_evento >= periodo_inicio:
+                    consumo_mensual += consumo.cantidad or Decimal('0')
+
+        alimentos.append({
+            'id': str(insumo.id),
+            'nombre': insumo.nombre or f'Insumo {insumo.id}',
+            'categoria': insumo.tipo or 'Alimento',
+            'stock': float(stock_total),
+            'unidad': insumo.unidadDeMedida or '',
+            'consumoMensual': float(consumo_mensual),
+            'stockMinimo': float(insumo.stockMinimo or Decimal('0')),
+            'ultimaCompra': ultima_compra,
+            'precioUnitario': float(precio_unitario),
+        })
+
+    return _page(request, 'alimentacion.html', 'alimentacion', {'alimentos': alimentos})
 
 
 def usuarios(request):

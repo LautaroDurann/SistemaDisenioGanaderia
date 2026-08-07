@@ -27,6 +27,7 @@ def _serialize_insumo(insumo, include_lotes=False):
         'nombre': insumo.nombre,
         'tipo': insumo.tipo,
         'unidad_de_medida': insumo.unidadDeMedida,
+        'stock_minimo': str(insumo.stockMinimo) if insumo.stockMinimo is not None else '0',
         'cantidad_total': str(cantidad_total),
     }
     if include_lotes:
@@ -145,10 +146,12 @@ def insumos_api(request):
 
     if request.method == 'POST':
         try:
+            stock_minimo = request.POST.get('stockMinimo', request.POST.get('stock_minimo', '')).strip()
             insumo = Insumo.objects.create(
                 nombre=request.POST.get('nombre', '').strip(),
                 tipo=request.POST.get('tipo', 'Otros').strip() or 'Otros',
                 unidadDeMedida=request.POST.get('unidadDeMedida', request.POST.get('unidad_de_medida', 'kg')).strip() or 'kg',
+                stockMinimo=Decimal(stock_minimo) if stock_minimo else None,
             )
         except Exception as exc:
             return JsonResponse({'error': str(exc)}, status=400)
@@ -168,6 +171,9 @@ def insumo_detalle(request, insumo_id):
             insumo.nombre = request.POST.get('nombre', insumo.nombre).strip()
             insumo.tipo = request.POST.get('tipo', insumo.tipo).strip() or insumo.tipo
             insumo.unidadDeMedida = request.POST.get('unidadDeMedida', request.POST.get('unidad_de_medida', insumo.unidadDeMedida)).strip() or insumo.unidadDeMedida
+            stock_minimo = request.POST.get('stockMinimo', request.POST.get('stock_minimo', '')).strip()
+            if stock_minimo != '':
+                insumo.stockMinimo = Decimal(stock_minimo)
             insumo.save()
         except Exception as exc:
             return JsonResponse({'error': str(exc)}, status=400)

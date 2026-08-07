@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const detailBgClass = 'bg-body-secondary bg-opacity-10';
     return `
       <tr class="insumo-detail-row d-none border-bottom" data-id="${item.id}">
-        <td colspan="5" class="p-0 ${detailBgClass}">
+        <td colspan="6" class="p-0 ${detailBgClass}">
           <div class="py-2">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <div><strong>Lotes de ${escapeHtml(item.nombre)}</strong></div>
@@ -143,6 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <td>${escapeHtml(item.nombre)}</td>
         <td>${escapeHtml(item.tipo)}</td>
         <td>${escapeHtml(item.unidad_de_medida)}</td>
+        <td>${escapeHtml(item.stock_minimo ?? '—')}</td>
         <td>${escapeHtml(item.cantidad_total)}</td>
         <td class="text-end">
           <button class="btn btn-sm btn-outline-primary me-1 btn-toggle-lotes" data-id="${item.id}" title="Ver lotes"><i class="bi bi-eye"></i></button>
@@ -208,6 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const openModal = async (item = null) => {
     form.reset();
     document.getElementById('insumo-id').value = '';
+    document.getElementById('insumo-stock-minimo').value = '';
     modalTitle.textContent = 'Registrar insumo';
     state.editingId = null;
     unidadSelect.value = 'Kg';
@@ -233,6 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
         unidadOtroInput.value = unidad;
       }
       toggleUnidadOtro();
+      document.getElementById('insumo-stock-minimo').value = detail.stock_minimo || '';
       modalTitle.textContent = 'Editar insumo';
       state.editingId = detail.id;
     }
@@ -247,6 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let unidad = unidadSelect.value;
     if (unidad === 'Otro') unidad = unidadOtroInput.value.trim();
     payload.set('unidad_de_medida', unidad || 'kg');
+    payload.set('stockMinimo', document.getElementById('insumo-stock-minimo').value.trim() || '');
 
     const url = state.editingId ? `/api/insumos/${state.editingId}/` : '/api/insumos/';
     const response = await fetch(url, { method: 'POST', body: payload, headers: buildHeaders() });
