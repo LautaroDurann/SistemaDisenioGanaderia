@@ -41,6 +41,8 @@ class Comprador(Persona):
 class Usuario(models.Model):
     nombre_usuario = models.CharField(max_length=100, unique=True)
     clave = models.CharField(max_length=100) # En un proyecto real esto se encripta
+    # Si está activo, el usuario debe reemplazar la clave temporal en su próximo ingreso.
+    debe_cambiar_clave = models.BooleanField(default=False)
     # Relación 1 a 1 con Persona (un usuario es una persona)
     persona = models.OneToOneField(Persona, on_delete=models.CASCADE)
 
@@ -50,7 +52,7 @@ class Usuario(models.Model):
 # 4. Tabla Intermedia: RolEstablecimiento
 class RolEstablecimiento(models.Model):
     ROLES_CHOICES = [
-        ('Dueño', 'Dueño'),
+        ('Propietario', 'Propietario'),
         ('Operario', 'Operario'),
     ]
     

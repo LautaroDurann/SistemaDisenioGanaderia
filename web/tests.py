@@ -1,7 +1,10 @@
 import base64
+import json
 from datetime import date
 from decimal import Decimal
 
+from django.contrib.auth.hashers import make_password
+from django.core import mail
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -11,7 +14,7 @@ from animales.models import Animal, MovimientoAnimal, Pesaje
 from establecimientos.models import Establecimiento, Parcela
 from finanzas.models import Compra, MovimientoFinanciero, Venta
 from sanidad.models import DetalleEvento, EventoSanitario
-from usuarios.models import Comprador
+from usuarios.models import Comprador, Persona, RolEstablecimiento, Usuario
 
 
 class WebIntegrationTests(TestCase):
@@ -24,11 +27,38 @@ class WebIntegrationTests(TestCase):
             id_senasa=12345, nombre='Luna', tipo_animal='Bovino', sexo='Hembra',
             parcela=self.parcela, vivo=True,
         )
+        persona = Persona.objects.create(
+            nombre='Juan', apellido='Fernandez', correo_electronico='juan@test.com',
+        )
+        usuario = Usuario.objects.create(
+            nombre_usuario='propietario', clave=make_password('clave123'), persona=persona,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=usuario, establecimiento=establecimiento,
+            nombre='Propietario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        session = self.client.session
+        session['usuario_id'] = usuario.id
+        session.save()
 
     def test_paginas_principales_responden(self):
         for url_name in ('dashboard', 'stock', 'movimientos', 'potreros', 'vacunacion', 'sanidad', 'pesajes', 'alimentacion', 'usuarios', 'configuracion'):
             with self.subTest(url_name=url_name):
                 self.assertEqual(self.client.get(reverse(url_name)).status_code, 200)
+
+    def test_pagina_usuarios_incluye_datos_ganastock(self):
+        response = self.client.get(reverse('usuarios'))
+        self.assertContains(response, 'ganastock-data-usuarios')
+        self.assertContains(response, 'ganastock-data-establecimientos')
+        self.assertContains(response, 'window.GANASTOCK_DATA')
+        self.assertContains(response, 'propietario')
+        self.assertContains(response, 'Campo de prueba')
+        contenido = response.content.decode()
+        inicio = contenido.index('id="ganastock-data-establecimientos"') 
+        inicio = contenido.index('>', inicio) + 1
+        fin = contenido.index('</script>', inicio)
+        establecimientos = json.loads(contenido[inicio:fin])
+        self.assertEqual([e['nombre'] for e in establecimientos], ['Campo de prueba'])
 
     def test_crear_evento_sanitario(self):
         response = self.client.post(reverse('crear_evento_sanitario'), {
@@ -379,3 +409,280 @@ class WebIntegrationTests(TestCase):
         response = self.client.post(reverse('eliminar_comprador', args=[comprador.id]))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Comprador.objects.filter(pk=comprador.id).exists())
+
+    def test_propietario_crea_usuario_con_varios_establecimientos(self):
+        segundo = Establecimiento.objects.create(
+            nombre='Campo Sur', fecha_inicio=date.today(), ubicacion='Santa Fe',
+        )
+        response = self.client.post(reverse('crear_usuario_api'), {
+            'nombre': 'María', 'usuario': 'maria', 'clave': 'clave123',
+            'establecimiento_ids': [Establecimiento.objects.first().id, segundo.id],
+            'roles': ['Operario', 'Propietario'],
+        })
+        self.assertEqual(response.status_code, 201)
+        usuario = Usuario.objects.get(nombre_usuario='maria')
+        roles = RolEstablecimiento.objects.filter(usuario=usuario).order_by('establecimiento__id')
+        self.assertEqual(len(roles), 2)
+        self.assertEqual(list(roles.values_list('nombre', flat=True)), ['Operario', 'Propietario'])
+        self.assertEqual(list(roles.values_list('establecimiento_id', flat=True)),
+                         [Establecimiento.objects.first().id, segundo.id])
+        self.assertTrue(usuario.debe_cambiar_clave)
+
+    def test_configuracion_solo_establecimiento(self):
+        response = self.client.get(reverse('configuracion'))
+        self.assertContains(response, 'tab-establecimiento')
+        self.assertContains(response, 'est-logo-input')
+        for seccion in ('tab-empresa', 'tab-categorias', 'tab-razas', 'tab-vacunas',
+                        'tab-potreros', 'tab-usuarios-roles', 'tabla-categorias',
+                        'tabla-vacunas', 'tabla-estados-potrero', 'modalListaSimple'):
+            self.assertNotContains(response, seccion)
+
+    def test_config_establecimiento_guarda_datos_y_logo(self):
+        png = base64.b64decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+        )
+        logo = SimpleUploadedFile('logo.png', png, content_type='image/png')
+        response = self.client.post(reverse('config_establecimiento_api'), {
+            'nombre': 'Campo Norte',
+            'fecha_inicio': '2015-03-10',
+            'ubicacion': 'Chaco',
+            'logo': logo,
+        })
+        self.assertEqual(response.status_code, 200)
+        establecimiento = Establecimiento.objects.get()
+        self.assertEqual(establecimiento.nombre, 'Campo Norte')
+        self.assertEqual(establecimiento.ubicacion, 'Chaco')
+        self.assertEqual(establecimiento.fecha_inicio.isoformat(), '2015-03-10')
+        self.assertTrue(establecimiento.logo)
+
+        response = self.client.post(reverse('config_establecimiento_api'), {
+            'nombre': '', 'ubicacion': 'Chaco',
+        })
+        self.assertEqual(response.status_code, 400)
+
+        response = self.client.post(reverse('config_establecimiento_api'), {
+            'nombre': 'Campo', 'fecha_inicio': 'no-es-fecha', 'ubicacion': 'Chaco',
+        })
+        self.assertEqual(response.status_code, 400)
+
+
+class AuthTests(TestCase):
+    def setUp(self):
+        Establecimiento.objects.create(
+            nombre='Campo de prueba', fecha_inicio=date.today(), ubicacion='Córdoba'
+        )
+
+    def login_usuario(self, usuario):
+        session = self.client.session
+        session['usuario_id'] = usuario.id
+        session.save()
+
+    def test_paginas_requieren_login(self):
+        response = self.client.get(reverse('dashboard'))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith(reverse('login')))
+
+        response = self.client.get(reverse('stock_api'))
+        self.assertEqual(response.status_code, 401)
+
+    def test_no_hay_registro_publico(self):
+        response = self.client.get('/registro/')
+        self.assertNotEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith(reverse('login')))
+
+        response = self.client.get(reverse('login'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Registrate')
+        self.assertNotContains(response, 'Creá tu cuenta')
+
+    def test_login_y_logout(self):
+        persona = Persona.objects.create(nombre='Juan', correo_electronico='juan@auth2.com')
+        Usuario.objects.create(nombre_usuario='juan', clave=make_password('clave123'), persona=persona)
+
+        response = self.client.post(reverse('login'), {'nombre_usuario': 'juan', 'clave': 'clave123'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('dashboard'))
+        self.assertIn('usuario_id', self.client.session)
+
+        response = self.client.post(reverse('logout'))
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn('usuario_id', self.client.session)
+
+    def test_login_con_clave_incorrecta(self):
+        persona = Persona.objects.create(nombre='Juan', correo_electronico='juan@auth3.com')
+        Usuario.objects.create(nombre_usuario='juan', clave=make_password('clave123'), persona=persona)
+        response = self.client.post(reverse('login'), {'nombre_usuario': 'juan', 'clave': 'incorrecta'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Usuario o contraseña incorrectos')
+
+    def test_login_con_clave_temporal_exige_cambio(self):
+        persona = Persona.objects.create(nombre='Juan', correo_electronico='juan@temp.com')
+        Usuario.objects.create(
+            nombre_usuario='juan', clave=make_password('temporal123'),
+            persona=persona, debe_cambiar_clave=True,
+        )
+        response = self.client.post(reverse('login'), {'nombre_usuario': 'juan', 'clave': 'temporal123'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('cambiar_clave'))
+
+        # Mientras conserve la clave temporal no puede navegar el sistema.
+        response = self.client.get(reverse('dashboard'))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('cambiar_clave'))
+
+        # Cambio de clave: entra al dashboard y la clave nueva funciona.
+        response = self.client.post(reverse('cambiar_clave'), {'clave': 'nueva123', 'clave_confirmacion': 'nueva123'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('dashboard'))
+        self.client.session.flush()
+        response = self.client.post(reverse('login'), {'nombre_usuario': 'juan', 'clave': 'nueva123'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('dashboard'))
+
+    def test_login_no_reutiliza_la_clave_temporal(self):
+        persona = Persona.objects.create(nombre='Juan', correo_electronico='juan@temp2.com')
+        Usuario.objects.create(
+            nombre_usuario='juan', clave=make_password('temporal123'),
+            persona=persona, debe_cambiar_clave=True,
+        )
+        self.client.post(reverse('login'), {'nombre_usuario': 'juan', 'clave': 'temporal123'})
+        response = self.client.post(reverse('cambiar_clave'), {'clave': 'temporal123', 'clave_confirmacion': 'temporal123'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'no puede ser igual a la anterior')
+        usuario = Usuario.objects.get(nombre_usuario='juan')
+        self.assertTrue(usuario.debe_cambiar_clave)
+
+    def test_propietario_asigna_usuario_a_varios_establecimientos(self):
+        persona = Persona.objects.create(nombre='Juan', correo_electronico='juan-multi@auth.com')
+        propietario = Usuario.objects.create(
+            nombre_usuario='propietario', clave=make_password('clave123'), persona=persona,
+        )
+        est1 = Establecimiento.objects.get()
+        est2 = Establecimiento.objects.create(
+            nombre='Segundo campo', fecha_inicio=date.today(), ubicacion='Córdoba'
+        )
+        RolEstablecimiento.objects.create(
+            usuario=propietario, establecimiento=est1,
+            nombre='Propietario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        self.login_usuario(propietario)
+
+        response = self.client.post(reverse('crear_usuario_api'), {
+            'nombre': 'Pedro', 'usuario': 'pedro', 'clave': 'clave123',
+            'establecimiento_ids': [est1.id, est2.id], 'roles': ['Operario', 'Operario'],
+        })
+        self.assertEqual(response.status_code, 201)
+        usuario = Usuario.objects.get(nombre_usuario='pedro')
+        self.assertEqual(
+            list(RolEstablecimiento.objects.filter(usuario=usuario).values_list('establecimiento_id', flat=True)),
+            [est1.id, est2.id],
+        )
+
+        rol_est2 = RolEstablecimiento.objects.get(usuario=usuario, establecimiento=est2)
+        response = self.client.post(reverse('actualizar_usuario_api', args=[usuario.id]), {
+            'rol_establecimiento_id': rol_est2.id, 'rol': 'Propietario', 'estado_acceso': 'Activo',
+        })
+        self.assertEqual(response.status_code, 200)
+        rol_est2.refresh_from_db()
+        self.assertEqual(rol_est2.nombre, 'Propietario')
+        self.assertTrue(rol_est2.estado_acceso)
+
+        # Agregar acceso a un tercer establecimiento.
+        est3 = Establecimiento.objects.create(
+            nombre='Tercer campo', fecha_inicio=date.today(), ubicacion='Córdoba'
+        )
+        response = self.client.post(reverse('actualizar_usuario_api', args=[usuario.id]), {
+            'nuevo_establecimiento_id': est3.id, 'nuevo_rol': 'Operario',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(RolEstablecimiento.objects.filter(usuario=usuario, establecimiento=est3).exists())
+
+        # Quitar el acceso al segundo establecimiento.
+        response = self.client.post(reverse('actualizar_usuario_api', args=[usuario.id]), {
+            'eliminar_rol_establecimiento_id': rol_est2.id,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(RolEstablecimiento.objects.filter(usuario=usuario, establecimiento=est2).exists())
+
+    def test_operario_no_accede_a_finanzas_pero_si_a_stock(self):
+        persona = Persona.objects.create(nombre='Pedro', correo_electronico='pedro@auth.com')
+        usuario = Usuario.objects.create(nombre_usuario='pedro', clave=make_password('clave123'), persona=persona)
+        establecimiento = Establecimiento.objects.get()
+        RolEstablecimiento.objects.create(
+            usuario=usuario, establecimiento=establecimiento,
+            nombre='Operario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        self.login_usuario(usuario)
+
+        self.assertEqual(self.client.get(reverse('stock')).status_code, 200)
+        self.assertEqual(self.client.get(reverse('finanzas')).status_code, 302)
+        self.assertEqual(self.client.get(reverse('usuarios')).status_code, 302)
+        self.assertEqual(self.client.get(reverse('ventas')).status_code, 302)
+        response = self.client.post(reverse('crear_venta'), {'precio_por_kg': '100', 'animales': []})
+        self.assertEqual(response.status_code, 403)
+
+    def test_operario_no_crea_establecimientos(self):
+        persona = Persona.objects.create(nombre='Pedro', correo_electronico='pedro2@auth.com')
+        usuario = Usuario.objects.create(nombre_usuario='pedro2', clave=make_password('clave123'), persona=persona)
+        RolEstablecimiento.objects.create(
+            usuario=usuario, establecimiento=Establecimiento.objects.get(),
+            nombre='Operario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        self.login_usuario(usuario)
+        response = self.client.post(reverse('crear_establecimiento'), {
+            'nombre': 'Nuevo', 'fecha_inicio': '2026-08-01', 'ubicacion': 'X',
+        })
+        self.assertEqual(response.status_code, 403)
+
+    def test_recuperar_contrasena_envia_correo(self):
+        persona = Persona.objects.create(nombre='Juan', correo_electronico='juan@recuperar.com')
+        Usuario.objects.create(nombre_usuario='juan', clave=make_password('clave123'), persona=persona)
+        response = self.client.post(reverse('recuperar'), {'correo_electronico': 'juan@recuperar.com'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'enviamos un enlace')
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('/recuperar/', mail.outbox[0].body)
+
+    def test_propietario_crea_usuario_y_asigna_rol(self):
+        persona = Persona.objects.create(nombre='Juan', correo_electronico='juan-pro@auth.com')
+        propietario = Usuario.objects.create(
+            nombre_usuario='propietario', clave=make_password('clave123'), persona=persona,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=propietario, establecimiento=Establecimiento.objects.get(),
+            nombre='Propietario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        self.login_usuario(propietario)
+
+        response = self.client.post(reverse('crear_usuario_api'), {
+            'nombre': 'Pedro', 'apellido': 'Gómez', 'email': 'pedro@creado.com',
+            'usuario': 'pedro', 'clave': 'clave123', 'rol': 'Operario',
+        })
+        self.assertEqual(response.status_code, 201)
+        usuario = Usuario.objects.get(nombre_usuario='pedro')
+        rol = RolEstablecimiento.objects.get(usuario=usuario)
+        self.assertEqual(rol.nombre, 'Operario')
+        self.assertEqual(rol.establecimiento, Establecimiento.objects.get())
+
+        response = self.client.post(reverse('actualizar_usuario_api', args=[usuario.id]), {
+            'rol': 'Propietario', 'estado_acceso': 'Activo',
+        })
+        self.assertEqual(response.status_code, 200)
+        rol.refresh_from_db()
+        self.assertEqual(rol.nombre, 'Propietario')
+
+        # Un operario no puede administrar usuarios.
+        persona_operario = Persona.objects.create(nombre='Ana', correo_electronico='ana-pro@auth.com')
+        operario = Usuario.objects.create(
+            nombre_usuario='ana', clave=make_password('clave123'), persona=persona_operario,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=operario, establecimiento=Establecimiento.objects.get(),
+            nombre='Operario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        self.login_usuario(operario)
+        response = self.client.post(reverse('crear_usuario_api'), {
+            'nombre': 'X', 'usuario': 'x', 'clave': 'clave123', 'rol': 'Operario',
+        })
+        self.assertEqual(response.status_code, 403)

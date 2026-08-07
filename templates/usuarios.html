@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css%}
-<link rel="stylesheet" href="{% static 'css/usuarios.css' %}">
+<link rel="stylesheet" href="{% static 'css/usuarios.css' %}?v=4">
 {% endblock %}
 
  {% block content %}
@@ -54,9 +54,7 @@
                       <div class="col-md-4">
                         <select class="form-select" id="f-rol">
                           <option value="">Todos los roles</option>
-                          <option value="Administrador">Administrador</option>
-                          <option value="Encargado">Encargado</option>
-                          <option value="Veterinario">Veterinario</option>
+                          <option value="Propietario">Propietario</option>
                           <option value="Operario">Operario</option>
                         </select>
                       </div>
@@ -65,7 +63,6 @@
                           <option value="">Todos los estados</option>
                           <option value="Activo">Activo</option>
                           <option value="Inactivo">Inactivo</option>
-                          <option value="Bloqueado">Bloqueado</option>
                         </select>
                       </div>
                       <div class="col-md-4">
@@ -139,6 +136,9 @@
                         <span class="text-secondary">Rol</span><span id="perfil-rol">-</span>
                       </li>
                       <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-secondary">Establecimientos</span><span id="perfil-establecimientos">-</span>
+                      </li>
+                      <li class="list-group-item d-flex justify-content-between">
                         <span class="text-secondary">Estado</span><span id="perfil-estado">-</span>
                       </li>
                       <li class="list-group-item d-flex justify-content-between">
@@ -177,23 +177,23 @@
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Nombre</label>
-                  <input type="text" class="form-control" placeholder="Ej: Juan" required />
+                  <input type="text" class="form-control" id="nu-nombre" placeholder="Ej: Juan" required />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Apellido</label>
-                  <input type="text" class="form-control" placeholder="Ej: Fernandez" required />
+                  <input type="text" class="form-control" id="nu-apellido" placeholder="Ej: Fernandez" />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Email</label>
-                  <input type="email" class="form-control" placeholder="usuario@vacapp.com" required />
+                  <input type="email" class="form-control" id="nu-email" placeholder="usuario@ganastock.com" />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Telefono</label>
-                  <input type="tel" class="form-control" placeholder="Ej: +54 9 3644 000000" />
+                  <input type="tel" class="form-control" id="nu-telefono" placeholder="Ej: +54 9 3644 000000" />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Usuario</label>
-                  <input type="text" class="form-control" placeholder="Nombre de usuario" required />
+                  <input type="text" class="form-control" id="nu-usuario" placeholder="Nombre de usuario" required />
                 </div>
                 <div class="col-md-6"></div>
                 <div class="col-md-6">
@@ -205,22 +205,12 @@
                   <input type="password" class="form-control" id="nu-password-confirm" required />
                   <div class="invalid-feedback" id="nu-password-feedback">Las contrasenas no coinciden.</div>
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label">Rol</label>
-                  <select class="form-select" required>
-                    <option value="" selected disabled>Seleccionar rol...</option>
-                    <option>Administrador</option>
-                    <option>Encargado</option>
-                    <option>Veterinario</option>
-                    <option>Operario</option>
-                  </select>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Estado</label>
-                  <select class="form-select">
-                    <option selected>Activo</option>
-                    <option>Inactivo</option>
-                  </select>
+                <div class="col-12">
+                  <label class="form-label">Accesos por establecimiento</label>
+                  <div id="nu-accesos" class="d-flex flex-column gap-2"></div>
+                  <button type="button" class="btn btn-outline-primary btn-sm mt-1" id="nu-agregar-acceso">
+                    <i class="bi bi-plus-lg me-1"></i> Agregar otro establecimiento
+                  </button>
                 </div>
               </div>
             </div>
@@ -234,40 +224,45 @@
     </div>
     <!--end::Modal Nuevo Usuario-->
 
-    <!--begin::Modal Roles y permisos-->
-    <div class="modal fade" id="modalRolesPermisos" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <!--begin::Modal Asignar rol-->
+    <div class="modal fade" id="modalAsignarRol" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Roles y permisos</h5>
+            <h5 class="modal-title">Asignar rol y acceso</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            <div class="table-responsive">
-              <table class="table table-vacapp vacapp-permisos-table mb-0">
-                <thead>
-                  <tr id="permisos-thead-row">
-                    <th>Modulo</th>
-                  </tr>
-                </thead>
-                <tbody id="permisos-tbody"></tbody>
-              </table>
-            </div>
+            <p class="text-secondary small" id="ar-usuario-nombre"></p>
+            <label class="form-label">Accesos por establecimiento</label>
+            <div id="ar-accesos" class="d-flex flex-column gap-2"></div>
+            <button type="button" class="btn btn-outline-primary btn-sm mt-1" id="ar-agregar-acceso">
+              <i class="bi bi-plus-lg me-1"></i> Agregar establecimiento
+            </button>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-success" id="btn-guardar-permisos">
+            <button type="button" class="btn btn-success" id="btn-guardar-rol">
               <i class="bi bi-save me-1"></i> Guardar cambios
             </button>
           </div>
         </div>
       </div>
     </div>
+    <!--end::Modal Asignar rol-->
 
 {% endblock %}
 
 {% block page_js%}
-    <script src="{% static 'js/usuarios.js' %}"></script>
+    {{ page_data.usuarios|json_script:"ganastock-data-usuarios" }}
+    {{ page_data.establecimientos_data|json_script:"ganastock-data-establecimientos" }}
+    <script>
+      window.GANASTOCK_DATA = {
+        usuarios: JSON.parse(document.getElementById('ganastock-data-usuarios').textContent),
+        establecimientos: JSON.parse(document.getElementById('ganastock-data-establecimientos').textContent),
+      };
+    </script>
+    <script src="{% static 'js/usuarios.js' %}?v=4"></script>
 {% endblock %}
 
          

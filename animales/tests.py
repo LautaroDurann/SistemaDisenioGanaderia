@@ -1,14 +1,35 @@
 from datetime import date, timedelta
 from decimal import Decimal
 
+from django.contrib.auth.hashers import make_password
 from django.test import TestCase
 
 from animales.models import Animal
+from establecimientos.models import Establecimiento
 from sanidad.models import EventoSanitario
+from usuarios.models import Persona, RolEstablecimiento, Usuario
 from web.views import _animal_data, _categoria
 
 
 class AnimalStockTests(TestCase):
+    def setUp(self):
+        establecimiento = Establecimiento.objects.create(
+            nombre='Campo animales', fecha_inicio=date.today(), ubicacion='Córdoba'
+        )
+        persona = Persona.objects.create(
+            nombre='Juan', apellido='Fernandez', correo_electronico='juan-animales@test.com',
+        )
+        usuario = Usuario.objects.create(
+            nombre_usuario='propietario', clave=make_password('clave123'), persona=persona,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=usuario, establecimiento=establecimiento,
+            nombre='Propietario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        session = self.client.session
+        session['usuario_id'] = usuario.id
+        session.save()
+
     def crear_bovino(self, **campos):
         valores = {
             'tipo_animal': 'Bovino',

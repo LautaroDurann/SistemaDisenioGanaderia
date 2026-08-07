@@ -62,6 +62,38 @@
       }
     
 
+      /* Selector de establecimientos de la barra superior.
+         En pantallas chicas no debe cortarse ni por abajo ni por el lateral. */
+      #menu-establecimientos {
+        min-width: 16rem;
+        max-height: min(70vh, 28rem);
+        overflow-y: auto;
+      }
+      @media (max-width: 575.98px) {
+        /* El menú se despliega fijo debajo de la barra y ocupa casi todo el
+           ancho, así nunca queda cortado por el borde de la pantalla. */
+        #menu-establecimientos {
+          position: fixed !important;
+          top: 4rem !important;
+          left: 0.5rem !important;
+          right: 0.5rem !important;
+          width: auto !important;
+          max-width: none !important;
+          min-width: 0 !important;
+          transform: none !important;
+          max-height: min(60vh, 28rem) !important;
+        }
+        /* Los nombres largos no se recortan con puntos suspensivos. */
+        #menu-establecimientos .dropdown-item .text-truncate {
+          white-space: normal;
+          overflow: visible;
+          text-overflow: clip;
+        }
+      }
+      #menu-establecimientos .dropdown-header {
+        gap: 0.5rem;
+      }
+
       .spin {
         animation: vacapp-spin 0.5s linear;
       }

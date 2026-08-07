@@ -30,7 +30,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/apexcharts@3.37.1/dist/apexcharts.css">
 
     <link rel="stylesheet" href="{% static 'css/adminlte.css' %}">
-    <link rel="stylesheet" href="{% static 'css/index.css' %}">
+    <link rel="stylesheet" href="{% static 'css/index.css' %}?v=2">
 
     {% block extra_css %}{% endblock %}
 </head>
@@ -53,12 +53,51 @@
     {% include 'partials/footer.html' %}
 
 </div>
+
+<!--begin::Modal Registrar Establecimiento-->
+<div class="modal fade" id="modal-establecimiento" tabindex="-1" aria-labelledby="modal-establecimiento-titulo" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="form-nuevo-establecimiento" novalidate>
+        <div class="modal-header">
+          <h5 class="modal-title" id="modal-establecimiento-titulo">
+            <i class="bi bi-buildings me-2"></i>Registrar establecimiento
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div id="establecimiento-error" class="alert alert-danger d-none" role="alert"></div>
+          <div class="mb-3">
+            <label class="form-label" for="establecimiento-nombre">Nombre</label>
+            <input type="text" class="form-control" id="establecimiento-nombre" name="nombre" maxlength="100" placeholder="Ej: Estancia La Esperanza" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="establecimiento-fecha-inicio">Fecha de inicio</label>
+            <input type="date" class="form-control" id="establecimiento-fecha-inicio" name="fecha_inicio" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="establecimiento-ubicacion">Ubicacion</label>
+            <input type="text" class="form-control" id="establecimiento-ubicacion" name="ubicacion" maxlength="100" placeholder="Ej: Zona rural, Presidencia Roque Saenz Peña, Chaco" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success" id="btn-guardar-establecimiento">
+            <i class="bi bi-check2 me-1"></i> Guardar establecimiento
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<!--end::Modal Registrar Establecimiento-->
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/browser/overlayscrollbars.browser.es6.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.min.js"></script>
 <script src="{% static 'js/adminlte.js' %}"></script>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.37.1/dist/apexcharts.min.js"></script>
+<script src="{% static 'js/establecimientos.js' %}"></script>
 
 <!-- CÓDIGO NUEVO PARA EL MODO CLARO/OSCURO -->
 <script>

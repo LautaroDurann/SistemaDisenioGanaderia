@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css%}
-<link rel="stylesheet" href="{% static 'css/configuracion.css' %}">
+<link rel="stylesheet" href="{% static 'css/configuracion.css' %}?v=3">
 {% endblock %}
 
 
@@ -36,26 +36,8 @@
                 <div class="card vacapp-card">
                   <div class="card-body p-2">
                     <div class="nav nav-pills flex-column vacapp-config-nav" id="config-tabs" role="tablist" aria-orientation="vertical">
-                      <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-empresa" type="button">
-                        <i class="bi bi-building"></i> Empresa
-                      </button>
-                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-establecimiento" type="button">
+                      <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-establecimiento" type="button">
                         <i class="bi bi-geo-alt"></i> Establecimiento
-                      </button>
-                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-categorias" type="button">
-                        <i class="bi bi-tags"></i> Categorias
-                      </button>
-                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-razas" type="button">
-                        <i class="bi bi-bookmark-star"></i> Razas
-                      </button>
-                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-vacunas" type="button">
-                        <i class="bi bi-shield-plus"></i> Vacunas
-                      </button>
-                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-potreros" type="button">
-                        <i class="bi bi-signpost-split"></i> Potreros
-                      </button>
-                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-usuarios-roles" type="button">
-                        <i class="bi bi-people"></i> Usuarios y Roles
                       </button>
                       <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-notificaciones" type="button">
                         <i class="bi bi-bell"></i> Notificaciones
@@ -78,295 +60,51 @@
               <!--begin::Contenido de pestañas-->
               <div class="col-lg-9">
                 <div class="tab-content" id="config-tabs-content">
-                  <!--begin::Empresa-->
-                  <div class="tab-pane fade show active" id="tab-empresa">
-                    <div class="card vacapp-card">
-                      <div class="card-header bg-transparent border-0 pb-0">
-                        <h3 class="card-title">Empresa</h3>
-                      </div>
-                      <div class="card-body">
-                        <form id="form-empresa">
-                          <div class="d-flex align-items-center gap-3 mb-4">
-                            <div class="vacapp-logo-preview" id="empresa-logo-preview"><i class="bi bi-image"></i></div>
-                            <div>
-                              <label class="form-label mb-1">Logo</label>
-                              <input type="file" class="form-control form-control-sm" accept="image/*" id="empresa-logo-input" />
-                              <small class="text-secondary">PNG o JPG, fondo transparente recomendado.</small>
-                            </div>
-                          </div>
-                          <div class="row g-3">
-                            <div class="col-md-6">
-                              <label class="form-label">Nombre de la empresa</label>
-                              <input type="text" class="form-control" value="GanaStock S.A." />
-                            </div>
-                            <div class="col-md-6">
-                              <label class="form-label">Razon social</label>
-                              <input type="text" class="form-control" value="GanaStock Sociedad Anonima" />
-                            </div>
-                            <div class="col-md-4">
-                              <label class="form-label">CUIT</label>
-                              <input type="text" class="form-control" value="30-71234567-8" />
-                            </div>
-                            <div class="col-md-8">
-                              <label class="form-label">Direccion</label>
-                              <input type="text" class="form-control" value="Ruta Provincial 4, Km 12" />
-                            </div>
-                            <div class="col-md-4">
-                              <label class="form-label">Ciudad</label>
-                              <input type="text" class="form-control" value="Presidencia Roque Saenz Peña" />
-                            </div>
-                            <div class="col-md-4">
-                              <label class="form-label">Provincia</label>
-                              <input type="text" class="form-control" value="Chaco" />
-                            </div>
-                            <div class="col-md-4">
-                              <label class="form-label">Pais</label>
-                              <input type="text" class="form-control" value="Argentina" />
-                            </div>
-                            <div class="col-md-4">
-                              <label class="form-label">Telefono</label>
-                              <input type="tel" class="form-control" value="+54 9 3644 500000" />
-                            </div>
-                            <div class="col-md-4">
-                              <label class="form-label">Email</label>
-                              <input type="email" class="form-control" value="contacto@ganastock.com" />
-                            </div>
-                            <div class="col-md-4">
-                              <label class="form-label">Sitio web</label>
-                              <input type="text" class="form-control" value="www.ganastock.com" />
-                            </div>
-                          </div>
-                          <button type="submit" class="btn btn-success mt-4">
-                            <i class="bi bi-check2 me-1"></i> Guardar cambios
-                          </button>
-                        </form>
-                      </div>
-                    </div>
-                  </div>
-                  <!--end::Empresa-->
-
                   <!--begin::Establecimiento-->
-                  <div class="tab-pane fade" id="tab-establecimiento">
+                  <div class="tab-pane fade show active" id="tab-establecimiento">
                     <div class="card vacapp-card">
                       <div class="card-header bg-transparent border-0 pb-0">
                         <h3 class="card-title">Establecimiento</h3>
                       </div>
                       <div class="card-body">
                         <form id="form-establecimiento">
+                          <div class="d-flex align-items-center gap-3 mb-4">
+                            <div class="vacapp-logo-preview" id="est-logo-preview">
+                              {% if establecimiento_actual and establecimiento_actual.logo %}
+                                <img src="{{ establecimiento_actual.logo.url }}" alt="Logo del establecimiento" />
+                              {% else %}
+                                <i class="bi bi-image"></i>
+                              {% endif %}
+                            </div>
+                            <div>
+                              <label class="form-label mb-1">Logo o foto</label>
+                              <input type="file" class="form-control form-control-sm" accept="image/*" id="est-logo-input" />
+                              <small class="text-secondary">PNG o JPG. Es la imagen que se muestra junto al nombre del establecimiento.</small>
+                            </div>
+                          </div>
                           <div class="row g-3">
                             <div class="col-md-6">
                               <label class="form-label">Nombre del establecimiento</label>
-                              <input type="text" class="form-control" value="Estancia Los Alamos" />
+                              <input type="text" class="form-control" id="est-nombre" value="{{ establecimiento_actual.nombre|default:'' }}" required />
                             </div>
-                            <div class="col-md-3">
-                              <label class="form-label">Superficie (ha)</label>
-                              <input type="number" class="form-control" value="1250" />
-                            </div>
-                            <div class="col-md-3">
-                              <label class="form-label">Responsable</label>
-                              <input type="text" class="form-control" value="Juan Fernandez" />
+                            <div class="col-md-6">
+                              <label class="form-label">Fecha de inicio</label>
+                              <input type="date" class="form-control" id="est-fecha-inicio" value="{{ establecimiento_actual.fecha_inicio|date:'Y-m-d'|default:'' }}" required />
                             </div>
                             <div class="col-md-6">
                               <label class="form-label">Ubicacion</label>
-                              <input type="text" class="form-control" value="Zona rural, Presidencia Roque Saenz Peña, Chaco" />
-                            </div>
-                            <div class="col-md-3">
-                              <label class="form-label">Latitud <span class="text-secondary">(opcional)</span></label>
-                              <input type="text" class="form-control" placeholder="-26.7852" />
-                            </div>
-                            <div class="col-md-3">
-                              <label class="form-label">Longitud <span class="text-secondary">(opcional)</span></label>
-                              <input type="text" class="form-control" placeholder="-60.4388" />
-                            </div>
-                            <div class="col-md-6">
-                              <label class="form-label">Moneda</label>
-                              <select class="form-select">
-                                <option selected>Peso argentino (ARS)</option>
-                                <option>Dolar estadounidense (USD)</option>
-                                <option>Real brasileño (BRL)</option>
-                              </select>
-                            </div>
-                            <div class="col-md-6">
-                              <label class="form-label">Zona horaria</label>
-                              <select class="form-select">
-                                <option selected>America/Argentina/Buenos_Aires (GMT-3)</option>
-                                <option>America/Santiago (GMT-4)</option>
-                                <option>America/Sao_Paulo (GMT-3)</option>
-                              </select>
+                              <input type="text" class="form-control" id="est-ubicacion" value="{{ establecimiento_actual.ubicacion|default:'' }}" required />
                             </div>
                           </div>
-                          <button type="submit" class="btn btn-success mt-4">
+                          <button type="submit" class="btn btn-success mt-4" id="est-guardar-btn">
                             <i class="bi bi-check2 me-1"></i> Guardar cambios
                           </button>
+                          <div class="text-danger small mt-2" id="est-guardar-error" style="display:none"></div>
                         </form>
                       </div>
                     </div>
                   </div>
                   <!--end::Establecimiento-->
-
-                  <!--begin::Categorias-->
-                  <div class="tab-pane fade" id="tab-categorias">
-                    <div class="card vacapp-card">
-                      <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
-                        <div>
-                          <h3 class="card-title mb-0">Categorias de animales</h3>
-                          <p class="text-secondary small mb-0">Se usan en Stock, Pesajes y Vacunacion.</p>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-success" onclick="abrirModalListaSimple('categoria')">
-                          <i class="bi bi-plus-lg me-1"></i> Agregar
-                        </button>
-                      </div>
-                      <div class="card-body">
-                        <div class="table-responsive">
-                          <table class="table table-vacapp align-middle mb-0">
-                            <thead>
-                              <tr>
-                                <th>Nombre</th>
-                                <th class="text-end">Acciones</th>
-                              </tr>
-                            </thead>
-                            <tbody id="tabla-categorias"></tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <!--end::Categorias-->
-
-                  <!--begin::Razas-->
-                  <div class="tab-pane fade" id="tab-razas">
-                    <div class="card vacapp-card">
-                      <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
-                        <div>
-                          <h3 class="card-title mb-0">Razas</h3>
-                          <p class="text-secondary small mb-0">Disponibles al cargar un animal en Stock.</p>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-success" onclick="abrirModalListaSimple('raza')">
-                          <i class="bi bi-plus-lg me-1"></i> Agregar
-                        </button>
-                      </div>
-                      <div class="card-body">
-                        <div class="table-responsive">
-                          <table class="table table-vacapp align-middle mb-0">
-                            <thead>
-                              <tr>
-                                <th>Nombre</th>
-                                <th class="text-end">Acciones</th>
-                              </tr>
-                            </thead>
-                            <tbody id="tabla-razas"></tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <!--end::Razas-->
-
-                  <!--begin::Vacunas-->
-                  <div class="tab-pane fade" id="tab-vacunas">
-                    <div class="card vacapp-card">
-                      <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
-                        <h3 class="card-title mb-0">Vacunas</h3>
-                        <button type="button" class="btn btn-sm btn-success" onclick="abrirModalVacuna()">
-                          <i class="bi bi-plus-lg me-1"></i> Agregar
-                        </button>
-                      </div>
-                      <div class="card-body">
-                        <div class="table-responsive">
-                          <table class="table table-vacapp align-middle mb-0">
-                            <thead>
-                              <tr>
-                                <th>Nombre</th>
-                                <th>Laboratorio</th>
-                                <th>Tipo</th>
-                                <th>Dosis recomendada</th>
-                                <th>Frecuencia</th>
-                                <th class="text-end">Acciones</th>
-                              </tr>
-                            </thead>
-                            <tbody id="tabla-vacunas"></tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <!--end::Vacunas-->
-
-                  <!--begin::Potreros-->
-                  <div class="tab-pane fade" id="tab-potreros">
-                    <div class="card vacapp-card mb-3">
-                      <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
-                        <div>
-                          <h3 class="card-title mb-0">Tipos de pastura</h3>
-                          <p class="text-secondary small mb-0">Disponibles al configurar un potrero.</p>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-success" onclick="abrirModalListaSimple('pastura')">
-                          <i class="bi bi-plus-lg me-1"></i> Agregar
-                        </button>
-                      </div>
-                      <div class="card-body">
-                        <div class="table-responsive">
-                          <table class="table table-vacapp align-middle mb-0">
-                            <thead>
-                              <tr>
-                                <th>Nombre</th>
-                                <th class="text-end">Acciones</th>
-                              </tr>
-                            </thead>
-                            <tbody id="tabla-pasturas"></tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="card vacapp-card">
-                      <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
-                        <div>
-                          <h3 class="card-title mb-0">Estados del potrero</h3>
-                          <p class="text-secondary small mb-0">Color con el que se ve cada estado en el mapa de potreros.</p>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-success" onclick="abrirModalEstadoPotrero()">
-                          <i class="bi bi-plus-lg me-1"></i> Agregar
-                        </button>
-                      </div>
-                      <div class="card-body">
-                        <div class="table-responsive">
-                          <table class="table table-vacapp align-middle mb-0">
-                            <thead>
-                              <tr>
-                                <th>Color</th>
-                                <th>Estado</th>
-                                <th class="text-end">Acciones</th>
-                              </tr>
-                            </thead>
-                            <tbody id="tabla-estados-potrero"></tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <!--end::Potreros-->
-
-                  <!--begin::Usuarios y Roles-->
-                  <div class="tab-pane fade" id="tab-usuarios-roles">
-                    <div class="card vacapp-card">
-                      <div class="card-header bg-transparent border-0 pb-0">
-                        <h3 class="card-title">Usuarios y Roles</h3>
-                      </div>
-                      <div class="card-body d-flex align-items-center gap-3">
-                        <div class="text-bg-primary rounded-3 p-3"><i class="bi bi-people-fill fs-2"></i></div>
-                        <div class="flex-grow-1">
-                          <p class="mb-1">
-                            Los usuarios, los roles y la matriz de permisos por modulo se administran desde la seccion
-                            <strong>Usuarios</strong>, para evitar tener dos lugares distintos donde tocar lo mismo.
-                          </p>
-                          <a href="./usuarios.html" class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-box-arrow-up-right me-1"></i> Ir a Usuarios
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <!--end::Usuarios y Roles-->
 
                   <!--begin::Notificaciones-->
                   <div class="tab-pane fade" id="tab-notificaciones">
@@ -621,99 +359,6 @@
       <!--end::Footer-->
     </div>
 
-    <!--begin::Modal generico agregar/editar elemento de lista simple-->
-    <div class="modal fade" id="modalListaSimple" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="ls-modal-titulo">Nuevo elemento</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <label class="form-label">Nombre</label>
-            <input type="text" class="form-control" id="ls-modal-input" />
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-success" onclick="guardarListaSimple()">Guardar</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <!--end::Modal generico agregar/editar elemento de lista simple-->
-
-    <!--begin::Modal Vacuna-->
-    <div class="modal fade" id="modalVacuna" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="vac-modal-titulo">Nueva vacuna</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label">Nombre</label>
-                <input type="text" class="form-control" id="vac-nombre" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Laboratorio</label>
-                <input type="text" class="form-control" id="vac-laboratorio" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Tipo</label>
-                <select class="form-select" id="vac-tipo">
-                  <option>Viral</option>
-                  <option>Bacteriana</option>
-                  <option>Parasitaria</option>
-                </select>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Dosis recomendada</label>
-                <input type="text" class="form-control" id="vac-dosis" placeholder="Ej: 2 ml" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Frecuencia</label>
-                <input type="text" class="form-control" id="vac-frecuencia" placeholder="Ej: Anual" />
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-success" onclick="guardarVacuna()">Guardar</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <!--end::Modal Vacuna-->
-
-    <!--begin::Modal Estado de potrero-->
-    <div class="modal fade" id="modalEstadoPotrero" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="est-modal-titulo">Nuevo estado</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body row g-3">
-            <div class="col-8">
-              <label class="form-label">Nombre del estado</label>
-              <input type="text" class="form-control" id="est-nombre" />
-            </div>
-            <div class="col-4">
-              <label class="form-label">Color</label>
-              <input type="color" class="form-control form-control-color w-100" id="est-color" value="#0d6efd" />
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-success" onclick="guardarEstadoPotrero()">Guardar</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <!--end::Modal Estado de potrero-->
-
     <!--begin::Modal de confirmacion generico-->
     <div class="modal fade" id="modalConfirmar" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog">
@@ -735,5 +380,5 @@
 {% endblock %}
  
 {% block page_js %}
-    <script src="{% static 'js/configuracion.js' %}"></script>
+    <script src="{% static 'js/configuracion.js' %}?v=3"></script>
 {% endblock %}

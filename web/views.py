@@ -13,11 +13,14 @@ from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 
 from animales.models import Animal, MovimientoAnimal, Pesaje
-from establecimientos.models import Parcela
+from establecimientos.models import Establecimiento, Parcela
 from finanzas.models import Compra, MovimientoFinanciero, Venta
 from inventario.models import Dieta, Insumo, Lote, Consumo
 from sanidad.models import DetalleEvento, EventoSanitario, Enfermedad, Diagnostico
 from usuarios.models import Comprador, RolEstablecimiento, Usuario, Veterinario
+
+from .auth import ROL_PROPIETARIO, rol_requerido
+from .auth_views import _usuario_data
 
 
 def _categoria(animal):
@@ -81,6 +84,8 @@ def _animal_data(animal):
         'edad': _edad(animal), 'peso': f"{animal.peso_actual or 0} kg",
         'parcela': str(animal.parcela) if animal.parcela else 'Sin asignar',
         'parcela_id': animal.parcela_id,
+        'establecimiento_id': animal.establecimiento_id,
+        'establecimiento': str(animal.establecimiento) if animal.establecimiento else '',
         'estado': estado, 'ingreso': animal.fecha_nacimiento.isoformat() if animal.fecha_nacimiento else '-',
         'notas': animal.descripcion or '-',
         'tipo_animal': animal.tipo_animal, 'peso_al_nacer': str(animal.peso_al_nacer or ''),
@@ -98,14 +103,81 @@ def _animal_data(animal):
     }
 
 
-def _movimientos_data():
+def _establecimiento_actual(request):
+    """Devuelve el establecimiento activo en la sesión (o el único existente)."""
+    establecimiento_id = request.session.get('establecimiento_id')
+    if establecimiento_id:
+        try:
+            return Establecimiento.objects.get(pk=establecimiento_id)
+        except Establecimiento.DoesNotExist:
+            request.session.pop('establecimiento_id', None)
+    if Establecimiento.objects.count() == 1:
+        return Establecimiento.objects.first()
+    return None
+
+
+def _establecimiento_data(establecimiento):
+    total_animales = Animal.objects.filter(establecimiento=establecimiento).count()
+    total_parcelas = Parcela.objects.filter(establecimiento=establecimiento).count()
+    return {
+        'id': establecimiento.id,
+        'nombre': establecimiento.nombre,
+        'fecha_inicio': establecimiento.fecha_inicio.isoformat(),
+        'ubicacion': establecimiento.ubicacion,
+        'total_animales': total_animales,
+        'total_parcelas': total_parcelas,
+    }
+
+
+def _animales_de(request):
+    """Animales del establecimiento activo (o todos si no hay establecimiento seleccionado)."""
+    establecimiento = _establecimiento_actual(request)
+    qs = Animal.objects.all()
+    if establecimiento is not None:
+        # El establecimiento se guarda directo en el animal; se contempla el caso
+        # de animales históricos que solo lo tienen a través de su parcela.
+        qs = qs.filter(Q(establecimiento=establecimiento) | Q(establecimiento__isnull=True, parcela__establecimiento=establecimiento))
+    return qs
+
+
+def _parcelas_de(request):
+    establecimiento = _establecimiento_actual(request)
+    qs = Parcela.objects.all()
+    if establecimiento is not None:
+        qs = qs.filter(establecimiento=establecimiento)
+    return qs
+
+
+def _ventas_de(request):
+    """Ventas cuyo rodeo pertenece al establecimiento activo."""
+    qs = Venta.objects.all()
+    establecimiento = _establecimiento_actual(request)
+    if establecimiento is not None:
+        qs = qs.filter(animal__establecimiento=establecimiento).distinct()
+    return qs
+
+
+def _eventos_sanitarios_de(request):
+    """Eventos sanitarios aplicados a animales del establecimiento activo."""
+    qs = EventoSanitario.objects.all()
+    establecimiento = _establecimiento_actual(request)
+    if establecimiento is not None:
+        qs = qs.filter(detalles__animal__establecimiento=establecimiento).distinct()
+    return qs
+
+
+def _movimientos_data(request=None):
+    movimientos = MovimientoAnimal.objects.select_related('animal', 'origen', 'destino')
+    establecimiento = _establecimiento_actual(request) if request is not None else None
+    if establecimiento is not None:
+        movimientos = movimientos.filter(animal__establecimiento=establecimiento)
     return [{
         'fecha': m.fecha.isoformat(), 'hora': '', 'tipo': m.tipo,
         'caravana': str(m.animal.id_senasa), 'animal': m.animal.nombre,
         'categoria': _categoria(m.animal), 'cantidad': 1,
         'origen': str(m.origen) if m.origen else '-', 'destino': str(m.destino) if m.destino else '-',
         'usuario': 'Sistema', 'obs': m.observaciones or '-', 'estado': 'Confirmado',
-    } for m in MovimientoAnimal.objects.select_related('animal', 'origen', 'destino')]
+    } for m in movimientos]
 
 
 def _page(request, template, data_key=None, data=None):
@@ -115,21 +187,151 @@ def _page(request, template, data_key=None, data=None):
     return render(request, template, {'page_data_key': data_key, 'page_data': data or {}})
 
 
+def establecimientos_api(request):
+    """Lista los establecimientos registrados (JSON)."""
+    return JsonResponse({'establecimientos': [_establecimiento_data(e) for e in Establecimiento.objects.order_by('nombre')]})
+
+
+@require_POST
+def seleccionar_establecimiento(request):
+    """Guarda en la sesión el establecimiento activo para filtrar todo el sistema."""
+    establecimiento_id = request.POST.get('establecimiento_id')
+    if not establecimiento_id or establecimiento_id in ('', 'todos', 'all'):
+        request.session.pop('establecimiento_id', None)
+        return JsonResponse({'ok': True, 'establecimiento_id': None})
+    try:
+        establecimiento_id = int(establecimiento_id)
+        establecimiento = Establecimiento.objects.get(pk=establecimiento_id)
+    except (TypeError, ValueError, Establecimiento.DoesNotExist):
+        return JsonResponse({'error': 'El establecimiento seleccionado no existe.'}, status=400)
+    request.session['establecimiento_id'] = establecimiento.id
+    return JsonResponse({'ok': True, 'establecimiento_id': establecimiento.id, 'nombre': establecimiento.nombre})
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
+def crear_establecimiento(request):
+    """Registra un nuevo establecimiento y lo deja activo en la sesión."""
+    try:
+        establecimiento = Establecimiento(
+            nombre=request.POST['nombre'].strip(),
+            fecha_inicio=request.POST['fecha_inicio'],
+            ubicacion=request.POST['ubicacion'].strip(),
+        )
+        establecimiento.full_clean()
+        establecimiento.save()
+    except (KeyError, ValueError, ValidationError):
+        return JsonResponse({'error': 'Completá nombre, fecha de inicio y ubicación del establecimiento.'}, status=400)
+    request.session['establecimiento_id'] = establecimiento.id
+    return JsonResponse({'id': establecimiento.id, 'establecimiento': _establecimiento_data(establecimiento)}, status=201)
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
+def config_establecimiento_api(request):
+    """Guarda los datos del establecimiento activo (nombre, ubicación y logo)."""
+    establecimiento = _establecimiento_actual(request)
+    if establecimiento is None:
+        return JsonResponse({'error': 'No hay ningún establecimiento activo para configurar.'}, status=400)
+
+    nombre = request.POST.get('nombre', '').strip()
+    ubicacion = request.POST.get('ubicacion', '').strip()
+    fecha_inicio = request.POST.get('fecha_inicio', '')
+    if not nombre or not ubicacion:
+        return JsonResponse({'error': 'Completá el nombre y la ubicación del establecimiento.'}, status=400)
+
+    establecimiento.nombre = nombre
+    establecimiento.ubicacion = ubicacion
+    if fecha_inicio:
+        try:
+            establecimiento.fecha_inicio = date.fromisoformat(fecha_inicio)
+        except ValueError:
+            return JsonResponse({'error': 'La fecha de inicio no es válida.'}, status=400)
+    logo = request.FILES.get('logo')
+    if logo:
+        establecimiento.logo = logo
+
+    try:
+        establecimiento.full_clean()
+        establecimiento.save()
+    except ValidationError as error:
+        return JsonResponse({'error': str(error)}, status=400)
+
+    return JsonResponse({
+        'ok': True,
+        'establecimiento': {
+            'id': establecimiento.id,
+            'nombre': establecimiento.nombre,
+            'fecha_inicio': establecimiento.fecha_inicio.isoformat(),
+            'ubicacion': establecimiento.ubicacion,
+            'logo': establecimiento.logo.url if establecimiento.logo else '',
+        },
+    })
+
+
 def dashboard(request):
-    movimientos = _movimientos_data()[:10]
-    data = {'movimientos': [{**m, 'fecha': '/'.join(reversed(m['fecha'].split('-')))} for m in movimientos]}
+    establecimiento = _establecimiento_actual(request)
+    today = date.today()
+
+    animales = _animales_de(request)
+    ventas = _ventas_de(request)
+    eventos = _eventos_sanitarios_de(request)
+
+    ventas_mes = ventas.filter(fecha__year=today.year, fecha__month=today.month)
+    ingresos_mes = ventas_mes.aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+    gastos_mes = eventos.filter(estado=True, fecha_aplicacion__year=today.year, fecha_aplicacion__month=today.month).aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
+
+    kpi_total_animales = animales.count()
+    kpi_ventas_mes = ventas_mes.count()
+    kpi_peso_promedio = animales.aggregate(promedio=Avg('peso_actual'))['promedio'] or Decimal('0')
+
+    # Ganancias (ventas) y gastos (eventos aplicados) de los últimos 12 meses
+    meses, ingresos_series, egresos_series = [], [], []
+    for i in range(11, -1, -1):
+        mes = (today.month - i - 1) % 12 + 1
+        anio = today.year + ((today.month - i - 1) // 12)
+        meses.append(f'{mes:02d}/{anio}')
+        ingresos_series.append(float(ventas.filter(fecha__year=anio, fecha__month=mes).aggregate(total=Sum('monto_total'))['total'] or 0))
+        egresos_series.append(float(eventos.filter(estado=True, fecha_aplicacion__year=anio, fecha_aplicacion__month=mes).aggregate(total=Sum('costo_total'))['total'] or 0))
+
+    # Distribución del rodeo por categoría
+    distribucion = {}
+    for animal in animales:
+        categoria = _categoria(animal) or animal.tipo_animal
+        distribucion[categoria] = distribucion.get(categoria, 0) + 1
+
+    movimientos = _movimientos_data(request)[:10]
+    data = {
+        'establecimiento_id': establecimiento.id if establecimiento else None,
+        'movimientos': [{**m, 'fecha': '/'.join(reversed(m['fecha'].split('-')))} for m in movimientos],
+        'kpis': {
+            'total_animales': kpi_total_animales,
+            'ventas_mes': kpi_ventas_mes,
+            'gastos_mes': float(gastos_mes),
+            'peso_promedio': round(float(kpi_peso_promedio), 2),
+            'ingresos_mes': float(ingresos_mes),
+        },
+        'chart': {
+            'labels_json': json.dumps(meses),
+            'ingresos_json': json.dumps(ingresos_series),
+            'egresos_json': json.dumps(egresos_series),
+        },
+        'distribucion': distribucion,
+    }
     return _page(request, 'index.html', 'dashboard', data)
 
 
 def stock(request):
-    animales = Animal.objects.select_related('parcela', 'dieta', 'madre', 'padre', 'compra', 'venta').all()
+    animales = _animales_de(request).select_related('parcela', 'dieta', 'madre', 'padre', 'compra', 'venta')
+    establecimiento = _establecimiento_actual(request)
     return _page(request, 'stock.html', 'stock', {
         'animales': [_animal_data(a) for a in animales],
-        'parcelas': [{'id': p.id, 'nombre': str(p)} for p in Parcela.objects.select_related('establecimiento')],
+        'parcelas': [{'id': p.id, 'nombre': str(p)} for p in _parcelas_de(request).select_related('establecimiento')],
         'dietas': [{'id': d.id, 'nombre': str(d)} for d in Dieta.objects.all()],
         'progenitores': [{'id': a.id, 'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}', 'sexo': a.sexo} for a in animales],
         'compras': [{'id': c.id, 'nombre': str(c)} for c in Compra.objects.all()],
-        'ventas': [{'id': v.id, 'nombre': str(v)} for v in Venta.objects.all()],
+        'ventas': [{'id': v.id, 'nombre': str(v)} for v in _ventas_de(request)],
+        'establecimiento_id': establecimiento.id if establecimiento else None,
     })
 
 
@@ -178,8 +380,11 @@ def _movimientos_financieros_data():
     } for m in MovimientoFinanciero.objects.order_by('-fecha', '-id')]
 
 
+@rol_requerido(ROL_PROPIETARIO)
 def finanzas(request):
     # Pantalla central de Finanzas: métricas, gráfico y listado CRUD de movimientos financieros.
+    # Los movimientos financieros no tienen establecimiento asociado en la base de datos,
+    # por lo que se muestran de forma global para todos los establecimientos.
     today = date.today()
     anio = today.year
     mes = today.month
@@ -223,6 +428,7 @@ def _parse_decimal(value):
     return Decimal(str(value)) if value is not None and str(value).strip() != '' else None
 
 
+@rol_requerido(ROL_PROPIETARIO)
 def finanzas_api_list_create(request):
     """GET: lista movimientos (JSON). POST: crear movimiento financiero."""
     if request.method == 'GET':
@@ -250,6 +456,7 @@ def finanzas_api_list_create(request):
 
 
 @require_POST
+@rol_requerido(ROL_PROPIETARIO)
 def actualizar_movimiento_financiero(request, movimiento_id):
     try:
         movimiento = get_object_or_404(MovimientoFinanciero.objects.select_for_update(), pk=movimiento_id)
@@ -275,6 +482,7 @@ def actualizar_movimiento_financiero(request, movimiento_id):
 
 
 @require_POST
+@rol_requerido(ROL_PROPIETARIO)
 def eliminar_movimiento_financiero(request, movimiento_id):
     movimiento = get_object_or_404(MovimientoFinanciero, pk=movimiento_id)
     movimiento.delete()
@@ -289,9 +497,10 @@ def _sincronizar_costo_entidades(movimiento):
     EventoSanitario.objects.filter(mov_financiero_id=movimiento.id).update(costo_total=monto)
 
 
+@rol_requerido(ROL_PROPIETARIO)
 def ventas(request):
-    animales = Animal.objects.filter(vivo=True, vendido=False).select_related('parcela')
-    ventas_registradas = Venta.objects.select_related('comprador').prefetch_related('animal_set').order_by('-fecha', '-id')
+    animales = _animales_de(request).filter(vivo=True, vendido=False).select_related('parcela')
+    ventas_registradas = _ventas_de(request).select_related('comprador').prefetch_related('animal_set').order_by('-fecha', '-id')
     today = date.today()
     total_ventas = ventas_registradas.count()
     ganancia_total = ventas_registradas.aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
@@ -301,7 +510,7 @@ def ventas(request):
     chart_labels = [str(year) for year in chart_years]
     chart_series = []
     for year in chart_years:
-        total = Venta.objects.filter(fecha__year=year).aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+        total = ventas_registradas.filter(fecha__year=year).aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
         chart_series.append(float(total))
 
     return _page(request, 'ventas.html', 'ventas', {
@@ -321,6 +530,7 @@ def ventas(request):
     })
 
 
+@rol_requerido(ROL_PROPIETARIO)
 def compras(request):
     compras_registradas = Compra.objects.select_related('proveedor').order_by('-fecha', '-id')
     return _page(request, 'compras.html', 'compras', {'compras': [{
@@ -330,14 +540,19 @@ def compras(request):
 
 
 def potreros(request):
-    parcelas = Parcela.objects.select_related('establecimiento').prefetch_related('animal_set')
+    parcelas = _parcelas_de(request).select_related('establecimiento').prefetch_related('animal_set')
     datos, animales = [], {}
     for p in parcelas:
         nombre = _nombre_parcela(p)
         residentes = [_animal_data(a) for a in p.animal_set.filter(vivo=True, vendido=False)]
         animales[nombre] = residentes
         datos.append(_parcela_data(p, actual=len(residentes)))
-    return _page(request, 'potreros.html', 'potreros', {'potreros': datos, 'animales_por_potrero': animales})
+    establecimiento = _establecimiento_actual(request)
+    return _page(request, 'potreros.html', 'potreros', {
+        'potreros': datos,
+        'animales_por_potrero': animales,
+        'establecimiento_id': establecimiento.id if establecimiento else None,
+    })
 
 
 def _lote_data(lote):
@@ -602,21 +817,24 @@ def _recalcular_estado_enfermo(animal):
 
 def sanidad(request):
     today = date.today()
-    eventos = EventoSanitario.objects.select_related('veterinario', 'diagnostico', 'lote').prefetch_related('detalles__animal__parcela').order_by('-fecha_aplicacion', '-id')
-    eventos_aplicados_mes = EventoSanitario.objects.filter(
+    eventos = _eventos_sanitarios_de(request).select_related('veterinario', 'diagnostico', 'lote').prefetch_related('detalles__animal__parcela').order_by('-fecha_aplicacion', '-id')
+    eventos_aplicados_mes = eventos.filter(
         estado=True,
         fecha_aplicacion__year=today.year, fecha_aplicacion__month=today.month,
     ).count()
-    proximas_aplicaciones = EventoSanitario.objects.filter(
+    proximas_aplicaciones = eventos.filter(
         estado=False, fecha_aplicacion__gte=today,
     ).count()
-    animales_enfermos = Animal.objects.filter(enfermo=True).count()
+    animales = _animales_de(request).filter(vivo=True).select_related('parcela').order_by('id_senasa')
+    animales_enfermos = animales.filter(enfermo=True).count()
     enfermedades = Enfermedad.objects.order_by('nombre')
     diagnosticos = Diagnostico.objects.select_related('animal', 'enfermedad').order_by('-fecha_deteccion')
+    establecimiento = _establecimiento_actual(request)
+    if establecimiento is not None:
+        diagnosticos = diagnosticos.filter(animal__establecimiento=establecimiento)
     veterinarios = Veterinario.objects.order_by('apellido', 'nombre')
     lotes = Lote.objects.select_related('insumo').order_by('insumo__nombre', 'fechaVencimiento')
     # Incluir animales vivos aunque ya hayan sido vendidos para permitir registrar eventos y diagnósticos históricos.
-    animales = Animal.objects.filter(vivo=True).select_related('parcela').order_by('id_senasa')
 
     data = {
         'kpis': {
@@ -717,7 +935,7 @@ def vacunacion(request):
 
 
 def pesajes(request):
-    animales = list(Animal.objects.select_related('parcela').all())
+    animales = list(_animales_de(request).select_related('parcela').all())
     historial = {str(a.id_senasa): [{'fecha': p.fecha.strftime('%d/%m/%Y'), 'peso': float(p.peso)} for p in a.pesajes.all()] for a in animales}
     data = {'animales_pesaje': [_animal_data(a) | {'responsable': 'Sistema'} for a in animales], 'historial': historial}
     return _page(request, 'pesajes.html', 'pesajes', data)
@@ -732,25 +950,30 @@ def alimentacion(request):
     return _page(request, 'alimentacion.html', 'alimentacion', data)
 
 
+@rol_requerido(ROL_PROPIETARIO)
 def usuarios(request):
-    roles = {r.usuario_id: r for r in RolEstablecimiento.objects.select_related('usuario__persona')}
-    data = {'usuarios': [{
-        'id': u.id, 'nombre': u.persona.nombre, 'apellido': u.persona.apellido,
-        'usuario': u.nombre_usuario, 'email': u.persona.correo_electronico,
-        'telefono': '', 'cargo': '', 'rol': roles[u.id].nombre if u.id in roles else 'Operario',
-        'estado': 'Activo' if u.id in roles and roles[u.id].estado_acceso else 'Inactivo',
-        'creado': roles[u.id].fecha_ingreso.isoformat() if u.id in roles else date.today().isoformat(),
-        'acceso': date.today().isoformat() + 'T00:00', 'conectado': False,
-    } for u in Usuario.objects.select_related('persona')]}
+    usuarios_data = [_usuario_data(u) for u in Usuario.objects.select_related('persona')]
+    data = {'usuarios': usuarios_data,
+            'establecimientos_data': [{'id': e.id, 'nombre': e.nombre} for e in Establecimiento.objects.order_by('nombre')]}
     return _page(request, 'usuarios.html', 'usuarios', data)
 
 
+@rol_requerido(ROL_PROPIETARIO)
 def configuracion(request):
     return _page(request, 'configuracion.html')
 
 
 def stock_api(request):
-    return JsonResponse({'animales': [_animal_data(a) for a in Animal.objects.select_related('parcela', 'dieta', 'madre', 'padre', 'compra', 'venta')]})
+    return JsonResponse({'animales': [_animal_data(a) for a in _animales_de(request).select_related('parcela', 'dieta', 'madre', 'padre', 'compra', 'venta')]})
+
+
+def _validar_parcela_del_establecimiento(request, parcela_id):
+    """Rechaza parcelas que no pertenezcan al establecimiento activo de la sesión."""
+    establecimiento = _establecimiento_actual(request)
+    if establecimiento is None or not parcela_id:
+        return
+    if not Parcela.objects.filter(pk=parcela_id, establecimiento=establecimiento).exists():
+        raise ValueError('La parcela seleccionada no pertenece al establecimiento activo.')
 
 
 def _asignar_campos_animal(animal, datos, es_alta=False):
@@ -769,7 +992,15 @@ def _asignar_campos_animal(animal, datos, es_alta=False):
     animal.enfermo = datos.get('enfermo') == 'on'
     animal.castrado = datos.get('castrado') == 'on'
     animal.color = datos.get('color', '').strip() or None
-    animal.parcela_id = datos.get('parcela_id') or None
+    parcela_id = datos.get('parcela_id') or None
+    animal.parcela_id = parcela_id
+    # El establecimiento se asigna directo; si no se envía, se deduce de la parcela.
+    establecimiento_id = datos.get('establecimiento_id') or None
+    if not establecimiento_id and parcela_id:
+        parcela = Parcela.objects.filter(pk=parcela_id).only('establecimiento_id').first()
+        if parcela is not None:
+            establecimiento_id = parcela.establecimiento_id
+    animal.establecimiento_id = establecimiento_id
     animal.dieta_id = datos.get('dieta_id') or None
     animal.madre_id = datos.get('madre_id') or None
     animal.padre_id = datos.get('padre_id') or None
@@ -791,6 +1022,11 @@ def crear_animal(request):
     try:
         animal = Animal()
         _asignar_campos_animal(animal, request.POST, es_alta=True)
+        _validar_parcela_del_establecimiento(request, animal.parcela_id)
+        if not animal.establecimiento_id:
+            establecimiento = _establecimiento_actual(request)
+            if establecimiento is not None:
+                animal.establecimiento_id = establecimiento.id
         if 'foto' in request.FILES and request.FILES['foto']:
             animal.foto = request.FILES['foto']
         animal.full_clean()
@@ -812,6 +1048,7 @@ def actualizar_animal(request, animal_id):
     animal = get_object_or_404(Animal, pk=animal_id)
     try:
         _asignar_campos_animal(animal, request.POST)
+        _validar_parcela_del_establecimiento(request, animal.parcela_id)
         if 'foto' in request.FILES and request.FILES['foto']:
             animal.foto = request.FILES['foto']
         animal.full_clean()
@@ -842,8 +1079,9 @@ def crear_potrero(request):
 
         establecimiento_id = request.POST.get('establecimiento_id')
         if not establecimiento_id:
-            from establecimientos.models import Establecimiento
-            establecimiento = Establecimiento.objects.order_by('id').first()
+            establecimiento = _establecimiento_actual(request)
+            if establecimiento is None:
+                establecimiento = Establecimiento.objects.order_by('id').first()
             if establecimiento is None:
                 establecimiento = Establecimiento.objects.create(
                     nombre='Establecimiento principal',
@@ -887,15 +1125,22 @@ def crear_pesaje(request):
 
 @require_POST
 def crear_movimiento(request):
-    animal = get_object_or_404(Animal, pk=request.POST.get('animal_id'))
-    movimiento = MovimientoAnimal.objects.create(
-        animal=animal, fecha=request.POST.get('fecha') or date.today(), tipo=request.POST['tipo'],
-        origen_id=request.POST.get('origen_id') or None, destino_id=request.POST.get('destino_id') or None,
-        observaciones=request.POST.get('observaciones', ''),
-    )
+    try:
+        _validar_parcela_del_establecimiento(request, request.POST.get('origen_id'))
+        _validar_parcela_del_establecimiento(request, request.POST.get('destino_id'))
+        animal = get_object_or_404(Animal, pk=request.POST.get('animal_id'))
+        movimiento = MovimientoAnimal.objects.create(
+            animal=animal, fecha=request.POST.get('fecha') or date.today(), tipo=request.POST['tipo'],
+            origen_id=request.POST.get('origen_id') or None, destino_id=request.POST.get('destino_id') or None,
+            observaciones=request.POST.get('observaciones', ''),
+        )
+    except (ValueError, KeyError, ValidationError):
+        return JsonResponse({'error': 'La parcela seleccionada no pertenece al establecimiento activo.'}, status=400)
     if movimiento.destino_id:
         animal.parcela_id = movimiento.destino_id
-        animal.save(update_fields=['parcela'])
+        if movimiento.destino is not None:
+            animal.establecimiento_id = movimiento.destino.establecimiento_id
+        animal.save(update_fields=['parcela', 'establecimiento'])
     return JsonResponse({'id': movimiento.id})
 
 
@@ -968,6 +1213,7 @@ def _revertir_venta(venta):
 
 
 @require_POST
+@rol_requerido(ROL_PROPIETARIO)
 def crear_comprador(request):
     try:
         comprador = Comprador.objects.create(
@@ -984,6 +1230,7 @@ def crear_comprador(request):
 
 
 @require_POST
+@rol_requerido(ROL_PROPIETARIO)
 def actualizar_comprador(request, comprador_id):
     comprador = get_object_or_404(Comprador, pk=comprador_id)
     try:
@@ -1001,6 +1248,7 @@ def actualizar_comprador(request, comprador_id):
 
 
 @require_POST
+@rol_requerido(ROL_PROPIETARIO)
 def eliminar_comprador(request, comprador_id):
     comprador = get_object_or_404(Comprador, pk=comprador_id)
     comprador.delete()
@@ -1008,6 +1256,7 @@ def eliminar_comprador(request, comprador_id):
 
 
 @require_POST
+@rol_requerido(ROL_PROPIETARIO)
 def crear_venta(request):
     try:
         with transaction.atomic():
@@ -1019,6 +1268,7 @@ def crear_venta(request):
 
 
 @require_POST
+@rol_requerido(ROL_PROPIETARIO)
 def actualizar_venta(request, venta_id):
     try:
         with transaction.atomic():
@@ -1031,6 +1281,7 @@ def actualizar_venta(request, venta_id):
 
 
 @require_POST
+@rol_requerido(ROL_PROPIETARIO)
 def eliminar_venta(request, venta_id):
     with transaction.atomic():
         venta = get_object_or_404(Venta.objects.select_for_update(), pk=venta_id)

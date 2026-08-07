@@ -195,6 +195,7 @@
           <div class="modal-body">
             <form id="form-nuevo-potrero">
               <input type="hidden" name="id" id="form-potrero-id" value="">
+              <input type="hidden" name="establecimiento_id" value="{{ establecimiento_actual_id|default:'' }}">
               <div class="row g-2">
                 <div class="col-md-6">
                   <label class="form-label small mb-1">Referencia</label>

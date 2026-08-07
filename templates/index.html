@@ -14,7 +14,14 @@
     <div class="row align-items-center">
       <div class="col-lg-5">
         <h3 class="mb-0">Dashboard</h3>
-        <p class="text-secondary mb-0">Resumen general del establecimiento ganadero.</p>
+        <p class="text-secondary mb-0">
+          {% if establecimiento_actual %}
+            Resumen general de <span class="fw-semibold text-body">{{ establecimiento_actual.nombre }}</span>
+            {% if establecimiento_actual.ubicacion %} &middot; {{ establecimiento_actual.ubicacion }}{% endif %}
+          {% else %}
+            Resumen general del establecimiento ganadero.
+          {% endif %}
+        </p>
       </div>
       <div class="col-lg-7 mt-3 mt-lg-0">
         <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2">
@@ -22,9 +29,15 @@
             <div id="fecha-actual" class="fw-semibold text-body"></div>
             <div id="hora-actual"></div>
           </div>
-          <select class="form-select form-select-sm w-auto" disabled title="Disponible en una proxima version">
-            <option>Establecimiento Principal</option>
-          </select>
+          {% if establecimiento_actual %}
+            <span class="badge text-bg-primary py-2 px-3" title="Establecimiento activo">
+              <i class="bi bi-buildings me-1"></i> {{ establecimiento_actual.nombre }}
+            </span>
+          {% elif es_propietario %}
+            <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-establecimiento">
+              <i class="bi bi-plus-circle me-1"></i> Registrar establecimiento
+            </button>
+          {% endif %}
           <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-actualizar">
             <i class="bi bi-arrow-clockwise me-1"></i> Actualizar
           </button>
@@ -34,6 +47,27 @@
   </div>
 </div>
 <!--end::App Content Header-->
+
+<!--begin::Alerta sin establecimientos-->
+{% if not establecimiento_actual and establecimientos|length == 0 %}
+<div class="alert alert-warning d-flex align-items-center gap-3" role="alert">
+  <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+  <div class="flex-grow-1">
+    <strong>Todavia no hay establecimientos registrados.</strong>
+    {% if es_propietario %}
+    Registrá tu primer establecimiento para comenzar a cargar animales, parcelas y movimientos.
+    {% else %}
+    Contactate con el propietario para que registre un establecimiento.
+    {% endif %}
+  </div>
+  {% if es_propietario %}
+  <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#modal-establecimiento">
+    <i class="bi bi-plus-circle me-1"></i> Registrar establecimiento
+  </button>
+  {% endif %}
+</div>
+{% endif %}
+<!--end::Alerta sin establecimientos-->
  
 <!--begin::App Content-->
 <div class="app-content">
@@ -45,21 +79,22 @@
           <div class="card-body d-flex align-items-center gap-3">
             <div class="text-bg-primary rounded-3 p-2"><i class="bi bi-cow fs-4"></i></div>
             <div>
-              <h4 class="mb-0">260</h4>
+              <h4 class="mb-0" id="kpi-total-animales">0</h4>
               <small class="text-secondary d-block">Total de animales</small>
-              <span class="kpi-variacion up"><i class="bi bi-arrow-up-short"></i>5% vs mes anterior</span>
+              <span class="kpi-variacion up"><i class="bi bi-arrow-up-short"></i>del establecimiento activo</span>
             </div>
           </div>
         </div>
       </div>
+      {% if es_propietario %}
       <div class="col">
         <div class="card vacapp-card h-100">
           <div class="card-body d-flex align-items-center gap-3">
             <div class="text-bg-secondary rounded-3 p-2"><i class="bi bi-cash-coin fs-4"></i></div>
             <div>
-              <h4 class="mb-0">5</h4>
+              <h4 class="mb-0" id="kpi-ventas-mes">0</h4>
               <small class="text-secondary d-block">Ventas del mes</small>
-              <span class="kpi-variacion down"><i class="bi bi-arrow-down-short"></i>1 vs mes anterior</span>
+              <span class="kpi-variacion up"><i class="bi bi-arrow-up-short"></i>del establecimiento activo</span>
             </div>
           </div>
         </div>
@@ -69,42 +104,46 @@
           <div class="card-body d-flex align-items-center gap-3">
             <div class="text-bg-dark rounded-3 p-2"><i class="bi bi-wallet2 fs-4"></i></div>
             <div>
-              <h4 class="mb-0">$2.900.000</h4>
+              <h4 class="mb-0" id="kpi-gastos-mes">$0</h4>
               <small class="text-secondary d-block">Gastos del mes</small>
-              <span class="kpi-variacion down"><i class="bi bi-arrow-up-short"></i>3.6% vs mes anterior</span>
+              <span class="kpi-variacion up"><i class="bi bi-arrow-up-short"></i>eventos sanitarios aplicados</span>
             </div>
           </div>
         </div>
       </div>
+      {% endif %}
       <div class="col">
         <div class="card vacapp-card h-100">
           <div class="card-body d-flex align-items-center gap-3">
             <div class="text-bg-warning rounded-3 p-2"><i class="bi bi-speedometer2 fs-4"></i></div>
             <div>
-              <h4 class="mb-0">410 kg</h4>
+              <h4 class="mb-0" id="kpi-peso-promedio">0 kg</h4>
               <small class="text-secondary d-block">Peso promedio</small>
-              <span class="kpi-variacion up"><i class="bi bi-arrow-up-short"></i>1.5% vs mes anterior</span>
+              <span class="kpi-variacion up"><i class="bi bi-arrow-up-short"></i>de los animales activos</span>
             </div>
           </div>
         </div>
       </div>
+      {% if es_propietario %}
       <div class="col">
         <div class="card vacapp-card h-100">
           <div class="card-body d-flex align-items-center gap-3">
             <div class="text-bg-success rounded-3 p-2"><i class="bi bi-graph-up-arrow fs-4"></i></div>
             <div>
-              <h4 class="mb-0">$5.600.000</h4>
+              <h4 class="mb-0" id="kpi-ingresos-mes">$0</h4>
               <small class="text-secondary d-block">Ingresos del mes</small>
-              <span class="kpi-variacion up"><i class="bi bi-arrow-up-short"></i>7.7% vs mes anterior</span>
+              <span class="kpi-variacion up"><i class="bi bi-arrow-up-short"></i>por ventas del establecimiento</span>
             </div>
           </div>
         </div>
       </div>
+      {% endif %}
     </div>
     <!--end::KPIs-->
  
     <!--begin::Graficos fila 1-->
     <div class="row g-3 mb-3">
+      {% if es_propietario %}
       <div class="col-lg-7">
         <div class="card vacapp-card h-100">
           <div class="card-header bg-transparent border-0 pb-0">
@@ -115,7 +154,8 @@
           </div>
         </div>
       </div>
-      <div class="col-lg-5">
+      {% endif %}
+      <div class="col{% if es_propietario %}-lg-5{% else %}-12{% endif %}">
         <div class="card vacapp-card h-100">
           <div class="card-header bg-transparent border-0 pb-0">
             <h3 class="card-title">Distribucion del rodeo</h3>

@@ -15,6 +15,57 @@
 
     <!--begin::End Navbar Links-->
     <ul class="navbar-nav ms-auto">
+      <!--begin::Establecimiento selector-->
+      <li class="nav-item dropdown me-2">
+        <a class="nav-link dropdown-toggle d-flex align-items-center gap-1" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">
+          <i class="bi bi-buildings"></i>
+          <span class="d-none d-lg-inline text-truncate" style="max-width: 16rem;" id="establecimiento-actual-nombre">
+            {{ establecimiento_actual.nombre|default:'Todos los establecimientos' }}
+          </span>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end" id="menu-establecimientos">
+          <li>
+            <h6 class="dropdown-header d-flex justify-content-between align-items-center">
+              Establecimientos
+              {% if es_propietario %}
+              <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modal-establecimiento" title="Registrar establecimiento">
+                <i class="bi bi-plus-lg"></i> Nuevo
+              </button>
+              {% endif %}
+            </h6>
+          </li>
+          <li>
+            <button type="button" class="dropdown-item{% if not establecimiento_actual_id %} active{% endif %}" data-establecimiento-id="">
+              <i class="bi bi-grid-fill me-2"></i> Todos los establecimientos
+            </button>
+          </li>
+          <li><hr class="dropdown-divider" /></li>
+          {% for establecimiento in establecimientos %}
+            <li>
+              <button type="button" class="dropdown-item d-flex justify-content-between align-items-center gap-2{% if establecimiento_actual_id == establecimiento.id %} active{% endif %}" data-establecimiento-id="{{ establecimiento.id }}">
+                <span class="text-truncate"><i class="bi bi-buildings me-2"></i> {{ establecimiento.nombre }}</span>
+                <span class="badge text-bg-light flex-shrink-0">{{ establecimiento.parcelas.count }}</span>
+              </button>
+            </li>
+          {% empty %}
+            <li>
+              <span class="dropdown-item-text text-secondary small">
+                No hay establecimientos registrados todavía.
+              </span>
+            </li>
+          {% endfor %}
+          <li><hr class="dropdown-divider" /></li>
+          {% if es_propietario %}
+          <li>
+            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modal-establecimiento">
+              <i class="bi bi-plus-circle me-2"></i> Registrar establecimiento
+            </button>
+          </li>
+          {% endif %}
+        </ul>
+      </li>
+      <!--end::Establecimiento selector-->
+
       <!--begin::Navbar Search-->
       <li class="nav-item">
         <a class="nav-link" data-widget="navbar-search" href="#" role="button">
@@ -113,7 +164,9 @@
             class="user-image rounded-circle shadow"
             alt="User Image"
           />
-          <span class="d-none d-md-inline">Usuario</span>
+          <span class="d-none d-md-inline">
+            {{ usuario_actual.persona.nombre|default:usuario_actual.nombre_usuario|default:'Usuario' }}
+          </span>
         </a>
         <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
           <li class="user-header text-bg-primary">
@@ -122,11 +175,17 @@
               class="rounded-circle shadow"
               alt="User Image"
             />
-            <p>Usuario<small>GanaStock</small></p>
+            <p>
+              {{ usuario_actual.persona.nombre|default:usuario_actual.nombre_usuario|default:'Usuario' }}
+              {% if usuario_actual.persona.apellido %} {{ usuario_actual.persona.apellido }}{% endif %}
+              <small>{% if es_propietario %}Propietario{% else %}Operario{% endif %} · GanaStock</small>
+            </p>
           </li>
           <li class="user-footer">
-            <a href="#" class="btn btn-outline-secondary">Perfil</a>
-            <a href="#" class="btn btn-outline-danger float-end">Cerrar sesion</a>
+            <form method="post" action="{% url 'logout' %}" class="d-flex justify-content-between">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline-danger">Cerrar sesión</button>
+            </form>
           </li>
         </ul>
       </li>
