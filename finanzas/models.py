@@ -42,8 +42,7 @@ class Compra(models.Model):
 class Venta(models.Model):
     tipo = models.CharField(max_length=100)
     fecha = models.DateField()
-    # El peso se conserva en la venta para que el comprobante no cambie si el
-    # animal recibe nuevos pesajes luego de haber sido vendido.
+    # El peso se conserva en la venta para que el comprobante no cambie.
     peso_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     precio_por_kg = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     monto_total = models.DecimalField(max_digits=12, decimal_places=2)

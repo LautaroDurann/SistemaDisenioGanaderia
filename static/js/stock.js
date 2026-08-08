@@ -87,7 +87,7 @@
         { caravana: '0056', nombre: 'Paloma', categoria: 'Vaquillona', sexo: 'Hembra', raza: 'Angus', edad: '1 año', peso: '280 kg', potrero: 'Potrero 4', estado: 'Activo', ingreso: '18/01/2026', notas: 'Buena candidata a servicio en la próxima temporada.' },
         { caravana: '0412', nombre: 'S/N', categoria: 'Ternero', sexo: 'Hembra', raza: 'Hereford', edad: '3 meses', peso: '95 kg', potrero: 'Potrero 1', estado: 'Activo', ingreso: '20/04/2026', notas: 'Excelente desarrollo, mejor ganancia diaria del lote de terneros.' },
         { caravana: '0177', nombre: 'Trueno', categoria: 'Toro', sexo: 'Macho', raza: 'Angus', edad: '3 años', peso: '680 kg', potrero: 'Potrero 4', estado: 'Activo', ingreso: '11/09/2023', notas: 'Reproductor de respaldo, sin observaciones sanitarias.' },
-        { caravana: '0263', nombre: 'Rocío', categoria: 'Vaca', sexo: 'Hembra', raza: 'Braford', edad: '5 años', peso: '495 kg', potrero: 'Potrero 2', estado: 'Activo', ingreso: '07/06/2021', notas: 'Pendiente de próximo control de peso, sin pesaje reciente.' },
+        { caravana: '0263', nombre: 'Rocío', categoria: 'Vaca', sexo: 'Hembra', raza: 'Braford', edad: '5 años', peso: '495 kg', potrero: 'Potrero 2', estado: 'Activo', ingreso: '07/06/2021', notas: 'Pendiente de próximo control de peso.' },
         { caravana: '0329', nombre: 'S/N', categoria: 'Novillo', sexo: 'Macho', raza: 'Hereford', edad: '2 años', peso: '410 kg', potrero: 'Potrero 1', estado: 'Vendido', ingreso: '02/02/2024', notas: 'Vendido por baja administrativa junto con el lote de novillos.' },
       ];
       ANIMALES.forEach((animal) => {

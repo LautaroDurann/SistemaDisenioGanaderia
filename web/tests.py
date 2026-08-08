@@ -10,7 +10,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
-from animales.models import Animal, MovimientoAnimal, Parto, Pesaje, Preniez
+from animales.models import Animal, MovimientoAnimal, Parto, Preniez
 from establecimientos.models import Establecimiento, Parcela
 from finanzas.models import Compra, MovimientoFinanciero, Venta
 from sanidad.models import DetalleEvento, EventoSanitario
@@ -43,7 +43,7 @@ class WebIntegrationTests(TestCase):
         session.save()
 
     def test_paginas_principales_responden(self):
-        for url_name in ('dashboard', 'stock', 'movimientos', 'potreros', 'vacunacion', 'sanidad', 'pesajes', 'alimentacion', 'usuarios', 'configuracion', 'prenieces'):
+        for url_name in ('dashboard', 'stock', 'movimientos', 'potreros', 'vacunacion', 'sanidad', 'alimentacion', 'usuarios', 'configuracion', 'prenieces'):
             with self.subTest(url_name=url_name):
                 self.assertEqual(self.client.get(reverse(url_name)).status_code, 200)
 
@@ -224,18 +224,10 @@ class WebIntegrationTests(TestCase):
         self.assertIn(str(self.animal.id_senasa), mensaje)
         self.assertNotIn(f'El animal {self.animal.idAnimal}', mensaje)
 
-    def test_api_stock_y_registro_de_pesaje(self):
+    def test_api_stock(self):
         response = self.client.get(reverse('stock_api'))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['animales'][0]['caravana'], '12345')
-
-        response = self.client.post(reverse('crear_pesaje'), {
-            'animal_id': self.animal.idAnimal, 'fecha': '2026-08-01', 'peso': '350.50',
-        })
-        self.assertEqual(response.status_code, 200)
-        self.animal.refresh_from_db()
-        self.assertEqual(str(self.animal.peso_actual), '350.50')
-        self.assertEqual(Pesaje.objects.count(), 1)
 
     def test_crear_animal_desde_stock(self):
         response = self.client.post(reverse('crear_animal'), {

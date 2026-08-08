@@ -110,21 +110,6 @@ class Preniez(models.Model):
         return f"Preñez {self.id} - Madre SENASA: {caravana}"
 
 
-class Pesaje(models.Model):
-    """Registro histórico: el peso_actual del animal es solo una referencia rápida."""
-    animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='pesajes')
-    fecha = models.DateField()
-    peso = models.DecimalField(max_digits=8, decimal_places=2)
-    observaciones = models.TextField(blank=True, null=True)
-
-    class Meta:
-        ordering = ['fecha', 'id']
-
-    def __str__(self):
-        caravana = self.animal.id_senasa if self.animal and self.animal.id_senasa is not None else 'Sin caravana'
-        return f"Pesaje {caravana}: {self.peso} kg"
-
-
 class MovimientoAnimal(models.Model):
     TIPO_CHOICES = [
         ('Alta', 'Alta'), ('Traslado', 'Traslado'), ('Venta', 'Venta'),

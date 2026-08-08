@@ -1,10 +1,10 @@
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from animales.models import Animal, MovimientoAnimal, Pesaje, Preniez
+from animales.models import Animal, MovimientoAnimal, Preniez
 from establecimientos.models import Establecimiento, Parcela
 
 
@@ -108,33 +108,6 @@ class Command(BaseCommand):
         )
         return potrero
 
-    def _pesajes(self, animal, categoria, peso_actual):
-        nac = animal.fecha_nacimiento
-        if categoria == 'Ternero':
-            Pesaje.objects.get_or_create(
-                animal=animal, fecha=nac, peso=animal.peso_al_nacer,
-                defaults={'observaciones': 'Peso al nacer'},
-            )
-            Pesaje.objects.get_or_create(
-                animal=animal, fecha=date.today() - timedelta(days=15),
-                peso=_peso(round(float(peso_actual) * 0.95, 2)),
-                defaults={'observaciones': 'Pesaje de rutina'},
-            )
-        else:
-            mes_destete = nac.month + 7
-            anio_destete = nac.year + (mes_destete - 1) // 12
-            mes_destete = (mes_destete - 1) % 12 + 1
-            Pesaje.objects.get_or_create(
-                animal=animal, fecha=date(anio_destete, mes_destete, min(nac.day, 28)),
-                peso=animal.peso_al_destete,
-                defaults={'observaciones': 'Pesaje al destete'},
-            )
-            Pesaje.objects.get_or_create(
-                animal=animal, fecha=date.today() - timedelta(days=120),
-                peso=_peso(round(float(peso_actual) * 0.97, 2)),
-                defaults={'observaciones': 'Pesaje de control'},
-            )
-
     def _crear_animal(self, caravana, nombre, sexo, raza, color, nacimiento, peso_actual, categoria, potrero, madre=None, padre=None, costo=None):
         peso = _peso(peso_actual)
         peso_al_nacer = _peso('30.00') if categoria == 'Ternero' else _peso('36.00')
@@ -193,7 +166,6 @@ class Command(BaseCommand):
                     animal=animal, fecha=nacimiento, tipo='Alta',
                     destino=potreros[potrero], observaciones='Ingreso como reproductor.',
                 )
-            self._pesajes(animal, 'Toro', peso)
 
         vacas = {}
         for caravana, nombre, raza, color, nacimiento, peso, potrero in VACAS:
@@ -208,7 +180,6 @@ class Command(BaseCommand):
                     animal=animal, fecha=nacimiento, tipo='Alta',
                     destino=potreros[potrero], observaciones='Ingreso como madre.',
                 )
-            self._pesajes(animal, 'Vaca', peso)
 
         padres = list(toros.values())
         for i, (caravana, nombre, sexo, raza, color, nacimiento, peso, madre_caravana) in enumerate(TERNEROS):
@@ -225,7 +196,6 @@ class Command(BaseCommand):
                     animal=animal, fecha=nacimiento, tipo='Nacimiento',
                     destino=potrero, observaciones='Nacimiento en el establecimiento.',
                 )
-            self._pesajes(animal, 'Ternero', peso)
 
         prenieces = 0
         for caravana_madre, tipo, fecha, estado, costo in PRENIEZ:

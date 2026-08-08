@@ -12,9 +12,7 @@ from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 
-from animales.models import Animal, MovimientoAnimal, Parto, Pesaje, Preniez
-from establecimientos.models import Parcela
-from animales.models import Animal, MovimientoAnimal, Pesaje
+from animales.models import Animal, MovimientoAnimal, Parto, Preniez
 from establecimientos.models import Establecimiento, Parcela
 from finanzas.models import Compra, MovimientoFinanciero, Venta
 from inventario.models import Dieta, Insumo, Lote, Consumo
@@ -1008,13 +1006,6 @@ def vacunacion(request):
     return sanidad(request)
 
 
-def pesajes(request):
-    animales = list(Animal.objects.select_related('parcela').all())
-    historial = {str(a.idAnimal): [{'fecha': p.fecha.strftime('%d/%m/%Y'), 'peso': float(p.peso)} for p in a.pesajes.all()] for a in animales}
-    data = {'animales_pesaje': [_animal_data(a) | {'responsable': 'Sistema'} for a in animales], 'historial': historial}
-    return _page(request, 'pesajes.html', 'pesajes', data)
-
-
 def alimentacion(request):
     data = {'alimentos': [{'id': str(i.id), 'nombre': i.nombre, 'categoria': 'Insumo',
                            'stock': float(i.lotes.aggregate(total=Sum('stockActual'))['total'] or Decimal('0')),
@@ -1197,17 +1188,6 @@ def eliminar_potrero(request, parcela_id):
     parcela = get_object_or_404(Parcela, pk=parcela_id)
     parcela.delete()
     return JsonResponse({'ok': True})
-
-
-@require_POST
-def crear_pesaje(request):
-    animal = get_object_or_404(Animal, pk=request.POST.get('animal_id'))
-    peso = Decimal(request.POST['peso'])
-    pesaje = Pesaje.objects.create(animal=animal, fecha=request.POST.get('fecha') or date.today(), peso=peso,
-                                   observaciones=request.POST.get('observaciones', ''))
-    animal.peso_actual = peso
-    animal.save(update_fields=['peso_actual'])
-    return JsonResponse({'id': pesaje.id, 'animal_id': animal.idAnimal, 'peso': str(pesaje.peso)})
 
 
 @require_POST
