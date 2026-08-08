@@ -15,9 +15,9 @@ from django.views.decorators.http import require_POST
 from animales.models import Animal, MovimientoAnimal, Parto, Preniez
 from establecimientos.models import Establecimiento, Parcela
 from finanzas.models import Compra, MovimientoFinanciero, Venta
-from inventario.models import Dieta, Insumo, Lote, Consumo
+from inventario.models import ComposicionDieta, Consumo, DetalleCompra, Dieta, Insumo, Lote
 from sanidad.models import DetalleEvento, EventoSanitario, Enfermedad, Diagnostico
-from usuarios.models import Comprador, RolEstablecimiento, Usuario, Veterinario
+from usuarios.models import Comprador, Proveedor, RolEstablecimiento, Usuario, Veterinario
 
 # Las inseminaciones se registran y muestran solo desde el módulo de Preñez.
 TIPO_INSEMINACION = 'Inseminación'
@@ -432,6 +432,59 @@ def _comprador_data(comprador):
     }
 
 
+def _proveedor_data(proveedor):
+    return {
+        'id': proveedor.id,
+        'nombre': proveedor.nombre,
+        'apellido': proveedor.apellido,
+        'dni': proveedor.dni,
+        'correo': proveedor.correo_electronico,
+        'telefono': proveedor.telefono or '',
+        'fecha_nacimiento': _to_iso_date(proveedor.fecha_nacimiento),
+    }
+
+
+def _compra_data(compra):
+    lote = compra.detalles.select_related('lote__insumo').first()
+    detalle_insumo = None
+    if lote is not None and lote.lote is not None:
+        detalle_insumo = {
+            'lote_id': lote.lote_id,
+            'lote_nombre': lote.lote.nombre or f'Lote {lote.lote.id}',
+            'insumo_id': lote.lote.insumo_id,
+            'insumo_nombre': lote.lote.insumo.nombre if lote.lote.insumo else '',
+            'insumo_tipo': lote.lote.insumo.tipo if lote.lote.insumo else '',
+            'cantidad': str(lote.cantidad or 0),
+            'precio_unitario': str(lote.precioUnitario or 0),
+            'fecha_vencimiento': _to_iso_date(lote.lote.fechaVencimiento),
+        }
+    animal = compra.animal_set.first()
+    detalle_animal = None
+    if animal is not None:
+        detalle_animal = {
+            'animal_id': animal.idAnimal,
+            'caravana': _caravana_text(animal),
+            'nombre': animal.nombre or '',
+            'tipo_animal': animal.tipo_animal,
+            'sexo': animal.sexo,
+            'raza': animal.raza or '',
+            'color': animal.color or '',
+            'fecha_nacimiento': _to_iso_date(animal.fecha_nacimiento),
+            'peso_al_nacer': str(animal.peso_al_nacer or ''),
+            'peso_actual': str(animal.peso_actual or ''),
+            'diametro_escrotal': str(animal.diametro_escrotal or ''),
+            'detalle': animal.descripcion or '',
+        }
+    return {
+        'id': compra.id, 'tipo': compra.tipo, 'fecha': _to_iso_date(compra.fecha),
+        'monto_total': str(compra.monto_total), 'detalle': compra.detalle or '',
+        'proveedor_id': compra.proveedor_id,
+        'proveedor': str(compra.proveedor) if compra.proveedor else 'Sin proveedor',
+        'lote': detalle_insumo,
+        'animal': detalle_animal,
+    }
+
+
 def _movimientos_financieros_data():
     return [{
         'id': m.id, 'fecha': m.fecha.isoformat(), 'tipo': m.tipo, 'nombre': m.nombre,
@@ -544,6 +597,13 @@ def actualizar_movimiento_financiero(request, movimiento_id):
 @rol_requerido(ROL_PROPIETARIO)
 def eliminar_movimiento_financiero(request, movimiento_id):
     movimiento = get_object_or_404(MovimientoFinanciero, pk=movimiento_id)
+    if (Venta.objects.filter(mov_financiero_id=movimiento.id).exists()
+            or Compra.objects.filter(mov_financiero_id=movimiento.id).exists()
+            or EventoSanitario.objects.filter(mov_financiero_id=movimiento.id).exists()):
+        return JsonResponse({
+            'error': 'Este movimiento está vinculado a una venta, compra o evento sanitario. '
+                     'Eliminalo desde el módulo correspondiente para mantener la coherencia del sistema.'
+        }, status=400)
     movimiento.delete()
     return JsonResponse({'ok': True})
 
@@ -591,11 +651,38 @@ def ventas(request):
 
 @rol_requerido(ROL_PROPIETARIO)
 def compras(request):
-    compras_registradas = Compra.objects.select_related('proveedor').order_by('-fecha', '-id')
-    return _page(request, 'compras.html', 'compras', {'compras': [{
-        'id': c.id, 'tipo': c.tipo, 'fecha': c.fecha.isoformat(), 'monto_total': str(c.monto_total),
-        'proveedor': str(c.proveedor) if c.proveedor else 'Sin proveedor', 'detalle': c.detalle or '',
-    } for c in compras_registradas]})
+    compras_registradas = Compra.objects.select_related('proveedor').prefetch_related(
+        'detalles__lote__insumo', 'animal_set'
+    ).order_by('-fecha', '-id')
+    today = date.today()
+    total_compras = compras_registradas.count()
+    egresos_total = compras_registradas.aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+    egresos_anio_actual = compras_registradas.filter(fecha__year=today.year).aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+    proveedores = list(Proveedor.objects.order_by('apellido', 'nombre'))
+    insumos = list(Insumo.objects.order_by('tipo', 'nombre'))
+
+    chart_years = [today.year - i for i in range(4, -1, -1)]
+    chart_labels = [str(year) for year in chart_years]
+    chart_series = []
+    for year in chart_years:
+        total = compras_registradas.filter(fecha__year=year).aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+        chart_series.append(float(total))
+
+    return _page(request, 'compras.html', 'compras', {
+        'compras': [_compra_data(c) for c in compras_registradas],
+        'proveedores': [_proveedor_data(p) for p in proveedores],
+        'insumos': [_insumo_data(i) for i in insumos],
+        'summary': {
+            'total_compras': total_compras,
+            'egresos_total': float(egresos_total),
+            'egresos_anio_actual': float(egresos_anio_actual),
+            'proveedores': len(proveedores),
+        },
+        'chart': {
+            'labels_json': json.dumps(chart_labels),
+            'series_json': json.dumps(chart_series),
+        },
+    })
 
 
 def potreros(request):
@@ -1050,8 +1137,12 @@ def _asignar_campos_animal(animal, datos, es_alta=False):
     animal.sexo = datos['sexo']
     animal.raza = datos.get('raza', '').strip() or None
     animal.fecha_nacimiento = datos.get('fecha_nacimiento') or None
-    for campo in ('peso_al_nacer', 'peso_al_destete', 'peso_actual', 'costo_adquisicion', 'precio_venta', 'diametro_escrotal'):
+    for campo in ('peso_al_nacer', 'peso_al_destete', 'peso_actual', 'costo_adquisicion', 'precio_venta'):
         setattr(animal, campo, datos.get(campo) or None)
+    # El diámetro escrotal solo se toca si el formulario lo envía (módulo de Stock).
+    # Al registrar una compra no se pide, así se conserva el valor cargado en Animales.
+    if 'diametro_escrotal' in datos:
+        animal.diametro_escrotal = datos.get('diametro_escrotal') or None
     animal.vendido = datos.get('vendido') == 'on'
     animal.vivo = datos.get('vivo') == 'on' if 'vivo' in datos else es_alta
     animal.enfermo = datos.get('enfermo') == 'on'
@@ -1357,6 +1448,255 @@ def eliminar_venta(request, venta_id):
         venta.delete()
         if movimiento_id:
             MovimientoFinanciero.objects.filter(pk=movimiento_id).delete()
+    return JsonResponse({'ok': True})
+
+
+# ---------------------------------------------------------------------------
+# Módulo de Compras
+# ---------------------------------------------------------------------------
+
+def _obtener_o_crear_insumo(datos):
+    """Devuelve el insumo elegido, o crea uno nuevo con el nombre indicado."""
+    insumo_id = datos.get('insumo_id')
+    nuevo_nombre = datos.get('nuevo_insumo', '').strip()
+    tipo_insumo = datos.get('tipo_insumo', '').strip()
+    if insumo_id:
+        insumo = Insumo.objects.filter(pk=insumo_id).first()
+        if insumo is None:
+            raise ValueError('El insumo seleccionado ya no existe.')
+        return insumo
+    if nuevo_nombre:
+        insumo, _ = Insumo.objects.get_or_create(
+            nombre__iexact=nuevo_nombre,
+            defaults={'nombre': nuevo_nombre, 'tipo': tipo_insumo or None},
+        )
+        if insumo.tipo != tipo_insumo:
+            insumo.tipo = tipo_insumo or None
+            insumo.save(update_fields=['tipo'])
+        return insumo
+    raise ValueError('Seleccioná un insumo o indicá el nombre de uno nuevo.')
+
+
+def _detalle_efectos_compra(compra):
+    """Texto con las especificaciones de la compra para el movimiento financiero."""
+    detalle = compra.detalle or ''
+    detalle = detalle.strip() + ('\n' if detalle else '')
+    lote = compra.detalles.select_related('lote__insumo').first()
+    if lote is not None and lote.lote is not None:
+        insumo = lote.lote.insumo
+        nombre_insumo = insumo.nombre if insumo else 'Insumo'
+        detalle += f'Insumo: {nombre_insumo} | Cantidad: {lote.cantidad} | Precio unitario: ${lote.precioUnitario}'
+        if lote.lote.nombre:
+            detalle += f' | Lote: {lote.lote.nombre}'
+        if lote.lote.fechaVencimiento:
+            detalle += f' | Vence: {lote.lote.fechaVencimiento}'
+    animal = compra.animal_set.first()
+    if animal is not None:
+        detalle += (f'Animal: {animal.nombre or "S/N"} | Caravana: {_caravana_text(animal)} | '
+                    f'{animal.tipo_animal} {animal.sexo}')
+        if animal.raza:
+            detalle += f' | Raza: {animal.raza}'
+        if animal.fecha_nacimiento:
+            detalle += f' | Nacimiento: {animal.fecha_nacimiento}'
+    return detalle.strip() or None
+
+
+def _animal_sin_dependencias(animal):
+    """¿Puede eliminarse el animal sin perder historial de otros módulos?"""
+    if Diagnostico.objects.filter(animal=animal).exists():
+        return False
+    if DetalleEvento.objects.filter(animal=animal).exists():
+        return False
+    if Preniez.objects.filter(madre=animal).exists():
+        return False
+    if animal.movimientos.exclude(tipo='Compra').exists():
+        return False
+    return True
+
+
+def _sincronizar_efectos_compra(compra, tipo):
+    """Elimina o desvincula el lote/animal que no corresponda al tipo de compra."""
+    if compra.pk is None:
+        return
+    if tipo != 'Insumos':
+        for detalle in list(compra.detalles.all()):
+            lote = detalle.lote
+            detalle.delete()
+            if lote is not None and not DetalleCompra.objects.filter(lote=lote).exists():
+                if not (Consumo.objects.filter(lote=lote).exists()
+                        or ComposicionDieta.objects.filter(lote=lote).exists()):
+                    lote.delete()
+    if tipo != 'Animales':
+        for animal in Animal.objects.filter(compra=compra):
+            if animal.vendido:
+                animal.compra = None
+                animal.save(update_fields=['compra'])
+            elif _animal_sin_dependencias(animal):
+                animal.delete()
+            else:
+                animal.compra = None
+                animal.save(update_fields=['compra'])
+
+
+def _registrar_compra(compra, datos, establecimiento=None):
+    """Guarda una compra, sus efectos (lote/animal) y el movimiento financiero en una transacción."""
+    tipo = datos.get('tipo', '').strip()
+    if tipo not in dict(Compra.TIPO_CHOICES):
+        raise ValueError('Indicá un tipo de compra válido.')
+
+    compra.tipo = tipo
+    compra.fecha = datos.get('fecha') or date.today()
+    compra.proveedor_id = datos.get('proveedor_id') or None
+    compra.detalle = datos.get('detalle', '').strip() or None
+
+    _sincronizar_efectos_compra(compra, tipo)
+
+    if tipo == 'Insumos':
+        cantidad = _parse_decimal(datos.get('cantidad'))
+        precio_unitario = _parse_decimal(datos.get('precio_unitario'))
+        if cantidad is None or precio_unitario is None or cantidad <= 0 or precio_unitario <= 0:
+            raise ValueError('Indicá cantidad y precio unitario válidos del insumo.')
+        monto = (cantidad * precio_unitario).quantize(Decimal('0.01'))
+        compra.monto_total = monto
+        compra.full_clean()
+        compra.save()
+
+        insumo = _obtener_o_crear_insumo(datos)
+        detalle = compra.detalles.select_related('lote').first()
+        lote = detalle.lote if detalle is not None else Lote()
+        lote.insumo = insumo
+        lote.nombre = datos.get('lote_nombre', '').strip() or None
+        lote.fechaVencimiento = datos.get('fecha_vencimiento') or None
+        lote.stockActual = cantidad
+        lote.save()
+        DetalleCompra.objects.update_or_create(
+            compra=compra,
+            defaults={'cantidad': cantidad, 'precioUnitario': precio_unitario, 'lote': lote},
+        )
+    elif tipo == 'Animales':
+        monto = _parse_decimal(datos.get('monto_total')) or _parse_decimal(datos.get('costo_adquisicion'))
+        if monto is None or monto <= 0:
+            raise ValueError('Indicá un monto total válido.')
+        compra.monto_total = monto
+        compra.full_clean()
+        compra.save()
+
+        animal = Animal.objects.filter(compra=compra).first()
+        es_nuevo = animal is None
+        animal = animal if animal is not None else Animal(compra=compra)
+        _asignar_campos_animal(animal, datos, es_alta=True)
+        if animal.compra_id != compra.id:
+            animal.compra = compra
+        if not animal.establecimiento_id and establecimiento is not None:
+            animal.establecimiento = establecimiento
+        if not animal.vivo:
+            animal.vivo = True
+        animal.costo_adquisicion = monto
+        animal.full_clean()
+        animal.save()
+        if es_nuevo:
+            MovimientoAnimal.objects.create(
+                animal=animal, fecha=compra.fecha, tipo='Compra',
+                observaciones=f'Compra #{compra.id}.',
+            )
+    else:
+        monto = _parse_decimal(datos.get('monto_total'))
+        if monto is None or monto <= 0:
+            raise ValueError('Indicá un monto total válido.')
+        compra.monto_total = monto
+        compra.full_clean()
+        compra.save()
+
+    movimiento, _ = MovimientoFinanciero.objects.update_or_create(
+        pk=compra.mov_financiero_id,
+        defaults={
+            'tipo': 'Egreso', 'nombre': f'Compra #{compra.id} - {tipo}',
+            'monto_total': compra.monto_total, 'fecha': compra.fecha,
+            'detalle': _detalle_efectos_compra(compra),
+        },
+    )
+    if compra.mov_financiero_id != movimiento.id:
+        compra.mov_financiero = movimiento
+        compra.save(update_fields=['mov_financiero'])
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
+def crear_compra(request):
+    try:
+        with transaction.atomic():
+            compra = Compra()
+            _registrar_compra(compra, request.POST, establecimiento=_establecimiento_actual(request))
+    except (ValueError, ValidationError, IntegrityError, ArithmeticError) as error:
+        return JsonResponse({'error': str(error) or 'No se pudo registrar la compra.'}, status=400)
+    return JsonResponse({'id': compra.id, 'compra': _compra_data(compra)}, status=201)
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
+def actualizar_compra(request, compra_id):
+    try:
+        with transaction.atomic():
+            compra = get_object_or_404(Compra.objects.select_for_update(), pk=compra_id)
+            _registrar_compra(compra, request.POST, establecimiento=_establecimiento_actual(request))
+    except (ValueError, ValidationError, IntegrityError, ArithmeticError) as error:
+        return JsonResponse({'error': str(error) or 'No se pudo actualizar la compra.'}, status=400)
+    return JsonResponse({'compra': _compra_data(compra)})
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
+def eliminar_compra(request, compra_id):
+    with transaction.atomic():
+        compra = get_object_or_404(Compra.objects.select_for_update(), pk=compra_id)
+        movimiento_id = compra.mov_financiero_id
+        _sincronizar_efectos_compra(compra, '')
+        compra.delete()
+        if movimiento_id:
+            MovimientoFinanciero.objects.filter(pk=movimiento_id).delete()
+    return JsonResponse({'ok': True})
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
+def crear_proveedor(request):
+    try:
+        proveedor = Proveedor.objects.create(
+            dni=_normalizar_dni(request.POST.get('dni', '')),
+            nombre=request.POST['nombre'].strip(),
+            apellido=request.POST['apellido'].strip(),
+            correo_electronico=request.POST['correo_electronico'],
+            fecha_nacimiento=request.POST['fecha_nacimiento'],
+            telefono=request.POST.get('telefono', '').strip(),
+        )
+    except (KeyError, ValueError, ValidationError, IntegrityError) as error:
+        return JsonResponse({'error': str(error) or 'No se pudo crear el proveedor.'}, status=400)
+    return JsonResponse({'id': proveedor.id, 'proveedor': _proveedor_data(proveedor)}, status=201)
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
+def actualizar_proveedor(request, proveedor_id):
+    proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
+    try:
+        proveedor.dni = _normalizar_dni(request.POST.get('dni', proveedor.dni))
+        proveedor.nombre = request.POST.get('nombre', proveedor.nombre).strip()
+        proveedor.apellido = request.POST.get('apellido', proveedor.apellido).strip()
+        proveedor.correo_electronico = request.POST.get('correo_electronico', proveedor.correo_electronico)
+        proveedor.fecha_nacimiento = request.POST.get('fecha_nacimiento', proveedor.fecha_nacimiento)
+        proveedor.telefono = request.POST.get('telefono', proveedor.telefono or '').strip()
+        proveedor.full_clean()
+        proveedor.save()
+    except (ValueError, ValidationError, IntegrityError) as error:
+        return JsonResponse({'error': str(error) or 'No se pudo actualizar el proveedor.'}, status=400)
+    return JsonResponse({'proveedor': _proveedor_data(proveedor)})
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
+def eliminar_proveedor(request, proveedor_id):
+    proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
+    proveedor.delete()
     return JsonResponse({'ok': True})
 
 

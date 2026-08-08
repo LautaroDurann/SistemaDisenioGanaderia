@@ -31,7 +31,7 @@ class Compra(models.Model):
     detalle = models.TextField(blank=True, null=True)
     
     # Claves Foráneas
-    proveedor = models.ForeignKey('usuarios.Proveedor', on_delete=models.SET_NULL, null=True)
+    proveedor = models.ForeignKey('usuarios.Proveedor', on_delete=models.SET_NULL, null=True, blank=True)
     # Usamos OneToOneField porque una compra genera un único movimiento financiero
     mov_financiero = models.OneToOneField(MovimientoFinanciero, on_delete=models.CASCADE, null=True, blank=True)
 

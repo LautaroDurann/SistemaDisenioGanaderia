@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function () {
             aplicarFiltros();
           }
         } else {
-          alert('No se pudo eliminar.');
+          alert(data.error || 'No se pudo eliminar.');
         }
       }).catch(err => {
         console.error(err);

@@ -13,9 +13,10 @@ from django.urls import reverse
 from animales.models import Animal, MovimientoAnimal, Parto, Preniez
 from establecimientos.models import Establecimiento, Parcela
 from finanzas.models import Compra, MovimientoFinanciero, Venta
+from inventario.models import Consumo, DetalleCompra, Insumo, Lote
 from sanidad.models import DetalleEvento, EventoSanitario
 from web.views import _evento_inseminacion_data
-from usuarios.models import Comprador, Persona, RolEstablecimiento, Usuario
+from usuarios.models import Comprador, Persona, Proveedor, RolEstablecimiento, Usuario
 
 
 class WebIntegrationTests(TestCase):
@@ -402,6 +403,341 @@ class WebIntegrationTests(TestCase):
         response = self.client.post(reverse('eliminar_comprador', args=[comprador.id]))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Comprador.objects.filter(pk=comprador.id).exists())
+
+
+class CompraModuleTests(TestCase):
+    def setUp(self):
+        establecimiento = Establecimiento.objects.create(
+            nombre='Campo de prueba', fecha_inicio=date.today(), ubicacion='Córdoba'
+        )
+        proveedor = Proveedor.objects.create(
+            nombre='Carlos', apellido='Lopez', correo_electronico='carlos@proveedor.com',
+            fecha_nacimiento='1980-05-10',
+        )
+        self.proveedor = proveedor
+        persona = Persona.objects.create(
+            nombre='Juan', apellido='Fernandez', correo_electronico='juan@test.com',
+        )
+        usuario = Usuario.objects.create(
+            nombre_usuario='propietario', clave=make_password('clave123'), persona=persona,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=usuario, establecimiento=establecimiento,
+            nombre='Propietario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        session = self.client.session
+        session['usuario_id'] = usuario.id
+        session['establecimiento_id'] = establecimiento.id
+        session.save()
+
+    def crear_compra(self, datos):
+        return self.client.post(reverse('crear_compra'), datos)
+
+    def test_pagina_compras_responde(self):
+        response = self.client.get(reverse('compras'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'window.GANASTOCK_DATA')
+        self.assertContains(response, 'Carlos')
+
+    def test_compra_de_insumos_crea_lote_detalle_y_movimiento(self):
+        response = self.crear_compra({
+            'tipo': 'Insumos', 'fecha': '2026-08-01', 'proveedor_id': self.proveedor.id,
+            'insumo_id': '', 'nuevo_insumo': 'Vacuna aftosa', 'tipo_insumo': 'Vacuna',
+            'lote_nombre': 'Lote Aftosa', 'fecha_vencimiento': '2027-08-01',
+            'cantidad': '50', 'precio_unitario': '120.50',
+        })
+        self.assertEqual(response.status_code, 201)
+        compra = Compra.objects.get(pk=response.json()['id'])
+        self.assertEqual(compra.tipo, 'Insumos')
+        self.assertEqual(compra.monto_total, Decimal('6025.00'))
+        self.assertEqual(compra.proveedor, self.proveedor)
+
+        insumo = Insumo.objects.get(nombre='Vacuna aftosa')
+        lote = Lote.objects.get(insumo=insumo)
+        detalle = DetalleCompra.objects.get(compra=compra)
+        self.assertEqual(detalle.lote, lote)
+        self.assertEqual(detalle.cantidad, Decimal('50.00'))
+        self.assertEqual(detalle.precioUnitario, Decimal('120.50'))
+        self.assertEqual(lote.stockActual, Decimal('50.00'))
+        self.assertEqual(lote.nombre, 'Lote Aftosa')
+
+        movimiento = compra.mov_financiero
+        self.assertIsNotNone(movimiento)
+        self.assertEqual(movimiento.tipo, 'Egreso')
+        self.assertEqual(movimiento.monto_total, Decimal('6025.00'))
+        self.assertIn('Vacuna aftosa', movimiento.detalle)
+
+    def test_compra_de_animal_crea_animal_vinculado_y_movimiento(self):
+        response = self.crear_compra({
+            'tipo': 'Animales', 'fecha': '2026-08-01', 'proveedor_id': self.proveedor.id,
+            'id_senasa': '99911', 'nombre': 'Toro comprado', 'tipo_animal': 'Bovino',
+            'sexo': 'Macho', 'raza': 'Angus', 'color': 'Negro',
+            'peso_al_nacer': '40', 'peso_actual': '320', 'monto_total': '850000',
+            'costo_adquisicion': '850000', 'descripcion': 'Comprado en remate',
+        })
+        self.assertEqual(response.status_code, 201)
+        compra = Compra.objects.get(pk=response.json()['id'])
+        animal = Animal.objects.get(compra=compra)
+        self.assertEqual(animal.id_senasa, 99911)
+        self.assertEqual(animal.nombre, 'Toro comprado')
+        self.assertEqual(animal.sexo, 'Macho')
+        self.assertEqual(animal.costo_adquisicion, Decimal('850000.00'))
+        self.assertEqual(animal.establecimiento.nombre, 'Campo de prueba')
+        self.assertIsNone(animal.diametro_escrotal)
+        self.assertTrue(animal.vivo)
+        self.assertTrue(MovimientoAnimal.objects.filter(animal=animal, tipo='Compra').exists())
+
+        movimiento = compra.mov_financiero
+        self.assertIsNotNone(movimiento)
+        self.assertEqual(movimiento.tipo, 'Egreso')
+        self.assertEqual(movimiento.monto_total, Decimal('850000.00'))
+        self.assertIn('Toro comprado', movimiento.detalle)
+
+    def test_compra_de_animal_no_exige_diametro_escrotal(self):
+        response = self.crear_compra({
+            'tipo': 'Animales', 'fecha': '2026-08-01', 'tipo_animal': 'Bovino',
+            'sexo': 'Macho', 'nombre': 'Sin diametro', 'monto_total': '500000',
+            'costo_adquisicion': '500000',
+        })
+        self.assertEqual(response.status_code, 201)
+        animal = Animal.objects.get(compra=Compra.objects.get(pk=response.json()['id']))
+        self.assertIsNone(animal.diametro_escrotal)
+
+    def test_editar_compra_de_animal_conserva_diametro_cargado_en_animales(self):
+        response = self.crear_compra({
+            'tipo': 'Animales', 'fecha': '2026-08-01', 'tipo_animal': 'Bovino',
+            'sexo': 'Macho', 'nombre': 'Toro', 'monto_total': '500000', 'costo_adquisicion': '500000',
+        })
+        compra = Compra.objects.get(pk=response.json()['id'])
+        animal = Animal.objects.get(compra=compra)
+        # El diámetro se carga después, desde el módulo de Animales.
+        animal.diametro_escrotal = Decimal('34.50')
+        animal.save(update_fields=['diametro_escrotal'])
+
+        response = self.client.post(reverse('actualizar_compra', args=[compra.id]), {
+            'tipo': 'Animales', 'fecha': '2026-08-02', 'tipo_animal': 'Bovino',
+            'sexo': 'Macho', 'nombre': 'Toro', 'monto_total': '600000', 'costo_adquisicion': '600000',
+        })
+        self.assertEqual(response.status_code, 200)
+        animal.refresh_from_db()
+        compra.refresh_from_db()
+        self.assertEqual(animal.diametro_escrotal, Decimal('34.50'))
+        self.assertEqual(compra.monto_total, Decimal('600000.00'))
+        self.assertEqual(compra.mov_financiero.monto_total, Decimal('600000.00'))
+
+    def test_compra_generica_sin_lote_ni_animal(self):
+        response = self.crear_compra({
+            'tipo': 'Maquinaria', 'fecha': '2026-08-01', 'proveedor_id': self.proveedor.id,
+            'monto_total': '300000', 'detalle': 'Tractor',
+        })
+        self.assertEqual(response.status_code, 201)
+        compra = Compra.objects.get(pk=response.json()['id'])
+        self.assertEqual(compra.monto_total, Decimal('300000.00'))
+        self.assertEqual(compra.detalles.count(), 0)
+        self.assertEqual(compra.animal_set.count(), 0)
+        self.assertEqual(compra.mov_financiero.monto_total, Decimal('300000.00'))
+
+    def test_cambiar_tipo_de_insumos_a_generica_quita_el_lote(self):
+        response = self.crear_compra({
+            'tipo': 'Insumos', 'fecha': '2026-08-01', 'nuevo_insumo': 'Antiparasitario',
+            'tipo_insumo': 'Medicamento', 'cantidad': '10', 'precio_unitario': '50',
+        })
+        compra = Compra.objects.get(pk=response.json()['id'])
+        self.assertEqual(compra.detalles.count(), 1)
+
+        response = self.client.post(reverse('actualizar_compra', args=[compra.id]), {
+            'tipo': 'Otros', 'fecha': '2026-08-01', 'monto_total': '500',
+        })
+        self.assertEqual(response.status_code, 200)
+        compra.refresh_from_db()
+        self.assertEqual(compra.detalles.count(), 0)
+        self.assertEqual(Lote.objects.filter(insumo__nombre='Antiparasitario').count(), 0)
+
+    def test_cambiar_tipo_de_animales_a_generica_quita_el_animal(self):
+        response = self.crear_compra({
+            'tipo': 'Animales', 'fecha': '2026-08-01', 'tipo_animal': 'Bovino',
+            'sexo': 'Macho', 'nombre': 'Toro', 'monto_total': '500000', 'costo_adquisicion': '500000',
+        })
+        compra = Compra.objects.get(pk=response.json()['id'])
+        animal = Animal.objects.get(compra=compra)
+
+        response = self.client.post(reverse('actualizar_compra', args=[compra.id]), {
+            'tipo': 'Otros', 'fecha': '2026-08-01', 'monto_total': '500',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Animal.objects.filter(pk=animal.pk).exists())
+
+    def test_eliminar_compra_elimina_movimiento_y_efectos(self):
+        response = self.crear_compra({
+            'tipo': 'Insumos', 'fecha': '2026-08-01', 'nuevo_insumo': 'Vacuna',
+            'tipo_insumo': 'Vacuna', 'cantidad': '10', 'precio_unitario': '50',
+        })
+        compra = Compra.objects.get(pk=response.json()['id'])
+        movimiento_id = compra.mov_financiero_id
+        lote_id = compra.detalles.first().lote_id
+
+        response = self.client.post(reverse('eliminar_compra', args=[compra.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Compra.objects.filter(pk=compra.id).exists())
+        self.assertFalse(MovimientoFinanciero.objects.filter(pk=movimiento_id).exists())
+        self.assertFalse(Lote.objects.filter(pk=lote_id).exists())
+
+    def test_compra_de_insumos_sin_cantidad_da_error(self):
+        response = self.crear_compra({
+            'tipo': 'Insumos', 'fecha': '2026-08-01', 'cantidad': '', 'precio_unitario': '50',
+        })
+        self.assertEqual(response.status_code, 400)
+
+    def test_compra_de_animal_sin_monto_da_error(self):
+        response = self.crear_compra({
+            'tipo': 'Animales', 'fecha': '2026-08-01', 'tipo_animal': 'Bovino', 'sexo': 'Macho',
+        })
+        self.assertEqual(response.status_code, 400)
+
+
+class FinanzasSyncTests(TestCase):
+    def setUp(self):
+        establecimiento = Establecimiento.objects.create(
+            nombre='Campo de prueba', fecha_inicio=date.today(), ubicacion='Córdoba'
+        )
+        self.establecimiento = establecimiento
+        proveedor = Proveedor.objects.create(
+            nombre='Carlos', apellido='Lopez', correo_electronico='carlos@proveedor.com',
+            fecha_nacimiento='1980-05-10',
+        )
+        self.proveedor = proveedor
+        persona = Persona.objects.create(
+            nombre='Juan', apellido='Fernandez', correo_electronico='juan@test.com',
+        )
+        usuario = Usuario.objects.create(
+            nombre_usuario='propietario', clave=make_password('clave123'), persona=persona,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=usuario, establecimiento=establecimiento,
+            nombre='Propietario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        session = self.client.session
+        session['usuario_id'] = usuario.id
+        session['establecimiento_id'] = establecimiento.id
+        session.save()
+
+    def test_pagina_finanzas_usa_decimal_para_kpis_js(self):
+        response = self.client.get(reverse('finanzas'))
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn('const KPI_INGRESOS = 0.00;', content)
+        self.assertIn('const KPI_EGRESOS = 0.00;', content)
+        self.assertIn('const KPI_BALANCE = 0.00;', content)
+
+    def test_eliminar_movimiento_libre(self):
+        response = self.client.post(reverse('api_finanzas_movimientos'), {
+            'fecha': '2026-08-01', 'tipo': 'Ingreso', 'nombre': 'Venta de tambo',
+            'monto_total': '1500', 'detalle': '',
+        })
+        self.assertEqual(response.status_code, 201)
+        movimiento_id = response.json()['movimiento']['id']
+
+        response = self.client.post(reverse('eliminar_movimiento_financiero', args=[movimiento_id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(MovimientoFinanciero.objects.filter(pk=movimiento_id).exists())
+
+    def test_eliminar_movimiento_vinculado_a_venta_bloqueado(self):
+        animal = Animal.objects.create(
+            id_senasa=55511, nombre='Vaca venta', tipo_animal='Bovino', sexo='Hembra',
+            vivo=True, peso_actual=Decimal('350'), establecimiento=self.establecimiento,
+        )
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-01', 'precio_por_kg': '100', 'animales': [str(animal.idAnimal)],
+            'peso_total': '350', 'peso_manual': 'on',
+        })
+        self.assertEqual(response.status_code, 201)
+        venta = Venta.objects.get(pk=response.json()['id'])
+        movimiento_id = venta.mov_financiero_id
+        self.assertIsNotNone(movimiento_id)
+
+        response = self.client.post(reverse('eliminar_movimiento_financiero', args=[movimiento_id]))
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(Venta.objects.filter(pk=venta.id).exists())
+        animal.refresh_from_db()
+        self.assertTrue(animal.vendido)
+        self.assertEqual(animal.venta_id, venta.id)
+
+    def test_eliminar_movimiento_vinculado_a_compra_bloqueado(self):
+        response = self.client.post(reverse('crear_compra'), {
+            'tipo': 'Insumos', 'fecha': '2026-08-01', 'proveedor_id': self.proveedor.id,
+            'nuevo_insumo': 'Vacuna aftosa', 'tipo_insumo': 'Vacuna',
+            'cantidad': '10', 'precio_unitario': '100',
+        })
+        self.assertEqual(response.status_code, 201)
+        compra = Compra.objects.get(pk=response.json()['id'])
+        movimiento_id = compra.mov_financiero_id
+
+        response = self.client.post(reverse('eliminar_movimiento_financiero', args=[movimiento_id]))
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(Compra.objects.filter(pk=compra.id).exists())
+        self.assertTrue(MovimientoFinanciero.objects.filter(pk=movimiento_id).exists())
+
+    def test_eliminar_movimiento_vinculado_a_evento_bloqueado(self):
+        animal = Animal.objects.create(
+            id_senasa=55512, nombre='Vaca evento', tipo_animal='Bovino', sexo='Hembra', vivo=True,
+        )
+        response = self.client.post(reverse('crear_evento_sanitario'), {
+            'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'on',
+            'costo_total': '2000', 'animal_id': str(animal.idAnimal),
+        })
+        self.assertEqual(response.status_code, 201)
+        evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
+        movimiento_id = evento.mov_financiero_id
+        self.assertIsNotNone(movimiento_id)
+
+        response = self.client.post(reverse('eliminar_movimiento_financiero', args=[movimiento_id]))
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(EventoSanitario.objects.filter(pk=evento.id).exists())
+
+    def test_cambiar_tipo_compra_animal_con_preniez_conserva_animal(self):
+        response = self.client.post(reverse('crear_compra'), {
+            'tipo': 'Animales', 'fecha': '2026-08-01', 'tipo_animal': 'Bovino',
+            'sexo': 'Macho', 'nombre': 'Toro', 'monto_total': '500000', 'costo_adquisicion': '500000',
+        })
+        self.assertEqual(response.status_code, 201)
+        compra = Compra.objects.get(pk=response.json()['id'])
+        animal = Animal.objects.get(compra=compra)
+
+        Preniez.objects.create(
+            madre=animal, fecha=date(2026, 7, 1), tipo='Natural', estado_actual='Preñada',
+        )
+
+        response = self.client.post(reverse('actualizar_compra', args=[compra.id]), {
+            'tipo': 'Otros', 'fecha': '2026-08-01', 'monto_total': '500',
+        })
+        self.assertEqual(response.status_code, 200)
+        animal.refresh_from_db()
+        self.assertIsNone(animal.compra_id)
+        self.assertTrue(Preniez.objects.filter(madre=animal).exists())
+
+    def test_cambiar_tipo_compra_insumo_consumido_conserva_lote(self):
+        response = self.client.post(reverse('crear_compra'), {
+            'tipo': 'Insumos', 'fecha': '2026-08-01', 'nuevo_insumo': 'Vacuna aftosa',
+            'tipo_insumo': 'Vacuna', 'cantidad': '50', 'precio_unitario': '100',
+        })
+        self.assertEqual(response.status_code, 201)
+        compra = Compra.objects.get(pk=response.json()['id'])
+        lote = compra.detalles.first().lote
+
+        evento = EventoSanitario.objects.create(
+            tipo='Vacunación', fecha_aplicacion=date(2026, 8, 2), estado=True,
+            costo_total=Decimal('1000'), lote=lote, cantidad=Decimal('10'),
+        )
+        self.assertTrue(Consumo.objects.filter(lote=lote, evento_sanitario=evento).exists())
+
+        response = self.client.post(reverse('actualizar_compra', args=[compra.id]), {
+            'tipo': 'Otros', 'fecha': '2026-08-01', 'monto_total': '500',
+        })
+        self.assertEqual(response.status_code, 200)
+        compra.refresh_from_db()
+        self.assertEqual(compra.detalles.count(), 0)
+        self.assertTrue(Lote.objects.filter(pk=lote.pk).exists())
+        self.assertTrue(Consumo.objects.filter(lote=lote, evento_sanitario=evento).exists())
 
 
 class PreniezModuleTests(TestCase):

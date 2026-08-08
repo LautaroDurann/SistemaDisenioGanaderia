@@ -35,7 +35,7 @@
 					<div class="card vacapp-card h-100">
 						<div class="card-body">
 							<small class="text-secondary">Ingresos (mes)</small>
-							<h4 class="mb-0" id="kpi-ingresos">$ {{ page_data.kpis.ingresos_mes }}</h4>
+							<h4 class="mb-0" id="kpi-ingresos">$ {{ page_data.kpis.ingresos_mes|floatformat:2 }}</h4>
 						</div>
 					</div>
 				</div>
@@ -43,7 +43,7 @@
 					<div class="card vacapp-card h-100">
 						<div class="card-body">
 							<small class="text-secondary">Egresos (mes)</small>
-							<h4 class="mb-0" id="kpi-egresos">$ {{ page_data.kpis.egresos_mes }}</h4>
+							<h4 class="mb-0" id="kpi-egresos">$ {{ page_data.kpis.egresos_mes|floatformat:2 }}</h4>
 						</div>
 					</div>
 				</div>
@@ -51,7 +51,7 @@
 					<div class="card vacapp-card h-100">
 						<div class="card-body">
 							<small class="text-secondary">Balance (mes)</small>
-							<h4 class="mb-0" id="kpi-balance">$ {{ page_data.kpis.balance_mes }}</h4>
+							<h4 class="mb-0" id="kpi-balance">$ {{ page_data.kpis.balance_mes|floatformat:2 }}</h4>
 						</div>
 					</div>
 				</div>
@@ -206,9 +206,9 @@
 		const CHART_INGRESOS = JSON.parse('{{ page_data.chart.ingresos_json|escapejs }}');
 		const CHART_EGRESOS = JSON.parse('{{ page_data.chart.egresos_json|escapejs }}');
 		const KPI_TOTAL = {{ page_data.kpis.total_movimientos_mes }};
-		const KPI_INGRESOS = {{ page_data.kpis.ingresos_mes }};
-		const KPI_EGRESOS = {{ page_data.kpis.egresos_mes }};
-		const KPI_BALANCE = {{ page_data.kpis.balance_mes }};
+		const KPI_INGRESOS = {{ page_data.kpis.ingresos_mes|stringformat:".2f" }};
+		const KPI_EGRESOS = {{ page_data.kpis.egresos_mes|stringformat:".2f" }};
+		const KPI_BALANCE = {{ page_data.kpis.balance_mes|stringformat:".2f" }};
 	</script>
 	<script src="{% static 'js/finanzas.js' %}"></script>
 {% endblock %}
