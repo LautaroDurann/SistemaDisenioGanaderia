@@ -80,20 +80,20 @@
       // ------------------------------------------------------------------
       const ALIMENTOS = window.GANASTOCK_DATA?.alimentos ?? [
         { id: 'balanceado-engorde', nombre: 'Balanceado Engorde', categoria: 'Balanceado', stock: 3200, unidad: 'kg', consumoMensual: 1800, stockMinimo: 1000, ultimaCompra: '05/07/2026', precioUnitario: 450 },
-        { id: 'maiz-grano', nombre: 'Maiz grano', categoria: 'Maiz', stock: 850, unidad: 'kg', consumoMensual: 1200, stockMinimo: 1000, ultimaCompra: '20/06/2026', precioUnitario: 320 },
+        { id: 'maiz-grano', nombre: 'Maíz grano', categoria: 'Maíz', stock: 850, unidad: 'kg', consumoMensual: 1200, stockMinimo: 1000, ultimaCompra: '20/06/2026', precioUnitario: 320 },
         { id: 'rollos-alfalfa', nombre: 'Rollos de alfalfa', categoria: 'Rollos', stock: 45, unidad: 'rollos', consumoMensual: 60, stockMinimo: 30, ultimaCompra: '01/07/2026', precioUnitario: 18000 },
-        { id: 'silaje-maiz', nombre: 'Silaje de maiz', categoria: 'Silaje', stock: 12000, unidad: 'kg', consumoMensual: 9000, stockMinimo: 5000, ultimaCompra: '15/05/2026', precioUnitario: 90 },
+        { id: 'silaje-maiz', nombre: 'Silaje de maíz', categoria: 'Silaje', stock: 12000, unidad: 'kg', consumoMensual: 9000, stockMinimo: 5000, ultimaCompra: '15/05/2026', precioUnitario: 90 },
         { id: 'pastura-diferida', nombre: 'Pastura diferida P.4', categoria: 'Pastura', stock: 25, unidad: 'ha', consumoMensual: 6, stockMinimo: 10, ultimaCompra: '-', precioUnitario: 0 },
         { id: 'suplemento-mineral', nombre: 'Suplemento mineral', categoria: 'Suplementos', stock: 180, unidad: 'kg', consumoMensual: 220, stockMinimo: 150, ultimaCompra: '10/06/2026', precioUnitario: 1200 },
-        { id: 'sal-comun', nombre: 'Sal comun', categoria: 'Otros', stock: 0, unidad: 'kg', consumoMensual: 40, stockMinimo: 50, ultimaCompra: '02/05/2026', precioUnitario: 150 },
+        { id: 'sal-comun', nombre: 'Sal común', categoria: 'Otros', stock: 0, unidad: 'kg', consumoMensual: 40, stockMinimo: 50, ultimaCompra: '02/05/2026', precioUnitario: 150 },
         { id: 'rollos-moha', nombre: 'Rollos de moha', categoria: 'Rollos', stock: 15, unidad: 'rollos', consumoMensual: 25, stockMinimo: 20, ultimaCompra: '18/06/2026', precioUnitario: 16500 },
-        { id: 'balanceado-recria', nombre: 'Balanceado Recria', categoria: 'Balanceado', stock: 900, unidad: 'kg', consumoMensual: 700, stockMinimo: 400, ultimaCompra: '28/02/2026', precioUnitario: 470, vencePronto: true },
+        { id: 'balanceado-recria', nombre: 'Balanceado Recría', categoria: 'Balanceado', stock: 900, unidad: 'kg', consumoMensual: 700, stockMinimo: 400, ultimaCompra: '28/02/2026', precioUnitario: 470, vencePronto: true },
         { id: 'expeller-soja', nombre: 'Expeller de soja', categoria: 'Suplementos', stock: 600, unidad: 'kg', consumoMensual: 500, stockMinimo: 300, ultimaCompra: '22/06/2026', precioUnitario: 380 },
       ];
 
       function estadoAlimento(a) {
         if (a.stock === 0) return 'Agotado';
-        if (a.vencePronto) return 'Proximo a vencer';
+        if (a.vencePronto) return 'Próximo a vencer';
         if (a.stock < a.stockMinimo) return 'Stock Bajo';
         return 'Disponible';
       }
@@ -102,7 +102,7 @@
         Disponible: 'text-bg-success',
         'Stock Bajo': 'text-bg-warning',
         Agotado: 'text-bg-danger',
-        'Proximo a vencer': 'text-bg-secondary',
+        'Próximo a vencer': 'text-bg-secondary',
       };
 
       // Evolucion de stock (6 puntos) y movimientos por alimento, para el modal de detalle
@@ -121,45 +121,45 @@
 
       const MOVIMIENTOS = {
         'balanceado-engorde': [
-          { fecha: '05/07/2026', tipo: 'Compra', cantidad: '+1500 kg', responsable: 'Juan', obs: 'Reposicion mensual' },
-          { fecha: '28/06/2026', tipo: 'Consumo', cantidad: '-420 kg', responsable: 'Maria', obs: 'Racion Potrero 1' },
+          { fecha: '05/07/2026', tipo: 'Compra', cantidad: '+1500 kg', responsable: 'Juan', obs: 'Reposición mensual' },
+          { fecha: '28/06/2026', tipo: 'Consumo', cantidad: '-420 kg', responsable: 'María', obs: 'Racion Potrero 1' },
           { fecha: '15/06/2026', tipo: 'Consumo', cantidad: '-380 kg', responsable: 'Carlos', obs: 'Racion Potrero 2' },
         ],
         'maiz-grano': [
           { fecha: '20/06/2026', tipo: 'Compra', cantidad: '+600 kg', responsable: 'Carlos', obs: 'Proveedor La Norteña' },
           { fecha: '10/06/2026', tipo: 'Consumo', cantidad: '-300 kg', responsable: 'Juan', obs: 'Racion Potrero 3' },
-          { fecha: '01/06/2026', tipo: 'Ajuste', cantidad: '-20 kg', responsable: 'Maria', obs: 'Correccion de inventario' },
+          { fecha: '01/06/2026', tipo: 'Ajuste', cantidad: '-20 kg', responsable: 'María', obs: 'Corrección de inventario' },
         ],
         'rollos-alfalfa': [
           { fecha: '01/07/2026', tipo: 'Compra', cantidad: '+20 rollos', responsable: 'Juan', obs: 'Compra a productor local' },
           { fecha: '10/06/2026', tipo: 'Consumo', cantidad: '-8 rollos', responsable: 'Carlos', obs: 'Rodeo general' },
-          { fecha: '02/06/2026', tipo: 'Perdida', cantidad: '-2 rollos', responsable: 'Maria', obs: 'Humedad, descarte' },
+          { fecha: '02/06/2026', tipo: 'Perdida', cantidad: '-2 rollos', responsable: 'María', obs: 'Humedad, descarte' },
         ],
         'silaje-maiz': [
           { fecha: '15/05/2026', tipo: 'Compra', cantidad: '+8000 kg', responsable: 'Carlos', obs: 'Cosecha propia' },
           { fecha: '20/06/2026', tipo: 'Consumo', cantidad: '-3200 kg', responsable: 'Juan', obs: 'Racion invernal' },
         ],
         'pastura-diferida': [
-          { fecha: '01/06/2026', tipo: 'Ajuste', cantidad: '-1 ha', responsable: 'Maria', obs: 'Reduccion por sequia' },
+          { fecha: '01/06/2026', tipo: 'Ajuste', cantidad: '-1 ha', responsable: 'María', obs: 'Reducción por sequía' },
         ],
         'suplemento-mineral': [
           { fecha: '10/06/2026', tipo: 'Compra', cantidad: '+100 kg', responsable: 'Juan', obs: 'Proveedor habitual' },
           { fecha: '25/06/2026', tipo: 'Consumo', cantidad: '-120 kg', responsable: 'Carlos', obs: 'Suplementacion vacas' },
         ],
         'sal-comun': [
-          { fecha: '02/05/2026', tipo: 'Compra', cantidad: '+80 kg', responsable: 'Maria', obs: 'Compra en acopio' },
-          { fecha: '30/06/2026', tipo: 'Consumo', cantidad: '-80 kg', responsable: 'Juan', obs: 'Consumo total, sin reposicion' },
+          { fecha: '02/05/2026', tipo: 'Compra', cantidad: '+80 kg', responsable: 'María', obs: 'Compra en acopio' },
+          { fecha: '30/06/2026', tipo: 'Consumo', cantidad: '-80 kg', responsable: 'Juan', obs: 'Consumo total, sin reposición' },
         ],
         'rollos-moha': [
           { fecha: '18/06/2026', tipo: 'Compra', cantidad: '+10 rollos', responsable: 'Carlos', obs: 'Compra parcial' },
-          { fecha: '05/07/2026', tipo: 'Consumo', cantidad: '-15 rollos', responsable: 'Maria', obs: 'Rodeo Potrero 4' },
+          { fecha: '05/07/2026', tipo: 'Consumo', cantidad: '-15 rollos', responsable: 'María', obs: 'Rodeo Potrero 4' },
         ],
         'balanceado-recria': [
-          { fecha: '28/02/2026', tipo: 'Compra', cantidad: '+1200 kg', responsable: 'Juan', obs: 'Lote proximo a vencer' },
+          { fecha: '28/02/2026', tipo: 'Compra', cantidad: '+1200 kg', responsable: 'Juan', obs: 'Lote próximo a vencer' },
           { fecha: '20/06/2026', tipo: 'Consumo', cantidad: '-300 kg', responsable: 'Carlos', obs: 'Racion terneros' },
         ],
         'expeller-soja': [
-          { fecha: '22/06/2026', tipo: 'Compra', cantidad: '+500 kg', responsable: 'Maria', obs: 'Proveedor La Norteña' },
+          { fecha: '22/06/2026', tipo: 'Compra', cantidad: '+500 kg', responsable: 'María', obs: 'Proveedor La Norteña' },
           { fecha: '08/07/2026', tipo: 'Consumo', cantidad: '-400 kg', responsable: 'Juan', obs: 'Suplementacion recria' },
         ],
       };
@@ -173,12 +173,12 @@
 
       const PLAN_ALIMENTACION = [
         { categoria: 'Vacas', potrero: 'Potrero 1', alimento: 'Balanceado Engorde', cantidad: '4 kg/animal', horario: '07:00', responsable: 'Juan' },
-        { categoria: 'Terneros', potrero: 'Potrero 2', alimento: 'Maiz grano', cantidad: '1.5 kg/animal', horario: '08:30', responsable: 'Maria' },
+        { categoria: 'Terneros', potrero: 'Potrero 2', alimento: 'Maíz grano', cantidad: '1.5 kg/animal', horario: '08:30', responsable: 'María' },
         { categoria: 'Toros', potrero: 'Potrero 4', alimento: 'Suplemento mineral', cantidad: '0.3 kg/animal', horario: '09:00', responsable: 'Juan' },
         { categoria: 'Novillos', potrero: 'Potrero 3', alimento: 'Silaje de maiz', cantidad: '8 kg/animal', horario: '16:00', responsable: 'Carlos' },
         { categoria: 'Vaquillonas', potrero: 'Potrero 4', alimento: 'Expeller de soja', cantidad: '2 kg/animal', horario: '16:30', responsable: 'Carlos' },
-        { categoria: 'Vacas', potrero: 'Potrero 2', alimento: 'Rollos de alfalfa', cantidad: '6 kg/animal', horario: '17:00', responsable: 'Maria' },
-        { categoria: 'Terneros', potrero: 'Potrero 1', alimento: 'Balanceado Recria', cantidad: '1 kg/animal', horario: '08:00', responsable: 'Juan' },
+        { categoria: 'Vacas', potrero: 'Potrero 2', alimento: 'Rollos de alfalfa', cantidad: '6 kg/animal', horario: '17:00', responsable: 'María' },
+        { categoria: 'Terneros', potrero: 'Potrero 1', alimento: 'Balanceado Recría', cantidad: '1 kg/animal', horario: '08:00', responsable: 'Juan' },
         { categoria: 'Novillos', potrero: 'Potrero 3', alimento: 'Pastura diferida P.4', cantidad: 'A campo', horario: 'Todo el dia', responsable: 'Carlos' },
         { categoria: 'Toros', potrero: 'Potrero 2', alimento: 'Rollos de moha', cantidad: '5 kg/animal', horario: '17:30', responsable: 'Juan' },
       ];
@@ -308,11 +308,11 @@
 
         document.getElementById('detalle-alimento-nombre').textContent = a.nombre;
         document.getElementById('detalle-alimento-info').innerHTML = `
-          <div class="col-md-4"><small class="text-secondary d-block">Categoria</small><strong>${a.categoria}</strong></div>
+          <div class="col-md-4"><small class="text-secondary d-block">Categoría</small><strong>${a.categoria}</strong></div>
           <div class="col-md-4"><small class="text-secondary d-block">Stock actual</small><strong>${a.stock} ${a.unidad}</strong></div>
-          <div class="col-md-4"><small class="text-secondary d-block">Stock minimo</small><strong>${a.stockMinimo} ${a.unidad}</strong></div>
+          <div class="col-md-4"><small class="text-secondary d-block">Stock mínimo</small><strong>${a.stockMinimo} ${a.unidad}</strong></div>
           <div class="col-md-4"><small class="text-secondary d-block">Precio unitario</small><strong>${a.precioUnitario ? '$ ' + a.precioUnitario.toLocaleString('es-AR') : '-'}</strong></div>
-          <div class="col-md-4"><small class="text-secondary d-block">Ultima compra</small><strong>${a.ultimaCompra}</strong></div>
+          <div class="col-md-4"><small class="text-secondary d-block">Última compra</small><strong>${a.ultimaCompra}</strong></div>
           <div class="col-md-4"><small class="text-secondary d-block">Estado</small><span class="badge ${ESTADO_BADGE[estado]}">${estado}</span></div>`;
 
         const serie = STOCK_EVOLUCION[a.id];
@@ -365,7 +365,7 @@
         new ApexCharts(document.querySelector('#chart-distribucion-consumo'), {
           series: [32, 18, 14, 20, 6, 8, 2],
           chart: { height: 300, type: 'donut' },
-          labels: ['Balanceado', 'Maiz', 'Rollos', 'Silaje', 'Pastura', 'Suplementos', 'Otros'],
+          labels: ['Balanceado', 'Maíz', 'Rollos', 'Silaje', 'Pastura', 'Suplementos', 'Otros'],
           colors: ['#198754', '#0d6efd', '#ffc107', '#6c757d', '#20c997', '#6610f2', '#adb5bd'],
           legend: { position: 'bottom' },
         }).render();

@@ -89,7 +89,7 @@
         'Potrero 2': [
           { caravana: '0198', nombre: 'Fierro', categoria: 'Toro', sexo: 'Macho', peso: '720 kg' },
           { caravana: '0305', nombre: 'S/N', categoria: 'Ternero', sexo: 'Macho', peso: '85 kg' },
-          { caravana: '0263', nombre: 'Rocio', categoria: 'Vaca', sexo: 'Hembra', peso: '495 kg' },
+          { caravana: '0263', nombre: 'Rocío', categoria: 'Vaca', sexo: 'Hembra', peso: '495 kg' },
         ],
         'Potrero 3': [
           { caravana: '0142', nombre: 'Estrella', categoria: 'Vaca', sexo: 'Hembra', peso: '510 kg' },
@@ -212,7 +212,7 @@
             const parcela = POTREROS.find((p) => String(p.id) === String(btn.dataset.id));
             if (!parcela || !window.confirm(`¿Eliminar definitivamente ${parcela.nombre}?`)) return;
             const csrf = document.cookie.split('; ').find((row) => row.startsWith('csrftoken='))?.split('=')[1];
-            const response = await fetch(`/api/potreros/${parcela.id}/eliminar/`, {
+            const response = await fetch(`/api/parcelas/${parcela.id}/eliminar/`, {
               method: 'POST', headers: { 'X-CSRFToken': csrf || '' },
             });
             if (!response.ok) {
@@ -325,7 +325,7 @@
           event.preventDefault();
           const csrf = document.cookie.split('; ').find((row) => row.startsWith('csrftoken='))?.split('=')[1];
           const formData = new FormData(event.currentTarget);
-          const response = await fetch('/api/potreros/', {
+          const response = await fetch('/api/parcelas/', {
             method: 'POST', headers: { 'X-CSRFToken': csrf || '' }, body: formData,
           });
           if (response.ok) {

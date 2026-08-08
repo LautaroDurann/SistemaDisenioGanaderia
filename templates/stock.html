@@ -306,6 +306,7 @@
                 </div>
                 <div class="col-md-6">
                   <label for="animal-parcela" class="form-label">Parcela inicial</label>
+                  <input type="hidden" name="establecimiento_id" value="{{ establecimiento_actual_id|default:'' }}">
                   <select id="animal-parcela" name="parcela_id" class="form-select"><option value="">Sin asignar</option></select>
                 </div>
                 <div class="col-md-4">

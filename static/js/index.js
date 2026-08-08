@@ -74,20 +74,47 @@ document.addEventListener('DOMContentLoaded', function () {
 })();
 
 // ------------------------------------------------------------------
-// MOCK DATA: reemplazar por datos reales cuando se conecte con Django
+// DATOS: provienen del servidor (Django) filtrados por establecimiento
 // ------------------------------------------------------------------
-const ULTIMOS_MOVIMIENTOS = window.GANASTOCK_DATA?.movimientos ?? [
+const GANASTOCK = window.GANASTOCK_DATA || {};
+const ULTIMOS_MOVIMIENTOS = GANASTOCK.movimientos ?? [
   { fecha: '14/07/2026', animal: '#0231 Luna', tipo: 'Ingreso', usuario: 'Juan', obs: 'Compra a La Esperanza' },
   { fecha: '13/07/2026', animal: '#0198 Fierro', tipo: 'Venta', usuario: 'Carlos', obs: 'Remate feria local' },
-  { fecha: '12/07/2026', animal: '#0305 S/N', tipo: 'Nacimiento', usuario: 'Maria', obs: 'Nacimiento en Potrero 2' },
+  { fecha: '12/07/2026', animal: '#0305 S/N', tipo: 'Nacimiento', usuario: 'María', obs: 'Nacimiento en Potrero 2' },
   { fecha: '10/07/2026', animal: '#0142 Estrella', tipo: 'Muerte', usuario: 'Carlos', obs: 'Causas naturales' },
-  { fecha: '10/07/2026', animal: '#0087 S/N', tipo: 'Traslado', usuario: 'Maria', obs: 'Traslado por pastura' },
-  { fecha: '09/07/2026', animal: '#0056 Paloma', tipo: 'Compra', usuario: 'Juan', obs: 'Reposicion de rodeo' },
-  { fecha: '08/07/2026', animal: '#0412 S/N', tipo: 'Alta', usuario: 'Maria', obs: 'Alta por nacimiento tardio' },
+  { fecha: '10/07/2026', animal: '#0087 S/N', tipo: 'Traslado', usuario: 'María', obs: 'Traslado por pastura' },
+  { fecha: '09/07/2026', animal: '#0056 Paloma', tipo: 'Compra', usuario: 'Juan', obs: 'Reposición de rodeo' },
+  { fecha: '08/07/2026', animal: '#0412 S/N', tipo: 'Alta', usuario: 'María', obs: 'Alta por nacimiento tardío' },
   { fecha: '06/07/2026', animal: '#0329 S/N', tipo: 'Baja', usuario: 'Carlos', obs: 'Baja administrativa' },
-  { fecha: '05/07/2026', animal: '#0263 Rocio', tipo: 'Traslado', usuario: 'Juan', obs: 'Rotacion de pastoreo' },
-  { fecha: '03/07/2026', animal: '#0177 Trueno', tipo: 'Ingreso', usuario: 'Maria', obs: 'Ingreso por servicio' },
+  { fecha: '05/07/2026', animal: '#0263 Rocío', tipo: 'Traslado', usuario: 'Juan', obs: 'Rotación de pastoreo' },
+  { fecha: '03/07/2026', animal: '#0177 Trueno', tipo: 'Ingreso', usuario: 'María', obs: 'Ingreso por servicio' },
 ];
+
+const KPIS = GANASTOCK.kpis ?? {
+  total_animales: 0,
+  ventas_mes: 0,
+  gastos_mes: 0,
+  peso_promedio: 0,
+  ingresos_mes: 0,
+};
+
+const formatoMoneda = (valor) => {
+  const numero = Number(valor || 0);
+  return `$${numero.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`;
+};
+
+function renderKPIs() {
+  const totalAnimales = document.getElementById('kpi-total-animales');
+  const ventasMes = document.getElementById('kpi-ventas-mes');
+  const gastosMes = document.getElementById('kpi-gastos-mes');
+  const pesoPromedio = document.getElementById('kpi-peso-promedio');
+  const ingresosMes = document.getElementById('kpi-ingresos-mes');
+  if (totalAnimales) totalAnimales.textContent = Number(KPIS.total_animales || 0).toLocaleString('es-AR');
+  if (ventasMes) ventasMes.textContent = Number(KPIS.ventas_mes || 0).toLocaleString('es-AR');
+  if (gastosMes) gastosMes.textContent = formatoMoneda(KPIS.gastos_mes);
+  if (pesoPromedio) pesoPromedio.textContent = `${Number(KPIS.peso_promedio || 0).toLocaleString('es-AR')} kg`;
+  if (ingresosMes) ingresosMes.textContent = formatoMoneda(KPIS.ingresos_mes);
+}
 
 const TIPO_BADGE = {
   Ingreso: 'text-bg-success',
@@ -123,39 +150,74 @@ function renderTablaMovimientos() {
     .join('');
 }
 
+const DISTRIBUCION = GANASTOCK.distribucion ?? {};
+
+const COLORES_CATEGORIA = {
+  Vaca: '#198754',
+  Toro: '#0d6efd',
+  Novillo: '#6c757d',
+  Vaquillona: '#ffc107',
+  Ternero: '#20c997',
+  Bovino: '#0dcaf0',
+  Porcino: '#fd7e14',
+  Ovino: '#d63384',
+};
+
 function renderGraficos() {
-  // Ganancias vs Gastos - 12 meses
-  new ApexCharts(document.querySelector('#chart-ganancias-gastos'), {
-    series: [
-      { name: 'Ganancias', data: [3200, 3450, 3100, 3800, 4200, 3950, 4500, 4600, 4750, 5000, 5200, 5600] },
-      { name: 'Gastos', data: [2100, 2200, 2150, 2400, 2600, 2500, 2700, 2650, 2750, 2800, 2800, 2900] },
-    ],
-    chart: { height: 300, type: 'bar', toolbar: { show: false } },
-    colors: ['#198754', '#dc3545'],
-    plotOptions: { bar: { columnWidth: '55%', borderRadius: 4 } },
-    dataLabels: { enabled: false },
-    legend: { position: 'top' },
-    xaxis: {
-      categories: ['Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul'],
-    },
-    yaxis: {
-      labels: { formatter: (val) => `$${val.toLocaleString('es-AR')}` },
-    },
-  }).render();
+  const chartGanancias = document.querySelector('#chart-ganancias-gastos');
+  if (chartGanancias) {
+    const labels = JSON.parse(GANASTOCK.chart?.labels_json ?? '[]');
+    const ingresos = JSON.parse(GANASTOCK.chart?.ingresos_json ?? '[]');
+    const egresos = JSON.parse(GANASTOCK.chart?.egresos_json ?? '[]');
+
+    const series = labels.length
+      ? [
+          { name: 'Ganancias', data: ingresos },
+          { name: 'Gastos', data: egresos },
+        ]
+      : [
+          { name: 'Ganancias', data: [0] },
+          { name: 'Gastos', data: [0] },
+        ];
+
+    new ApexCharts(chartGanancias, {
+      series,
+      chart: { height: 300, type: 'bar', toolbar: { show: false } },
+      colors: ['#198754', '#dc3545'],
+      plotOptions: { bar: { columnWidth: '55%', borderRadius: 4 } },
+      dataLabels: { enabled: false },
+      legend: { position: 'top' },
+      xaxis: {
+        categories: labels.length ? labels : [],
+      },
+      yaxis: {
+        labels: { formatter: (val) => `$${Number(val).toLocaleString('es-AR', { maximumFractionDigits: 0 })}` },
+      },
+    }).render();
+  }
 
   // Distribucion del rodeo (por categoria de animal)
-  new ApexCharts(document.querySelector('#chart-distribucion'), {
-    series: [96, 18, 42, 30, 74],
-    chart: { height: 300, type: 'donut' },
-    labels: ['Vacas', 'Toros', 'Novillos', 'Vaquillonas', 'Terneros'],
-    colors: ['#198754', '#0d6efd', '#6c757d', '#ffc107', '#20c997'],
-    legend: { position: 'bottom' },
-  }).render();
+  const chartDistribucion = document.querySelector('#chart-distribucion');
+  if (chartDistribucion) {
+    const categorias = Object.keys(DISTRIBUCION);
+    const series = categorias.length ? categorias.map((categoria) => DISTRIBUCION[categoria]) : [0];
+    const labels = categorias.length ? categorias : ['Sin datos'];
+    const colors = categorias.length ? categorias.map((categoria) => COLORES_CATEGORIA[categoria] || '#6c757d') : ['#dee2e6'];
+
+    new ApexCharts(chartDistribucion, {
+      series,
+      chart: { height: 300, type: 'donut' },
+      labels,
+      colors,
+      legend: { position: 'bottom' },
+    }).render();
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   renderReloj();
   setInterval(renderReloj, 30000);
+  renderKPIs();
   renderTablaMovimientos();
   renderGraficos();
 

@@ -1,0 +1,32 @@
+{% extends 'auth/base.html' %}
+{% block title %}Restablecer contraseña · GanaStock{% endblock %}
+{% block subtitle %}Definí una nueva contraseña{% endblock %}
+{% block content %}
+  {% if invalido %}
+    <div class="alert alert-danger">
+      <i class="bi bi-x-circle me-1"></i>
+      El enlace es inválido o ya venció. Solicitá uno nuevo.
+    </div>
+    <a href="{% url 'recuperar' %}" class="btn btn-success w-100">Solicitar nuevo enlace</a>
+  {% else %}
+    {% if error %}
+      <div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}</div>
+    {% endif %}
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <p class="text-secondary small mb-3">Restableciendo la contraseña de <strong>{{ usuario }}</strong>.</p>
+      <div class="mb-3">
+        <label class="form-label">Nueva contraseña</label>
+        <input type="password" name="clave" class="form-control" minlength="6" required autofocus>
+        <div class="form-text">Mínimo 6 caracteres.</div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label">Confirmar contraseña</label>
+        <input type="password" name="clave_confirmacion" class="form-control" minlength="6" required>
+      </div>
+      <button type="submit" class="btn btn-success w-100 py-2">
+        <i class="bi bi-check2 me-1"></i> Restablecer contraseña
+      </button>
+    </form>
+  {% endif %}
+{% endblock %}

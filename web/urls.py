@@ -1,9 +1,15 @@
 from django.urls import path
 
 from inventario.views import insumo_detalle, insumo_lotes, insumos, insumos_api, lote_detalle
-from . import views
+from . import auth_views, views
 
 urlpatterns = [
+    path('login/', auth_views.login_view, name='login'),
+    path('logout/', auth_views.logout_view, name='logout'),
+    path('cambiar_clave/', auth_views.cambiar_clave_view, name='cambiar_clave'),
+    path('recuperar/', auth_views.recuperar_view, name='recuperar'),
+    path('recuperar/<str:token>/', auth_views.restablecer_view, name='restablecer'),
+
     path('', views.dashboard, name='dashboard'),
     path('stock/', views.stock, name='stock'),
     path('finanzas/', views.finanzas, name='finanzas'),
@@ -11,7 +17,7 @@ urlpatterns = [
     path('finanzas/compras/', views.compras, name='compras'),
     # Se conserva la URL anterior para enlaces guardados.
     path('movimientos/', views.finanzas, name='movimientos'),
-    path('potreros/', views.potreros, name='potreros'),
+    path('parcelas/', views.potreros, name='potreros'),
     path('sanidad/', views.sanidad, name='sanidad'),
     path('vacunacion/', views.sanidad, name='vacunacion'),
     path('pesajes/', views.pesajes, name='pesajes'),
@@ -31,6 +37,9 @@ urlpatterns = [
     path('api/insumos/<int:insumo_id>/lotes/', insumo_lotes, name='insumo_lotes'),
     path('api/lotes/<int:lote_id>/', lote_detalle, name='lote_detalle'),
     path('usuarios/', views.usuarios, name='usuarios'),
+    path('api/usuarios/', auth_views.crear_usuario_api, name='crear_usuario_api'),
+    path('api/usuarios/<int:usuario_id>/', auth_views.actualizar_usuario_api, name='actualizar_usuario_api'),
+    path('api/usuarios/<int:usuario_id>/eliminar/', auth_views.eliminar_usuario_api, name='eliminar_usuario_api'),
     path('configuracion/', views.configuracion, name='configuracion'),
     path('api/stock/', views.stock_api, name='stock_api'),
     path('api/animales/', views.crear_animal, name='crear_animal'),
@@ -59,6 +68,11 @@ urlpatterns = [
     path('api/ventas/', views.crear_venta, name='crear_venta'),
     path('api/ventas/<int:venta_id>/', views.actualizar_venta, name='actualizar_venta'),
     path('api/ventas/<int:venta_id>/eliminar/', views.eliminar_venta, name='eliminar_venta'),
-    path('api/potreros/', views.crear_potrero, name='crear_potrero'),
-    path('api/potreros/<int:parcela_id>/eliminar/', views.eliminar_potrero, name='eliminar_potrero'),
+    path('api/parcelas/', views.crear_potrero, name='crear_potrero'),
+    path('api/parcelas/<int:parcela_id>/eliminar/', views.eliminar_potrero, name='eliminar_potrero'),
+    path('api/establecimientos/', views.establecimientos_api, name='establecimientos_api'),
+    path('api/establecimientos/seleccionar/', views.seleccionar_establecimiento, name='seleccionar_establecimiento'),
+    path('api/establecimientos/crear/', views.crear_establecimiento, name='crear_establecimiento'),
+    path('api/establecimientos/<int:establecimiento_id>/eliminar/', views.eliminar_establecimiento, name='eliminar_establecimiento'),
+    path('api/establecimientos/config/', views.config_establecimiento_api, name='config_establecimiento_api'),
 ]

@@ -23,14 +23,14 @@
           <div class="container-fluid">
             <div class="row align-items-center">
               <div class="col-lg-5">
-                <h3 class="mb-0">Vacunacion</h3>
+                <h3 class="mb-0">Vacunación</h3>
                 <p class="text-secondary mb-0">
-                  Gestiona el calendario sanitario y el historial de vacunacion del rodeo.
+                  Gestiona el calendario sanitario y el historial de vacunación del rodeo.
                 </p>
               </div>
               <div class="col-lg-7 text-lg-end mt-3 mt-lg-0">
                 <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalRegistrarVacunacion">
-                  <i class="bi bi-shield-plus me-1"></i> Registrar Vacunacion
+                  <i class="bi bi-shield-plus me-1"></i> Registrar Vacunación
                 </button>
                 <button type="button" class="btn btn-outline-primary" id="btn-programar-campana">
                   <i class="bi bi-calendar-plus me-1"></i> Programar Campaña
@@ -82,7 +82,7 @@
                     <div class="text-bg-warning rounded-3 p-2"><i class="bi bi-clock-history fs-4"></i></div>
                     <div>
                       <h4 class="mb-0" id="kpi-proximas">0</h4>
-                      <small class="text-secondary d-block">Proximas vacunaciones</small>
+                      <small class="text-secondary d-block">Próximas vacunaciones</small>
                       <span class="small text-danger"><i class="bi bi-arrow-up-short"></i>2 vs mes anterior</span>
                     </div>
                   </div>
@@ -118,7 +118,7 @@
                   <div class="card-body">
                     <div class="vacapp-calendar-grande mb-3" id="calendario-grid"></div>
                     <div id="calendario-detalle" class="small text-secondary">
-                      Toca un dia con eventos para ver el detalle.
+                      Toca un día con eventos para ver el detalle.
                     </div>
                   </div>
                 </div>
@@ -160,7 +160,7 @@
                     </select>
                   </div>
                   <div class="col-md-2">
-                    <label class="form-label small mb-1">Categoria</label>
+                    <label class="form-label small mb-1">Categoría</label>
                     <select id="f-categoria" class="form-select form-select-sm">
                       <option value="">Todas</option>
                       <option>Vaca</option>
@@ -194,8 +194,8 @@
                     <label class="form-label small mb-1">Veterinario</label>
                     <select id="f-veterinario" class="form-select form-select-sm">
                       <option value="">Todos</option>
-                      <option>Dr. Lopez</option>
-                      <option>Dra. Gimenez</option>
+                      <option>Dr. López</option>
+                      <option>Dra. Giménez</option>
                     </select>
                   </div>
                   <div class="col-md-2">
@@ -213,9 +213,9 @@
                         <th>Fecha</th>
                         <th>Caravana</th>
                         <th>Animal</th>
-                        <th>Categoria</th>
+                        <th>Categoría</th>
                         <th>Vacuna</th>
-                        <th>Proxima dosis</th>
+                        <th>Próxima dosis</th>
                         <th>Veterinario</th>
                         <th>Estado</th>
                         <th class="text-end">Acciones</th>
@@ -251,12 +251,12 @@
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Registrar Vacunacion</h5>
+            <h5 class="modal-title">Registrar Vacunación</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
             <form>
-              <h6 class="text-secondary text-uppercase small mb-2">Informacion general</h6>
+              <h6 class="text-secondary text-uppercase small mb-2">Información general</h6>
               <div class="row g-2 mb-3">
                 <div class="col-md-3">
                   <label class="form-label small mb-1">Fecha</label>
@@ -278,7 +278,7 @@
                   </select>
                 </div>
                 <div class="col-md-3">
-                  <label class="form-label small mb-1">Numero de lote</label>
+                  <label class="form-label small mb-1">Número de lote</label>
                   <input type="text" class="form-control" placeholder="Ej: L-2026-045" />
                 </div>
                 <div class="col-md-6">
@@ -298,7 +298,7 @@
                   <input type="text" class="form-control" placeholder="Opcional" />
                 </div>
                 <div class="col-md-4">
-                  <label class="form-label small mb-1">Categoria</label>
+                  <label class="form-label small mb-1">Categoría</label>
                   <select class="form-select">
                     <option>Vaca</option>
                     <option>Toro</option>
@@ -314,12 +314,12 @@
                 <div class="col-md-4">
                   <label class="form-label small mb-1">Veterinario responsable</label>
                   <select class="form-select">
-                    <option>Dr. Lopez</option>
-                    <option>Dra. Gimenez</option>
+                    <option>Dr. López</option>
+                    <option>Dra. Giménez</option>
                   </select>
                 </div>
                 <div class="col-md-4">
-                  <label class="form-label small mb-1">Proxima dosis</label>
+                  <label class="form-label small mb-1">Próxima dosis</label>
                   <input type="date" class="form-control" />
                 </div>
                 <div class="col-md-4">
@@ -362,7 +362,7 @@
                   <tr>
                     <th>Vacuna</th>
                     <th>Fecha aplicada</th>
-                    <th>Proxima dosis</th>
+                    <th>Próxima dosis</th>
                     <th>Veterinario</th>
                     <th>Observaciones</th>
                   </tr>
