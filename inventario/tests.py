@@ -1,17 +1,37 @@
 from datetime import date
 from decimal import Decimal
 
+from django.contrib.auth.hashers import make_password
 from django.test import TestCase
 from django.urls import reverse
 
 from animales.models import Animal
+from establecimientos.models import Establecimiento
 from finanzas.models import Compra
 from inventario.models import ComposicionDieta, Consumo, DetalleCompra, Dieta, Insumo, Lote
 from sanidad.models import DetalleEvento, EventoSanitario
-from usuarios.models import Veterinario
+from usuarios.models import Persona, RolEstablecimiento, Usuario, Veterinario
 
 
 class InsumoCrudTests(TestCase):
+    def setUp(self):
+        establecimiento = Establecimiento.objects.create(
+            nombre='Campo insumos', fecha_inicio=date.today(), ubicacion='Córdoba'
+        )
+        persona = Persona.objects.create(
+            nombre='Juan', apellido='Fernandez', correo_electronico='juan-insumos@test.com',
+        )
+        usuario = Usuario.objects.create(
+            nombre_usuario='propietario', clave=make_password('clave123'), persona=persona,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=usuario, establecimiento=establecimiento,
+            nombre='Propietario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        session = self.client.session
+        session['usuario_id'] = usuario.id
+        session.save()
+
     def test_model_creates_insumo_with_tipo_and_lote(self):
         insumo = Insumo.objects.create(
             nombre='Vacuna antiaftosa',

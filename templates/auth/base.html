@@ -1,0 +1,47 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}GanaStock{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.0.12/index.css">
+  <style>
+    body {
+      font-family: 'Source Sans 3', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      background: linear-gradient(135deg, #1d4e43 0%, #0d3b33 100%);
+    }
+    .auth-card { width: 100%; max-width: 420px; }
+    .auth-logo {
+      width: 72px; height: 72px; border-radius: 1rem;
+      background: #fff; color: #1d4e43;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1.5rem;
+      box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+    }
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+  <div class="auth-card">
+    <div class="card shadow-lg border-0">
+      <div class="card-body p-4 p-md-5">
+        <div class="text-center mb-4">
+          <div class="auth-logo mx-auto mb-3">GS</div>
+          <h4 class="mb-0 fw-bold">GanaStock</h4>
+          <p class="text-secondary mb-0">{% block subtitle %}Sistema de gestión ganadera{% endblock %}</p>
+        </div>
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+    <p class="text-center text-white-50 small mt-3 mb-0">&copy; 2026 GanaStock</p>
+  </div>
+</body>
+</html>

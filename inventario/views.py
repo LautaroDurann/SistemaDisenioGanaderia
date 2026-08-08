@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.db.models import Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
 from inventario.models import Insumo, Lote
@@ -100,6 +101,7 @@ def lote_detalle(request, lote_id):
     return JsonResponse({'ok': True})
 
 
+@ensure_csrf_cookie
 def insumos(request):
     insumos_qs = Insumo.objects.prefetch_related('lotes').annotate(cantidad_total=Sum('lotes__stockActual')).all()
     total_insumos = insumos_qs.count()

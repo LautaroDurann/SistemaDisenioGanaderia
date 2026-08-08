@@ -48,6 +48,7 @@
             <p>Stock Ganadero</p>
           </a>
         </li>
+        {% if es_propietario %}
         <li class="nav-item{% if request.resolver_match.url_name == 'ventas' or request.resolver_match.url_name == 'compras' or request.resolver_match.url_name == 'movimientos' %} finanzas-branch-active{% endif %}" data-treeview="finanzas">
           <a href="{% url 'finanzas' %}" id="nav-finanzas" class="nav-link{% if request.resolver_match.url_name == 'finanzas' or request.resolver_match.url_name == 'movimientos' %} active{% endif %}" data-lte-toggle="treeview">
             <i class="nav-icon bi bi-cash-stack"></i>
@@ -68,6 +69,7 @@
             </li>
           </ul>
         </li>
+        {% endif %}
         <li class="nav-item">
           <a href="{% url 'potreros' %}" class="nav-link{% if request.resolver_match.url_name == 'potreros' %} active{% endif %}" data-page="potreros.html">
             <i class="nav-icon bi bi-signpost-split"></i>
@@ -95,7 +97,7 @@
         <li class="nav-item">
           <a href="{% url 'alimentacion' %}" class="nav-link{% if request.resolver_match.url_name == 'alimentacion' %} active{% endif %}" data-page="alimentacion.html">
             <i class="nav-icon bi bi-basket2-fill"></i>
-            <p>Alimentacion</p>
+            <p>Alimentación</p>
           </a>
         </li>
         <li class="nav-item">
@@ -104,6 +106,7 @@
             <p>Insumos</p>
           </a>
         </li>
+        {% if es_propietario %}
         <li class="nav-item">
           <a href="{% url 'usuarios' %}" class="nav-link{% if request.resolver_match.url_name == 'usuarios' %} active{% endif %}" data-page="usuarios.html">
             <i class="nav-icon bi bi-people-fill"></i>
@@ -116,6 +119,7 @@
             <p>Configuracion</p>
           </a>
         </li>
+        {% endif %}
 
       </ul>
       <!--end::Sidebar Menu-->

@@ -5,6 +5,7 @@ class Establecimiento(models.Model):
     nombre = models.CharField(max_length=100)
     fecha_inicio = models.DateField()
     ubicacion = models.CharField(max_length=100)
+    logo = models.ImageField(upload_to='establecimientos/', null=True, blank=True)
 
     def __str__(self):
         return self.nombre
@@ -32,6 +33,9 @@ class Parcela(models.Model):
     # on_delete=models.CASCADE significa que si borras el establecimiento, se borran sus parcelas
     establecimiento = models.ForeignKey(Establecimiento, on_delete=models.CASCADE, related_name='parcelas')
 
+   ## def __str__(self):
+   ##     # Como Django crea el ID automáticamente, podemos usar self.id
+   ##     return f"Parcela {self.id} - {self.establecimiento.nombre}"
+        
     def __str__(self):
-        # Como Django crea el ID automáticamente, podemos usar self.id
-        return f"Parcela {self.id} - {self.establecimiento.nombre}"
+        return f"{self.descripcion} - {self.establecimiento.nombre}"
