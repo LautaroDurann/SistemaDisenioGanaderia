@@ -3,7 +3,7 @@ from urllib.parse import quote
 from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 
-from usuarios.models import Usuario
+from usuarios.models import RolEstablecimiento, Usuario
 
 RUTAS_PUBLICAS_PREFIJOS = ('/login', '/recuperar', '/logout')
 
@@ -20,14 +20,24 @@ class RequerirLoginMiddleware:
             ruta.startswith(('/static/', '/media/', '/admin/'))
             or ruta.startswith(RUTAS_PUBLICAS_PREFIJOS)
         )
+        es_ajax = (
+            ruta.startswith('/api/')
+            or request.headers.get('x-requested-with', '').lower() == 'xmlhttprequest'
+            or 'application/json' in request.headers.get('accept', '')
+        )
         if not es_publica and request.session.get('usuario_id') is None:
-            if (
-                ruta.startswith('/api/')
-                or request.headers.get('x-requested-with', '').lower() == 'xmlhttprequest'
-                or 'application/json' in request.headers.get('accept', '')
-            ):
+            if es_ajax:
                 return JsonResponse({'error': 'Debés iniciar sesión para continuar.'}, status=401)
             return HttpResponseRedirect(reverse('login') + '?next=' + quote(request.get_full_path()))
+        if not es_publica and request.session.get('usuario_id') is not None:
+            # Un usuario desactivado (sin ningún acceso activo) pierde la sesión.
+            usuario_id = request.session['usuario_id']
+            filas = RolEstablecimiento.objects.filter(usuario_id=usuario_id)
+            if filas.exists() and not filas.filter(estado_acceso=True).exists():
+                request.session.flush()
+                if es_ajax:
+                    return JsonResponse({'error': 'Tu usuario fue desactivado.'}, status=401)
+                return HttpResponseRedirect(reverse('login') + '?next=' + quote(request.get_full_path()))
         return self.get_response(request)
 
 

@@ -414,16 +414,16 @@ class WebIntegrationTests(TestCase):
         segundo = Establecimiento.objects.create(
             nombre='Campo Sur', fecha_inicio=date.today(), ubicacion='Santa Fe',
         )
+        # Un propietario accede automáticamente a todos los establecimientos.
         response = self.client.post(reverse('crear_usuario_api'), {
             'nombre': 'María', 'usuario': 'maria', 'clave': 'clave123',
-            'establecimiento_ids': [Establecimiento.objects.first().id, segundo.id],
-            'roles': ['Operario', 'Propietario'],
+            'rol': 'Propietario',
         })
         self.assertEqual(response.status_code, 201)
         usuario = Usuario.objects.get(nombre_usuario='maria')
         roles = RolEstablecimiento.objects.filter(usuario=usuario).order_by('establecimiento__id')
         self.assertEqual(len(roles), 2)
-        self.assertEqual(list(roles.values_list('nombre', flat=True)), ['Operario', 'Propietario'])
+        self.assertEqual(list(roles.values_list('nombre', flat=True)), ['Propietario', 'Propietario'])
         self.assertEqual(list(roles.values_list('establecimiento_id', flat=True)),
                          [Establecimiento.objects.first().id, segundo.id])
         self.assertTrue(usuario.debe_cambiar_clave)
@@ -464,6 +464,56 @@ class WebIntegrationTests(TestCase):
             'nombre': 'Campo', 'fecha_inicio': 'no-es-fecha', 'ubicacion': 'Chaco',
         })
         self.assertEqual(response.status_code, 400)
+
+    def test_eliminar_establecimiento_borra_dependencias(self):
+        segundo = Establecimiento.objects.create(
+            nombre='Campo Chico', fecha_inicio=date.today(), ubicacion='Salta'
+        )
+        parcela_segunda = Parcela.objects.create(ancho=15, largo=20, establecimiento=segundo)
+        animal = Animal.objects.create(
+            id_senasa=999, nombre='Toro', tipo_animal='Bovino', sexo='Macho',
+            establecimiento=segundo, parcela=parcela_segunda, vivo=True,
+        )
+        rol = RolEstablecimiento.objects.create(
+            usuario=Usuario.objects.get(nombre_usuario='propietario'),
+            establecimiento=segundo, nombre='Propietario',
+            fecha_ingreso=date.today(), estado_acceso=True,
+        )
+
+        self.client.post(reverse('seleccionar_establecimiento'), {'establecimiento_id': segundo.id})
+        response = self.client.post(reverse('eliminar_establecimiento', args=[segundo.id]))
+        self.assertEqual(response.status_code, 200)
+
+        self.assertFalse(Establecimiento.objects.filter(pk=segundo.id).exists())
+        self.assertFalse(Parcela.objects.filter(pk=parcela_segunda.id).exists())
+        self.assertFalse(RolEstablecimiento.objects.filter(pk=rol.id).exists())
+        animal.refresh_from_db()
+        self.assertIsNone(animal.establecimiento)
+        self.assertIsNone(animal.parcela)
+        self.assertNotIn('establecimiento_id', self.client.session)
+
+    def test_no_se_elimina_el_unico_establecimiento(self):
+        response = self.client.post(reverse('eliminar_establecimiento', args=[Establecimiento.objects.get().id]))
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(Establecimiento.objects.exists())
+
+    def test_eliminar_establecimiento_inexistente(self):
+        response = self.client.post(reverse('eliminar_establecimiento', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_operario_no_elimina_establecimientos(self):
+        persona = Persona.objects.create(nombre='Pedro', correo_electronico='pedro-elim@auth.com')
+        operario = Usuario.objects.create(nombre_usuario='pedro-elim', clave=make_password('clave123'), persona=persona)
+        RolEstablecimiento.objects.create(
+            usuario=operario, establecimiento=Establecimiento.objects.get(),
+            nombre='Operario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        session = self.client.session
+        session['usuario_id'] = operario.id
+        session.save()
+        response = self.client.post(reverse('eliminar_establecimiento', args=[Establecimiento.objects.get().id]))
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Establecimiento.objects.exists())
 
 
 class AuthTests(TestCase):
@@ -532,13 +582,94 @@ class AuthTests(TestCase):
         self.assertEqual(response.url, reverse('cambiar_clave'))
 
         # Cambio de clave: entra al dashboard y la clave nueva funciona.
-        response = self.client.post(reverse('cambiar_clave'), {'clave': 'nueva123', 'clave_confirmacion': 'nueva123'})
+        response = self.client.post(reverse('cambiar_clave'), {
+            'correo_electronico': 'juan@temp.com',
+            'clave': 'nueva123',
+            'clave_confirmacion': 'nueva123',
+        })
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('dashboard'))
         self.client.session.flush()
         response = self.client.post(reverse('login'), {'nombre_usuario': 'juan', 'clave': 'nueva123'})
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('dashboard'))
+
+    def test_cambiar_clave_exige_correo(self):
+        persona = Persona.objects.create(nombre='Juan', correo_electronico='juan@temp3.com')
+        Usuario.objects.create(
+            nombre_usuario='juan', clave=make_password('temporal123'),
+            persona=persona, debe_cambiar_clave=True,
+        )
+        self.client.post(reverse('login'), {'nombre_usuario': 'juan', 'clave': 'temporal123'})
+
+        # Sin correo no permite cambiar la clave.
+        response = self.client.post(reverse('cambiar_clave'), {
+            'clave': 'nueva123', 'clave_confirmacion': 'nueva123',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'correo electrónico')
+        usuario = Usuario.objects.get(nombre_usuario='juan')
+        self.assertTrue(usuario.debe_cambiar_clave)
+
+        # Con un correo que no coincide con el registrado, tampoco.
+        response = self.client.post(reverse('cambiar_clave'), {
+            'correo_electronico': 'otro@mail.com',
+            'clave': 'nueva123', 'clave_confirmacion': 'nueva123',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'no coincide')
+
+        # Con el correo correcto, cambia la clave y la guarda.
+        response = self.client.post(reverse('cambiar_clave'), {
+            'correo_electronico': 'juan@temp3.com',
+            'clave': 'nueva123', 'clave_confirmacion': 'nueva123',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('dashboard'))
+        usuario.refresh_from_db()
+        self.assertFalse(usuario.debe_cambiar_clave)
+
+    def test_propietario_edita_datos_personales_de_usuario(self):
+        persona_prop = Persona.objects.create(nombre='Dueño', correo_electronico='dueno@editar.com')
+        propietario = Usuario.objects.create(
+            nombre_usuario='dueno', clave=make_password('clave123'), persona=persona_prop,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=propietario, establecimiento=Establecimiento.objects.get(),
+            nombre='Propietario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        self.login_usuario(propietario)
+
+        persona = Persona.objects.create(nombre='Pedro', apellido='Gómez', correo_electronico='pedro@editar.com')
+        usuario = Usuario.objects.create(
+            nombre_usuario='pedro', clave=make_password('clave123'), persona=persona,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=usuario, establecimiento=Establecimiento.objects.get(),
+            nombre='Operario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+
+        response = self.client.post(reverse('actualizar_usuario_api', args=[usuario.id]), {
+            'nombre': 'Pedro Pablo',
+            'apellido': 'Gómez',
+            'email': 'pedro.pablo@editar.com',
+            'telefono': '3515551234',
+        })
+        self.assertEqual(response.status_code, 200)
+        usuario.refresh_from_db()
+        persona.refresh_from_db()
+        self.assertEqual(persona.nombre, 'Pedro Pablo')
+        self.assertEqual(persona.correo_electronico, 'pedro.pablo@editar.com')
+        self.assertEqual(persona.telefono, '3515551234')
+
+        # Un correo ya usado por otro usuario es rechazado.
+        Persona.objects.create(nombre='Otra', correo_electronico='ocupado@editar.com')
+        response = self.client.post(reverse('actualizar_usuario_api', args=[usuario.id]), {
+            'nombre': 'Pedro Pablo', 'email': 'ocupado@editar.com',
+        })
+        self.assertEqual(response.status_code, 400)
+        persona.refresh_from_db()
+        self.assertEqual(persona.correo_electronico, 'pedro.pablo@editar.com')
 
     def test_login_no_reutiliza_la_clave_temporal(self):
         persona = Persona.objects.create(nombre='Juan', correo_electronico='juan@temp2.com')
@@ -547,13 +678,17 @@ class AuthTests(TestCase):
             persona=persona, debe_cambiar_clave=True,
         )
         self.client.post(reverse('login'), {'nombre_usuario': 'juan', 'clave': 'temporal123'})
-        response = self.client.post(reverse('cambiar_clave'), {'clave': 'temporal123', 'clave_confirmacion': 'temporal123'})
+        response = self.client.post(reverse('cambiar_clave'), {
+            'correo_electronico': 'juan@temp2.com',
+            'clave': 'temporal123',
+            'clave_confirmacion': 'temporal123',
+        })
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'no puede ser igual a la anterior')
         usuario = Usuario.objects.get(nombre_usuario='juan')
         self.assertTrue(usuario.debe_cambiar_clave)
 
-    def test_propietario_asigna_usuario_a_varios_establecimientos(self):
+    def test_propietario_crea_operario_y_le_da_acceso(self):
         persona = Persona.objects.create(nombre='Juan', correo_electronico='juan-multi@auth.com')
         propietario = Usuario.objects.create(
             nombre_usuario='propietario', clave=make_password('clave123'), persona=persona,
@@ -568,9 +703,10 @@ class AuthTests(TestCase):
         )
         self.login_usuario(propietario)
 
+        # Un operario accede solo a los establecimientos elegidos.
         response = self.client.post(reverse('crear_usuario_api'), {
             'nombre': 'Pedro', 'usuario': 'pedro', 'clave': 'clave123',
-            'establecimiento_ids': [est1.id, est2.id], 'roles': ['Operario', 'Operario'],
+            'rol': 'Operario', 'establecimiento_ids': [est1.id, est2.id],
         })
         self.assertEqual(response.status_code, 201)
         usuario = Usuario.objects.get(nombre_usuario='pedro')
@@ -579,31 +715,31 @@ class AuthTests(TestCase):
             [est1.id, est2.id],
         )
 
-        rol_est2 = RolEstablecimiento.objects.get(usuario=usuario, establecimiento=est2)
+        # Si se vuelve propietario, obtiene acceso a todos los establecimientos.
         response = self.client.post(reverse('actualizar_usuario_api', args=[usuario.id]), {
-            'rol_establecimiento_id': rol_est2.id, 'rol': 'Propietario', 'estado_acceso': 'Activo',
+            'rol': 'Propietario', 'estado_acceso': 'Activo',
         })
         self.assertEqual(response.status_code, 200)
-        rol_est2.refresh_from_db()
-        self.assertEqual(rol_est2.nombre, 'Propietario')
-        self.assertTrue(rol_est2.estado_acceso)
-
-        # Agregar acceso a un tercer establecimiento.
-        est3 = Establecimiento.objects.create(
-            nombre='Tercer campo', fecha_inicio=date.today(), ubicacion='Córdoba'
+        self.assertEqual(
+            set(RolEstablecimiento.objects.filter(usuario=usuario, nombre='Propietario').values_list('establecimiento_id', flat=True)),
+            {est1.id, est2.id},
         )
-        response = self.client.post(reverse('actualizar_usuario_api', args=[usuario.id]), {
-            'nuevo_establecimiento_id': est3.id, 'nuevo_rol': 'Operario',
-        })
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(RolEstablecimiento.objects.filter(usuario=usuario, establecimiento=est3).exists())
 
-        # Quitar el acceso al segundo establecimiento.
+        # Un establecimiento nuevo se sincroniza automáticamente para el propietario.
+        response = self.client.post(reverse('crear_establecimiento'), {
+            'nombre': 'Tercer campo', 'fecha_inicio': '2026-08-01', 'ubicacion': 'Córdoba',
+        })
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(
+            RolEstablecimiento.objects.filter(usuario=usuario, nombre='Propietario', establecimiento__nombre='Tercer campo').exists()
+        )
+
+        # Desactivar el acceso apaga todos los accesos del usuario.
         response = self.client.post(reverse('actualizar_usuario_api', args=[usuario.id]), {
-            'eliminar_rol_establecimiento_id': rol_est2.id,
+            'estado_acceso': 'Inactivo',
         })
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(RolEstablecimiento.objects.filter(usuario=usuario, establecimiento=est2).exists())
+        self.assertFalse(RolEstablecimiento.objects.filter(usuario=usuario, estado_acceso=True).exists())
 
     def test_operario_no_accede_a_finanzas_pero_si_a_stock(self):
         persona = Persona.objects.create(nombre='Pedro', correo_electronico='pedro@auth.com')

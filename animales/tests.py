@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from animales.models import Animal
 from establecimientos.models import Establecimiento
-from sanidad.models import EventoSanitario
+from sanidad.models import DetalleEvento, EventoSanitario
 from usuarios.models import Persona, RolEstablecimiento, Usuario
 from web.views import _animal_data, _categoria
 
@@ -50,11 +50,11 @@ class AnimalStockTests(TestCase):
 
     def test_castracion_actualiza_el_estado_del_animal(self):
         animal = self.crear_bovino()
-        EventoSanitario.objects.create(
-            animal=animal,
+        evento = EventoSanitario.objects.create(
             tipo='Castración',
             fecha_aplicacion=date.today(),
         )
+        DetalleEvento.objects.create(evento=evento, animal=animal)
         animal.refresh_from_db()
         self.assertTrue(animal.castrado)
         self.assertTrue(_animal_data(animal)['castrado'])

@@ -67,19 +67,19 @@
                       </div>
                       <div class="col-md-4">
                         <select class="form-select" id="f-ultimo-acceso">
-                          <option value="">Ultimo acceso: cualquiera</option>
+                          <option value="">Último acceso: cualquiera</option>
                           <option value="hoy">Hoy</option>
                           <option value="semana">Esta semana</option>
                           <option value="mes">Este mes</option>
-                          <option value="viejo">Hace mas de 30 dias</option>
+                          <option value="viejo">Hace más de 30 días</option>
                         </select>
                       </div>
                       <div class="col-md-4">
                         <select class="form-select" id="f-antiguedad">
-                          <option value="">Antiguedad: cualquiera</option>
-                          <option value="nuevo">Menos de 30 dias</option>
+                          <option value="">Antigüedad: cualquiera</option>
+                          <option value="nuevo">Menos de 30 días</option>
                           <option value="medio">1 a 6 meses</option>
-                          <option value="viejo">Mas de 6 meses</option>
+                          <option value="viejo">Más de 6 meses</option>
                         </select>
                       </div>
                       <div class="col-md-4 d-grid">
@@ -99,8 +99,8 @@
                             <th>Email</th>
                             <th>Rol</th>
                             <th>Estado</th>
-                            <th>Ultimo acceso</th>
-                            <th>Fecha de creacion</th>
+                            <th>Último acceso</th>
+                            <th>Fecha de creación</th>
                             <th class="text-end">Acciones</th>
                           </tr>
                         </thead>
@@ -130,7 +130,7 @@
                         <span class="text-secondary">Email</span><span id="perfil-email">-</span>
                       </li>
                       <li class="list-group-item d-flex justify-content-between">
-                        <span class="text-secondary">Telefono</span><span id="perfil-telefono">-</span>
+                        <span class="text-secondary">Teléfono</span><span id="perfil-telefono">-</span>
                       </li>
                       <li class="list-group-item d-flex justify-content-between">
                         <span class="text-secondary">Rol</span><span id="perfil-rol">-</span>
@@ -142,10 +142,10 @@
                         <span class="text-secondary">Estado</span><span id="perfil-estado">-</span>
                       </li>
                       <li class="list-group-item d-flex justify-content-between">
-                        <span class="text-secondary">Fecha de creacion</span><span id="perfil-creacion">-</span>
+                        <span class="text-secondary">Fecha de creación</span><span id="perfil-creacion">-</span>
                       </li>
                       <li class="list-group-item d-flex justify-content-between">
-                        <span class="text-secondary">Ultimo acceso</span><span id="perfil-acceso">-</span>
+                        <span class="text-secondary">Último acceso</span><span id="perfil-acceso">-</span>
                       </li>
                     </ul>
                   </div>
@@ -181,14 +181,14 @@
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Apellido</label>
-                  <input type="text" class="form-control" id="nu-apellido" placeholder="Ej: Fernandez" />
+                  <input type="text" class="form-control" id="nu-apellido" placeholder="Ej: Fernández" />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Email</label>
                   <input type="email" class="form-control" id="nu-email" placeholder="usuario@ganastock.com" />
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label">Telefono</label>
+                  <label class="form-label">Teléfono</label>
                   <input type="tel" class="form-control" id="nu-telefono" placeholder="Ej: +54 9 3644 000000" />
                 </div>
                 <div class="col-md-6">
@@ -197,20 +197,27 @@
                 </div>
                 <div class="col-md-6"></div>
                 <div class="col-md-6">
-                  <label class="form-label">Contrasena</label>
+                  <label class="form-label">Contraseña</label>
                   <input type="password" class="form-control" id="nu-password" required />
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label">Confirmar contrasena</label>
+                  <label class="form-label">Confirmar contraseña</label>
                   <input type="password" class="form-control" id="nu-password-confirm" required />
-                  <div class="invalid-feedback" id="nu-password-feedback">Las contrasenas no coinciden.</div>
+                  <div class="invalid-feedback" id="nu-password-feedback">Las contraseñas no coinciden.</div>
                 </div>
-                <div class="col-12">
-                  <label class="form-label">Accesos por establecimiento</label>
-                  <div id="nu-accesos" class="d-flex flex-column gap-2"></div>
-                  <button type="button" class="btn btn-outline-primary btn-sm mt-1" id="nu-agregar-acceso">
-                    <i class="bi bi-plus-lg me-1"></i> Agregar otro establecimiento
-                  </button>
+                <div class="col-md-6">
+                  <label class="form-label">Rol</label>
+                  <select class="form-select" id="nu-rol">
+                    <option value="Operario" selected>Operario</option>
+                    <option value="Propietario">Propietario</option>
+                  </select>
+                  <div class="form-text d-none" id="nu-rol-note">
+                    El propietario accede automáticamente a todos los establecimientos.
+                  </div>
+                </div>
+                <div class="col-12" id="nu-est-container">
+                  <label class="form-label" id="nu-est-label">Establecimientos con acceso</label>
+                  <div id="nu-establecimientos" class="d-flex flex-column gap-1 border rounded p-2"></div>
                 </div>
               </div>
             </div>
@@ -226,19 +233,54 @@
 
     <!--begin::Modal Asignar rol-->
     <div class="modal fade" id="modalAsignarRol" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog">
+      <div class="modal-dialog modal-lg">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Asignar rol y acceso</h5>
+            <h5 class="modal-title">Editar usuario</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
             <p class="text-secondary small" id="ar-usuario-nombre"></p>
-            <label class="form-label">Accesos por establecimiento</label>
-            <div id="ar-accesos" class="d-flex flex-column gap-2"></div>
-            <button type="button" class="btn btn-outline-primary btn-sm mt-1" id="ar-agregar-acceso">
-              <i class="bi bi-plus-lg me-1"></i> Agregar establecimiento
-            </button>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Nombre</label>
+                <input type="text" class="form-control" id="ar-nombre" required />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Apellido</label>
+                <input type="text" class="form-control" id="ar-apellido" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" id="ar-email" placeholder="usuario@ganastock.com" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Teléfono</label>
+                <input type="tel" class="form-control" id="ar-telefono" placeholder="Ej: +54 9 3644 000000" />
+              </div>
+            </div>
+            <hr>
+            <div class="mb-3">
+              <label class="form-label">Rol</label>
+              <select class="form-select" id="ar-rol-user">
+                <option value="Operario">Operario</option>
+                <option value="Propietario">Propietario</option>
+              </select>
+              <div class="form-text d-none" id="ar-rol-note">
+                El propietario accede automáticamente a todos los establecimientos.
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Acceso habilitado</label>
+              <select class="form-select" id="ar-estado-user">
+                <option value="Activo">Activo</option>
+                <option value="Inactivo">Inactivo</option>
+              </select>
+            </div>
+            <div class="mb-3" id="ar-est-container">
+              <label class="form-label" id="ar-est-label">Establecimientos con acceso</label>
+              <div id="ar-establecimientos" class="d-flex flex-column gap-1 border rounded p-2"></div>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -262,7 +304,7 @@
         establecimientos: JSON.parse(document.getElementById('ganastock-data-establecimientos').textContent),
       };
     </script>
-    <script src="{% static 'js/usuarios.js' %}?v=4"></script>
+    <script src="{% static 'js/usuarios.js' %}?v=10"></script>
 {% endblock %}
 
          

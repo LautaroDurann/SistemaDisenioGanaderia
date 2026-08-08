@@ -12,8 +12,13 @@
   <form method="post" novalidate>
     {% csrf_token %}
     <div class="mb-3">
+      <label class="form-label">Correo electrónico</label>
+      <input type="email" name="correo_electronico" class="form-control" value="{{ correo }}" required autofocus>
+      <div class="form-text">Confirmá tu correo electrónico. Se usa para poder recuperar la contraseña.</div>
+    </div>
+    <div class="mb-3">
       <label class="form-label">Nueva contraseña</label>
-      <input type="password" name="clave" class="form-control" minlength="6" required autofocus>
+      <input type="password" name="clave" class="form-control" minlength="6" required>
       <div class="form-text">Mínimo 6 caracteres.</div>
     </div>
     <div class="mb-4">

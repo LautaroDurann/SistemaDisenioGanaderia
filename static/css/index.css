@@ -18,6 +18,28 @@
         z-index: 1050;
       }
 
+      /* Si el <form> envuelve header/body/footer del modal, tiene que
+         participar del layout flex para que modal-dialog-scrollable
+         limite su alto y el .modal-body quede con scroll interno.
+         Sin esto, el contenido se recorta y no se puede desplazar. */
+      .modal-dialog-scrollable .modal-content > form {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        max-height: 100%;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .modal-dialog-scrollable .modal-content > form .modal-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+      }
+      .modal-dialog-scrollable .modal-content > form .modal-header,
+      .modal-dialog-scrollable .modal-content > form .modal-footer {
+        flex-shrink: 0;
+      }
+
       /* Ajustes propios de VacApp */
       body {
         font-size: 0.95rem;

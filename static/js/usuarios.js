@@ -89,7 +89,6 @@ const FILAS_POR_PAGINA = 6;
 let paginaActual = 1;
 let usuarioSeleccionado = null;
 let usuarioEdicion = null;
-let removidosRol = [];
 
 function nombreCompleto(u) {
   return `${u.nombre || ''} ${u.apellido || ''}`.trim();
@@ -103,15 +102,17 @@ function iniciales(u) {
 
 function formatFecha(iso) {
   if (!iso) return '-';
-  const [y, m, d] = iso.split('-');
+  const [fecha] = String(iso).split('T');
+  const [y, m, d] = fecha.split('-');
   if (!y || !m || !d) return iso;
   return `${d}/${m}/${y}`;
 }
 
 function formatFechaHora(iso) {
   if (!iso) return '-';
-  const [fecha, hora] = iso.split('T');
-  return `${formatFecha(fecha)} ${hora || ''}`;
+  const [fecha, hora] = String(iso).split('T');
+  const limpia = hora ? hora.split('.')[0].replace(/[+Z].*$/, '').slice(0, 5) : '';
+  return `${formatFecha(fecha)}${limpia ? ` ${limpia}` : ''}`;
 }
 
 function getCookie(nombre) {
@@ -155,6 +156,9 @@ function aplicarFiltros() {
 }
 
 function badgesRoles(u) {
+  if (u.rol === 'Propietario') {
+    return '<span class="badge text-bg-light border me-1" title="Accede a todos los establecimientos">Propietario</span>';
+  }
   const roles = u.roles || [];
   if (!roles.length) return u.rol || '-';
   return roles
@@ -200,8 +204,8 @@ function renderTabla() {
             <i class="bi bi-three-dots-vertical"></i>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item btn-editar-rol" href="#" data-id="${u.id}"><i class="bi bi-pencil-square me-2"></i>Editar rol y acceso</a></li>
-            <li><a class="dropdown-item btn-restablecer-clave" href="#" data-id="${u.id}"><i class="bi bi-key me-2"></i>Restablecer contrasena</a></li>
+            <li><a class="dropdown-item btn-editar-rol" href="#" data-id="${u.id}"><i class="bi bi-pencil-square me-2"></i>Editar información</a></li>
+            <li><a class="dropdown-item btn-restablecer-clave" href="#" data-id="${u.id}"><i class="bi bi-key me-2"></i>Restablecer contraseña</a></li>
             <li><a class="dropdown-item btn-cambiar-estado" href="#" data-id="${u.id}"><i class="bi bi-slash-circle me-2"></i>${u.estado === 'Activo' ? 'Desactivar' : 'Activar'}</a></li>
             <li><hr class="dropdown-divider" /></li>
             <li><a class="dropdown-item text-danger btn-eliminar-usuario" href="#" data-id="${u.id}"><i class="bi bi-trash me-2"></i>Eliminar</a></li>
@@ -318,74 +322,54 @@ function renderPerfil() {
   document.getElementById('perfil-telefono').textContent = u.telefono || '-';
   document.getElementById('perfil-rol').textContent = u.rol;
   document.getElementById('perfil-establecimientos').textContent =
-    (u.roles || []).map((r) => r.establecimiento_nombre).join(', ') || '-';
+    u.rol === 'Propietario'
+      ? 'Todos los establecimientos'
+      : (u.roles || []).map((r) => r.establecimiento_nombre).join(', ') || '-';
   document.getElementById('perfil-estado').innerHTML = `<span class="badge ${ESTADO_BADGE[u.estado] || 'text-bg-secondary'}">${u.estado}</span>`;
   document.getElementById('perfil-creacion').textContent = formatFecha(u.creado);
   document.getElementById('perfil-acceso').textContent = formatFechaHora(u.acceso);
 }
 
-function opcionesEstablecimientos(seleccionado) {
-  return ESTABLECIMIENTOS.map(
-    (e) =>
-      `<option value="${e.id}"${String(e.id) === String(seleccionado) ? ' selected' : ''}>${e.nombre}</option>`,
-  ).join('');
+function crearCheckEstablecimiento(e, marcado) {
+  const div = document.createElement('div');
+  div.className = 'form-check';
+  div.innerHTML = `
+    <input class="form-check-input est-check" type="checkbox" id="est-${e.id}" value="${e.id}"${marcado ? ' checked' : ''}>
+    <label class="form-check-label" for="est-${e.id}">${e.nombre}</label>`;
+  return div;
 }
 
-function opcionesRol(seleccionado) {
-  return ['Operario', 'Propietario']
-    .map((r) => `<option value="${r}"${r === seleccionado ? ' selected' : ''}>${r}</option>`)
-    .join('');
+function llenarChecksEstablecimientos(contenedor, marcados) {
+  contenedor.innerHTML = '';
+  ESTABLECIMIENTOS.forEach((e) =>
+    contenedor.appendChild(crearCheckEstablecimiento(e, marcados && marcados.has(e.id))),
+  );
 }
 
-function crearFilaAccesoNuevo(estId) {
-  const fila = document.createElement('div');
-  fila.className = 'row g-2';
-  fila.innerHTML = `
-    <div class="col-7">
-      <select class="form-select nu-est">${opcionesEstablecimientos(estId || '')}</select>
-    </div>
-    <div class="col-4">
-      <select class="form-select nu-rol">${opcionesRol('Operario')}</select>
-    </div>
-    <div class="col-1 d-grid">
-      <button type="button" class="btn btn-outline-danger btn-sm btn-quitar-acceso" title="Quitar acceso"><i class="bi bi-x"></i></button>
-    </div>`;
-  return fila;
-}
-
-function crearFilaAccesoRol(rol) {
-  const fila = document.createElement('div');
-  fila.className = 'row g-2 acceso-rol-row';
-  if (rol && rol.id) fila.dataset.rolId = rol.id;
-  fila.innerHTML = `
-    <div class="col-md-4">
-      <select class="form-select ar-est">${opcionesEstablecimientos(rol ? rol.establecimiento_id : '')}</select>
-    </div>
-    <div class="col-md-3">
-      <select class="form-select ar-rol">${opcionesRol(rol ? rol.rol : 'Operario')}</select>
-    </div>
-    <div class="col-md-3">
-      <select class="form-select ar-estado">
-        <option value="Activo"${rol && rol.estado === 'Inactivo' ? '' : ' selected'}>Activo</option>
-        <option value="Inactivo"${rol && rol.estado === 'Inactivo' ? ' selected' : ''}>Inactivo</option>
-      </select>
-    </div>
-    <div class="col-md-2 d-grid">
-      <button type="button" class="btn btn-outline-danger btn-sm btn-quitar-acceso" title="Quitar acceso"><i class="bi bi-trash"></i></button>
-    </div>`;
-  return fila;
+function aplicarRolModal(rol, esNuevo, estado) {
+  const esProp = rol === 'Propietario';
+  const esInactivo = estado === 'Inactivo';
+  const nota = document.getElementById(esNuevo ? 'nu-rol-note' : 'ar-rol-note');
+  const cont = document.getElementById(esNuevo ? 'nu-est-container' : 'ar-est-container');
+  if (nota) nota.classList.toggle('d-none', !esProp);
+  // La lista de establecimientos se oculta para propietarios y usuarios inactivos.
+  if (cont) cont.style.display = esProp || esInactivo ? 'none' : '';
 }
 
 function abrirModalRol(usuarioId) {
   const u = USUARIOS.find((x) => x.id === usuarioId);
   if (!u) return;
   usuarioEdicion = usuarioId;
-  removidosRol = [];
   document.getElementById('ar-usuario-nombre').textContent = `Editando a ${nombreCompleto(u) || u.usuario} (@${u.usuario})`;
-  const contenedor = document.getElementById('ar-accesos');
-  contenedor.innerHTML = '';
-  const roles = u.roles && u.roles.length ? u.roles : [null];
-  roles.forEach((rol) => contenedor.appendChild(crearFilaAccesoRol(rol)));
+  document.getElementById('ar-nombre').value = u.nombre || '';
+  document.getElementById('ar-apellido').value = u.apellido || '';
+  document.getElementById('ar-email').value = u.email || '';
+  document.getElementById('ar-telefono').value = u.telefono || '';
+  document.getElementById('ar-rol-user').value = u.rol;
+  document.getElementById('ar-estado-user').value = u.estado;
+  const marcados = new Set((u.roles || []).map((r) => r.establecimiento_id));
+  llenarChecksEstablecimientos(document.getElementById('ar-establecimientos'), marcados);
+  aplicarRolModal(u.rol, false, u.estado);
   bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAsignarRol')).show();
 }
 
@@ -456,36 +440,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Alta de usuario
   const form = document.getElementById('form-nuevo-usuario');
-  const nuAccesos = document.getElementById('nu-accesos');
+  const pass = document.getElementById('nu-password');
+  const passConfirm = document.getElementById('nu-password-confirm');
 
-  nuAccesos.appendChild(crearFilaAccesoNuevo(ESTABLECIMIENTOS[0]?.id));
-  document.getElementById('nu-agregar-acceso').addEventListener('click', () => {
-    nuAccesos.appendChild(crearFilaAccesoNuevo(''));
-  });
+  passConfirm.addEventListener('input', () => passConfirm.classList.remove('is-invalid'));
 
-  nuAccesos.addEventListener('click', (e) => {
-    const btn = e.target.closest('.btn-quitar-acceso');
-    if (btn) btn.closest('.row').remove();
+  llenarChecksEstablecimientos(document.getElementById('nu-establecimientos'), new Set());
+  document.getElementById('nu-rol').addEventListener('change', (e) => {
+    aplicarRolModal(e.target.value, true);
   });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const pass = document.getElementById('nu-password');
-    const passConfirm = document.getElementById('nu-password-confirm');
     if (pass.value !== passConfirm.value) {
       passConfirm.classList.add('is-invalid');
       return;
     }
     passConfirm.classList.remove('is-invalid');
-    const filas = [...nuAccesos.querySelectorAll('.row')];
-    const establecimiento_ids = filas.map((f) => f.querySelector('.nu-est').value).filter((v) => v);
-    if (!establecimiento_ids.length) {
-      alert('Seleccioná al menos un establecimiento para el usuario.');
-      return;
+    const rol = document.getElementById('nu-rol').value;
+    const establecimiento_ids = [];
+    if (rol === 'Operario') {
+      document.querySelectorAll('#nu-establecimientos input:checked').forEach((cb) => {
+        establecimiento_ids.push(cb.value);
+      });
+      if (!establecimiento_ids.length) {
+        alert('Seleccioná al menos un establecimiento para el usuario.');
+        return;
+      }
     }
-    const roles = filas
-      .filter((f) => f.querySelector('.nu-est').value)
-      .map((f) => f.querySelector('.nu-rol').value);
     const datos = {
       nombre: document.getElementById('nu-nombre').value,
       apellido: document.getElementById('nu-apellido').value,
@@ -493,64 +475,61 @@ document.addEventListener('DOMContentLoaded', () => {
       telefono: document.getElementById('nu-telefono').value,
       usuario: document.getElementById('nu-usuario').value,
       clave: pass.value,
+      rol,
       establecimiento_ids,
-      roles,
     };
     try {
       await apiFetch('/api/usuarios/', datos);
       bootstrap.Modal.getOrCreateInstance(document.getElementById('modalNuevoUsuario')).hide();
       form.reset();
-      nuAccesos.innerHTML = '';
-      nuAccesos.appendChild(crearFilaAccesoNuevo(ESTABLECIMIENTOS[0]?.id));
+      document.getElementById('nu-rol').value = 'Operario';
+      llenarChecksEstablecimientos(document.getElementById('nu-establecimientos'), new Set());
+      aplicarRolModal('Operario', true);
       await cargarUsuarios();
     } catch (error) {
       alert(error.message);
     }
   });
-  passConfirm.addEventListener('input', () => passConfirm.classList.remove('is-invalid'));
 
   // Cambio de rol / estado
-  const arAccesos = document.getElementById('ar-accesos');
-  document.getElementById('ar-agregar-acceso').addEventListener('click', () => {
-    arAccesos.appendChild(crearFilaAccesoRol(null));
+  document.getElementById('ar-rol-user').addEventListener('change', (e) => {
+    aplicarRolModal(e.target.value, false, document.getElementById('ar-estado-user').value);
   });
-  arAccesos.addEventListener('click', (e) => {
-    const btn = e.target.closest('.btn-quitar-acceso');
-    if (!btn) return;
-    const fila = btn.closest('.acceso-rol-row');
-    if (fila && fila.dataset.rolId) removidosRol.push(fila.dataset.rolId);
-    if (fila) fila.remove();
+
+  document.getElementById('ar-estado-user').addEventListener('change', (e) => {
+    aplicarRolModal(document.getElementById('ar-rol-user').value, false, e.target.value);
   });
 
   document.getElementById('btn-guardar-rol').addEventListener('click', async () => {
     if (!usuarioEdicion) return;
     const url = `/api/usuarios/${usuarioEdicion}/`;
-    const filas = [...arAccesos.querySelectorAll('.acceso-rol-row')];
-    const sinEstablecimiento = filas.some(
-      (f) => !f.dataset.rolId && !f.querySelector('.ar-est').value,
-    );
-    if (sinEstablecimiento) {
-      alert('Seleccioná un establecimiento para cada acceso nuevo.');
+    const rol = document.getElementById('ar-rol-user').value;
+    const estado = document.getElementById('ar-estado-user').value;
+    const nombre = document.getElementById('ar-nombre').value.trim();
+    if (!nombre) {
+      alert('El nombre es obligatorio.');
       return;
     }
-    const pendientes = [];
-    filas.forEach((fila) => {
-      const est = fila.querySelector('.ar-est').value;
-      const rol = fila.querySelector('.ar-rol').value;
-      const estado = fila.querySelector('.ar-estado').value;
-      if (fila.dataset.rolId) {
-        pendientes.push({ rol_establecimiento_id: fila.dataset.rolId, rol, estado_acceso: estado, establecimiento_id: est });
-      } else {
-        pendientes.push({ nuevo_establecimiento_id: est, nuevo_rol: rol });
+    const establecimiento_ids = [];
+    if (rol === 'Operario') {
+      document.querySelectorAll('#ar-establecimientos input:checked').forEach((cb) => {
+        establecimiento_ids.push(cb.value);
+      });
+      if (!establecimiento_ids.length) {
+        alert('Seleccioná al menos un establecimiento para el usuario.');
+        return;
       }
-    });
+    }
     try {
-      for (const id of removidosRol) {
-        await apiFetch(url, { eliminar_rol_establecimiento_id: id });
-      }
-      for (const datos of pendientes) {
-        await apiFetch(url, datos);
-      }
+      await apiFetch(url, {
+        nombre,
+        apellido: document.getElementById('ar-apellido').value,
+        email: document.getElementById('ar-email').value,
+        telefono: document.getElementById('ar-telefono').value,
+        rol,
+        estado_acceso: estado,
+        establecimiento_ids,
+      });
       bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAsignarRol')).hide();
       await cargarUsuarios();
     } catch (error) {

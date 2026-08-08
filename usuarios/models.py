@@ -43,6 +43,10 @@ class Usuario(models.Model):
     clave = models.CharField(max_length=100) # En un proyecto real esto se encripta
     # Si está activo, el usuario debe reemplazar la clave temporal en su próximo ingreso.
     debe_cambiar_clave = models.BooleanField(default=False)
+    # Último ingreso al sistema (se actualiza en cada inicio de sesión).
+    fecha_ultimo_acceso = models.DateTimeField(null=True, blank=True)
+    # Fecha de alta del usuario (se asigna automáticamente al crearlo).
+    fecha_creacion = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     # Relación 1 a 1 con Persona (un usuario es una persona)
     persona = models.OneToOneField(Persona, on_delete=models.CASCADE)
 

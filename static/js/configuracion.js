@@ -81,11 +81,46 @@
       let confirmarCallback = null;
 
       function confirmarAccion(titulo, mensaje, onConfirm) {
-        document.getElementById('confirmar-titulo').textContent = titulo;
-        document.getElementById('confirmar-mensaje').textContent = mensaje;
+        const modalEl = document.getElementById('modalConfirmar');
+        const tituloEl = document.getElementById('confirmar-titulo');
+        const mensajeEl = document.getElementById('confirmar-mensaje');
+        if (tituloEl) tituloEl.textContent = titulo;
+        if (mensajeEl) mensajeEl.textContent = mensaje;
         confirmarCallback = onConfirm;
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('modalConfirmar')).show();
+        if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+          bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        } else if (window.confirm(mensaje)) {
+          onConfirm();
+        }
       }
+
+      // Eliminación del establecimiento activo (solo propietario).
+      // Registrado por delegación para que funcione aunque otros componentes
+      // de la página fallen al inicializar o haya una versión del JS en caché.
+      document.addEventListener('click', (event) => {
+        const boton = event.target.closest('#btn-eliminar-establecimiento');
+        if (!boton) return;
+        const id = boton.dataset.establecimientoId;
+        const nombre = boton.dataset.establecimientoNombre;
+        confirmarAccion(
+          'Eliminar establecimiento',
+          `¿Deseas eliminar "${nombre}"? Se borrarán sus parcelas, movimientos y registros asociados. Esta acción no se puede deshacer.`,
+          async () => {
+            mostrarErrorEstablecimiento('');
+            try {
+              const r = await fetch(`/api/establecimientos/${id}/eliminar/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCookie('csrftoken') },
+              });
+              const data = await r.json();
+              if (!r.ok) throw new Error(data.error || 'No se pudo eliminar el establecimiento.');
+              window.location.href = '/';
+            } catch (err) {
+              mostrarErrorEstablecimiento(err.message);
+            }
+          }
+        );
+      });
 
       // ------------------------------------------------------------------
       // Feedback visual reutilizable en botones (guardado / accion ok)

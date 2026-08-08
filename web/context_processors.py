@@ -1,4 +1,5 @@
 from establecimientos.models import Establecimiento
+from usuarios.models import RolEstablecimiento
 
 from .auth import es_propietario, usuario_actual
 
@@ -13,9 +14,21 @@ def auth_context(request):
 
 
 def establecimientos_globales(request):
-    """Expone la lista de establecimientos y el seleccionado en todas las vistas."""
+    """Expone los establecimientos a los que el usuario tiene acceso y el seleccionado.
+
+    Un propietario ve todos los establecimientos; un operario solo los que le fueron asignados.
+    """
+    usuario = usuario_actual(request)
+    todos = list(Establecimiento.objects.order_by('nombre'))
+    if usuario is not None and not es_propietario(request):
+        permitidos = set(
+            RolEstablecimiento.objects.filter(usuario=usuario).values_list('establecimiento_id', flat=True)
+        )
+        establecimientos = [e for e in todos if e.id in permitidos]
+    else:
+        establecimientos = todos
+
     establecimiento_id = request.session.get('establecimiento_id')
-    establecimientos = list(Establecimiento.objects.order_by('nombre'))
     establecimiento_actual = None
     if establecimiento_id:
         for establecimiento in establecimientos:

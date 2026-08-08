@@ -92,7 +92,7 @@
                               <input type="date" class="form-control" id="est-fecha-inicio" value="{{ establecimiento_actual.fecha_inicio|date:'Y-m-d'|default:'' }}" required />
                             </div>
                             <div class="col-md-6">
-                              <label class="form-label">Ubicacion</label>
+                              <label class="form-label">Ubicación</label>
                               <input type="text" class="form-control" id="est-ubicacion" value="{{ establecimiento_actual.ubicacion|default:'' }}" required />
                             </div>
                           </div>
@@ -103,6 +103,28 @@
                         </form>
                       </div>
                     </div>
+                    {% if establecimiento_actual %}
+                    <div class="card vacapp-card mt-3">
+                      <div class="card-header bg-transparent border-0 pb-0">
+                        <h3 class="card-title text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Zona de peligro</h3>
+                      </div>
+                      <div class="card-body">
+                        <p class="text-secondary small mb-2">
+                          Al eliminar <span class="fw-semibold">{{ establecimiento_actual.nombre }}</span> se borrarán
+                          también sus parcelas, movimientos y registros asociados. Esta acción no se puede deshacer.
+                        </p>
+                        <button
+                          type="button"
+                          class="btn btn-outline-danger"
+                          id="btn-eliminar-establecimiento"
+                          data-establecimiento-id="{{ establecimiento_actual.id }}"
+                          data-establecimiento-nombre="{{ establecimiento_actual.nombre }}"
+                        >
+                          <i class="bi bi-trash me-1"></i> Eliminar establecimiento
+                        </button>
+                      </div>
+                    </div>
+                    {% endif %}
                   </div>
                   <!--end::Establecimiento-->
 
@@ -117,7 +139,7 @@
                           <div class="list-group-item d-flex justify-content-between align-items-center px-0">
                             <div>
                               <div class="fw-semibold">Recordatorio de vacunas</div>
-                              <small class="text-secondary">Avisar cuando se acerque la fecha de una proxima dosis.</small>
+                              <small class="text-secondary">Avisar cuando se acerque la fecha de una próxima dosis.</small>
                             </div>
                             <div class="form-check form-switch">
                               <input class="form-check-input" type="checkbox" role="switch" checked />
@@ -144,7 +166,7 @@
                           <div class="list-group-item d-flex justify-content-between align-items-center px-0">
                             <div>
                               <div class="fw-semibold">Alertas sanitarias</div>
-                              <small class="text-secondary">Avisar ante perdida de peso o animales sin control sanitario.</small>
+                              <small class="text-secondary">Avisar ante pérdida de peso o animales sin control sanitario.</small>
                             </div>
                             <div class="form-check form-switch">
                               <input class="form-check-input" type="checkbox" role="switch" />
@@ -192,48 +214,48 @@
                       <div class="card-body">
                         <div class="row g-3 mb-3">
                           <div class="col-md-6">
-                            <label class="form-label">Tiempo de sesion</label>
+                            <label class="form-label">Tiempo de sesión</label>
                             <select class="form-select">
                               <option>15 minutos</option>
                               <option selected>30 minutos</option>
                               <option>1 hora</option>
                               <option>4 horas</option>
-                              <option>No cerrar sesion automaticamente</option>
+                              <option>No cerrar sesión automáticamente</option>
                             </select>
                           </div>
                           <div class="col-md-6 d-flex align-items-end">
                             <div class="form-check form-switch mb-2">
                               <input class="form-check-input" type="checkbox" role="switch" disabled />
                               <label class="form-check-label">
-                                Autenticacion en dos pasos
-                                <span class="badge text-bg-secondary ms-1">Proximamente</span>
+                                Autenticación en dos pasos
+                                <span class="badge text-bg-secondary ms-1">Próximamente</span>
                               </label>
                             </div>
                           </div>
                         </div>
                         <hr />
-                        <h6 class="mb-2">Politica de contraseñas</h6>
+                        <h6 class="mb-2">Política de contraseñas</h6>
                         <div class="list-group list-group-flush">
                           <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span>Minimo 8 caracteres</span>
+                            <span>Mínimo 8 caracteres</span>
                             <div class="form-check form-switch">
                               <input class="form-check-input" type="checkbox" role="switch" checked disabled />
                             </div>
                           </div>
                           <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span>Requerir mayusculas y minusculas</span>
+                            <span>Requerir mayúsculas y minúsculas</span>
                             <div class="form-check form-switch">
                               <input class="form-check-input" type="checkbox" role="switch" checked />
                             </div>
                           </div>
                           <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span>Requerir al menos un numero</span>
+                            <span>Requerir al menos un número</span>
                             <div class="form-check form-switch">
                               <input class="form-check-input" type="checkbox" role="switch" checked />
                             </div>
                           </div>
                           <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span>Requerir al menos un simbolo</span>
+                            <span>Requerir al menos un símbolo</span>
                             <div class="form-check form-switch">
                               <input class="form-check-input" type="checkbox" role="switch" />
                             </div>
@@ -278,8 +300,8 @@
                         <label class="form-label">Idioma</label>
                         <select class="form-select mb-4" style="max-width: 320px">
                           <option selected>Español</option>
-                          <option disabled>Ingles (proximamente)</option>
-                          <option disabled>Portugues (proximamente)</option>
+                          <option disabled>Inglés (próximamente)</option>
+                          <option disabled>Portugués (próximamente)</option>
                         </select>
 
                         <label class="form-label d-block">Vista previa</label>
@@ -312,7 +334,7 @@
                             <span class="text-secondary">Tamaño de la base</span><span>238 MB</span>
                           </li>
                           <li class="list-group-item d-flex justify-content-between">
-                            <span class="text-secondary">Ultimo respaldo</span><span>14/07/2026 03:00</span>
+                            <span class="text-secondary">Último respaldo</span><span>14/07/2026 03:00</span>
                           </li>
                           <li class="list-group-item d-flex justify-content-between">
                             <span class="text-secondary">Estado del sistema</span>
@@ -326,7 +348,7 @@
                           <button
                             type="button"
                             class="btn btn-outline-warning"
-                            onclick="confirmarAccion('Restaurar respaldo', 'Esto reemplazara los datos actuales por los del ultimo respaldo. Esta accion no se puede deshacer. ¿Deseas continuar?', () => mostrarExito('btn-restaurar-respaldo', 'Respaldo restaurado'))"
+                            onclick="confirmarAccion('Restaurar respaldo', 'Esto reemplazará los datos actuales por los del último respaldo. Esta acción no se puede deshacer. ¿Deseas continuar?', () => mostrarExito('btn-restaurar-respaldo', 'Respaldo restaurado'))"
                             id="btn-restaurar-respaldo"
                           >
                             <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar respaldo
@@ -380,5 +402,5 @@
 {% endblock %}
  
 {% block page_js %}
-    <script src="{% static 'js/configuracion.js' %}?v=3"></script>
+    <script src="{% static 'js/configuracion.js' %}?v=4"></script>
 {% endblock %}

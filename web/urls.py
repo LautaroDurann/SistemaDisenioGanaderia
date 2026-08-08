@@ -17,7 +17,7 @@ urlpatterns = [
     path('finanzas/compras/', views.compras, name='compras'),
     # Se conserva la URL anterior para enlaces guardados.
     path('movimientos/', views.finanzas, name='movimientos'),
-    path('potreros/', views.potreros, name='potreros'),
+    path('parcelas/', views.potreros, name='potreros'),
     path('sanidad/', views.sanidad, name='sanidad'),
     path('vacunacion/', views.sanidad, name='vacunacion'),
     path('pesajes/', views.pesajes, name='pesajes'),
@@ -59,10 +59,11 @@ urlpatterns = [
     path('api/ventas/', views.crear_venta, name='crear_venta'),
     path('api/ventas/<int:venta_id>/', views.actualizar_venta, name='actualizar_venta'),
     path('api/ventas/<int:venta_id>/eliminar/', views.eliminar_venta, name='eliminar_venta'),
-    path('api/potreros/', views.crear_potrero, name='crear_potrero'),
-    path('api/potreros/<int:parcela_id>/eliminar/', views.eliminar_potrero, name='eliminar_potrero'),
+    path('api/parcelas/', views.crear_potrero, name='crear_potrero'),
+    path('api/parcelas/<int:parcela_id>/eliminar/', views.eliminar_potrero, name='eliminar_potrero'),
     path('api/establecimientos/', views.establecimientos_api, name='establecimientos_api'),
     path('api/establecimientos/seleccionar/', views.seleccionar_establecimiento, name='seleccionar_establecimiento'),
     path('api/establecimientos/crear/', views.crear_establecimiento, name='crear_establecimiento'),
+    path('api/establecimientos/<int:establecimiento_id>/eliminar/', views.eliminar_establecimiento, name='eliminar_establecimiento'),
     path('api/establecimientos/config/', views.config_establecimiento_api, name='config_establecimiento_api'),
 ]

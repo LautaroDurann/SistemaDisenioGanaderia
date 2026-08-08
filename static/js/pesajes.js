@@ -81,12 +81,12 @@
       const ANIMALES_PESAJE = window.GANASTOCK_DATA?.animales_pesaje ?? [
         { caravana: '0231', nombre: 'Luna', categoria: 'Vaca', potrero: 'Potrero 1', responsable: 'Juan' },
         { caravana: '0198', nombre: 'Fierro', categoria: 'Toro', potrero: 'Potrero 2', responsable: 'Carlos' },
-        { caravana: '0305', nombre: 'S/N', categoria: 'Ternero', potrero: 'Potrero 2', responsable: 'Maria' },
+        { caravana: '0305', nombre: 'S/N', categoria: 'Ternero', potrero: 'Potrero 2', responsable: 'María' },
         { caravana: '0142', nombre: 'Estrella', categoria: 'Vaca', potrero: 'Potrero 3', responsable: 'Carlos' },
-        { caravana: '0087', nombre: 'S/N', categoria: 'Novillo', potrero: 'Potrero 3', responsable: 'Maria' },
+        { caravana: '0087', nombre: 'S/N', categoria: 'Novillo', potrero: 'Potrero 3', responsable: 'María' },
         { caravana: '0056', nombre: 'Paloma', categoria: 'Vaquillona', potrero: 'Potrero 4', responsable: 'Juan' },
         { caravana: '0177', nombre: 'Trueno', categoria: 'Toro', potrero: 'Potrero 4', responsable: 'Juan' },
-        { caravana: '0263', nombre: 'Rocio', categoria: 'Vaca', potrero: 'Potrero 2', responsable: 'Maria' },
+        { caravana: '0263', nombre: 'Rocío', categoria: 'Vaca', potrero: 'Potrero 2', responsable: 'María' },
       ];
 
       // Historial de peso por animal, orden cronologico ascendente
@@ -202,7 +202,7 @@
           .map((p) => {
             const difClase = p.diferencia > 0 ? 'text-success' : p.diferencia < 0 ? 'text-danger' : 'text-secondary';
             const difTexto = p.pesoAnterior === null ? '-' : `${p.diferencia > 0 ? '+' : ''}${p.diferencia} kg`;
-            const gpdTexto = p.pesoAnterior === null ? '-' : `${p.gpd.toFixed(2)} kg/dia`;
+            const gpdTexto = p.pesoAnterior === null ? '-' : `${p.gpd.toFixed(2)} kg/día`;
             return `
           <tr>
             <td>${p.fecha}</td>
@@ -293,8 +293,8 @@
         const gpd = hist.length > 1 ? (gananciaTotal / diasEntre(primero.fecha, ultimo.fecha)).toFixed(2) : '-';
         document.getElementById('chart-evolucion-resumen').innerHTML = `
           <span><i class="bi bi-graph-up-arrow text-success me-1"></i>Ganancia total: <strong>${gananciaTotal > 0 ? '+' : ''}${gananciaTotal} kg</strong></span>
-          <span><i class="bi bi-speedometer2 text-primary me-1"></i>GPD promedio: <strong>${gpd} kg/dia</strong></span>
-          <span><i class="bi bi-calendar-range text-secondary me-1"></i>Periodo: ${primero.fecha} - ${ultimo.fecha}</span>`;
+          <span><i class="bi bi-speedometer2 text-primary me-1"></i>GPD promedio: <strong>${gpd} kg/día</strong></span>
+          <span><i class="bi bi-calendar-range text-secondary me-1"></i>Período: ${primero.fecha} - ${ultimo.fecha}</span>`;
       }
 
       function renderChartCategoria() {
@@ -359,7 +359,7 @@
 
         if (!pesoActual) {
           document.getElementById('pesaje-calc-diferencia').textContent = '- kg';
-          document.getElementById('pesaje-calc-gpd').textContent = '- kg/dia';
+          document.getElementById('pesaje-calc-gpd').textContent = '- kg/día';
           document.getElementById('pesaje-calc-total').textContent = '- kg';
           return;
         }
@@ -371,7 +371,7 @@
         const gananciaTotal = pesoActual - primerPeso;
 
         document.getElementById('pesaje-calc-diferencia').textContent = `${diferencia > 0 ? '+' : ''}${diferencia} kg`;
-        document.getElementById('pesaje-calc-gpd').textContent = `${gpd.toFixed(2)} kg/dia`;
+        document.getElementById('pesaje-calc-gpd').textContent = `${gpd.toFixed(2)} kg/día`;
         document.getElementById('pesaje-calc-total').textContent = `${gananciaTotal > 0 ? '+' : ''}${gananciaTotal} kg`;
       }
 

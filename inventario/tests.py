@@ -9,7 +9,7 @@ from animales.models import Animal
 from establecimientos.models import Establecimiento
 from finanzas.models import Compra
 from inventario.models import ComposicionDieta, Consumo, DetalleCompra, Dieta, Insumo, Lote
-from sanidad.models import EventoSanitario
+from sanidad.models import DetalleEvento, EventoSanitario
 from usuarios.models import Persona, RolEstablecimiento, Usuario, Veterinario
 
 
@@ -76,9 +76,9 @@ class InsumoCrudTests(TestCase):
             tipo='Vacunación',
             fecha_aplicacion=date(2026, 1, 2),
             costo_total=Decimal('20.00'),
-            animal=animal,
             veterinario=veterinario,
         )
+        DetalleEvento.objects.create(evento=evento, animal=animal)
         consumo = Consumo.objects.create(lote=lote, evento_sanitario=evento, cantidad=Decimal('5.00'))
         dieta = Dieta.objects.create(nombre='Dieta prueba')
         composicion = ComposicionDieta.objects.create(lote=lote, dieta=dieta, cantidadPorPorcion=Decimal('2.00'))

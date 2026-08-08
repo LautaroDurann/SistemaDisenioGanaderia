@@ -19,7 +19,7 @@ from inventario.models import Dieta, Insumo, Lote, Consumo
 from sanidad.models import DetalleEvento, EventoSanitario, Enfermedad, Diagnostico
 from usuarios.models import Comprador, RolEstablecimiento, Usuario, Veterinario
 
-from .auth import ROL_PROPIETARIO, rol_requerido
+from .auth import ROL_PROPIETARIO, rol_requerido, usuario_actual
 from .auth_views import _usuario_data
 
 
@@ -104,16 +104,33 @@ def _animal_data(animal):
 
 
 def _establecimiento_actual(request):
-    """Devuelve el establecimiento activo en la sesión (o el único existente)."""
+    """Devuelve el establecimiento activo en la sesión (o el único al que el usuario accede)."""
     establecimiento_id = request.session.get('establecimiento_id')
+    usuario = usuario_actual(request)
+    if usuario is not None and not _usuario_es_propietario_global(request):
+        permitidos_ids = set(
+            RolEstablecimiento.objects.filter(usuario=usuario).values_list('establecimiento_id', flat=True)
+        )
+        permitidos = [e for e in Establecimiento.objects.order_by('nombre') if e.id in permitidos_ids]
+    else:
+        permitidos = list(Establecimiento.objects.order_by('nombre'))
+
     if establecimiento_id:
-        try:
-            return Establecimiento.objects.get(pk=establecimiento_id)
-        except Establecimiento.DoesNotExist:
-            request.session.pop('establecimiento_id', None)
-    if Establecimiento.objects.count() == 1:
-        return Establecimiento.objects.first()
+        for establecimiento in permitidos:
+            if establecimiento.id == establecimiento_id:
+                return establecimiento
+        request.session.pop('establecimiento_id', None)
+    if len(permitidos) == 1:
+        return permitidos[0]
     return None
+
+
+def _usuario_es_propietario_global(request):
+    """Un usuario con rol de propietario en algún establecimiento es propietario en todos."""
+    usuario = usuario_actual(request)
+    if usuario is None:
+        return False
+    return RolEstablecimiento.objects.filter(usuario=usuario, nombre=ROL_PROPIETARIO).exists()
 
 
 def _establecimiento_data(establecimiento):
@@ -204,6 +221,10 @@ def seleccionar_establecimiento(request):
         establecimiento = Establecimiento.objects.get(pk=establecimiento_id)
     except (TypeError, ValueError, Establecimiento.DoesNotExist):
         return JsonResponse({'error': 'El establecimiento seleccionado no existe.'}, status=400)
+    usuario = usuario_actual(request)
+    if usuario is not None and not _usuario_es_propietario_global(request):
+        if not RolEstablecimiento.objects.filter(usuario=usuario, establecimiento=establecimiento).exists():
+            return JsonResponse({'error': 'No tenés acceso a ese establecimiento.'}, status=403)
     request.session['establecimiento_id'] = establecimiento.id
     return JsonResponse({'ok': True, 'establecimiento_id': establecimiento.id, 'nombre': establecimiento.nombre})
 
@@ -220,10 +241,46 @@ def crear_establecimiento(request):
         )
         establecimiento.full_clean()
         establecimiento.save()
+        # Todo propietario accede automáticamente a los establecimientos nuevos.
+        for usuario_id, estado in (
+            RolEstablecimiento.objects.filter(nombre=ROL_PROPIETARIO)
+            .values_list('usuario_id', 'estado_acceso')
+            .distinct()
+        ):
+            RolEstablecimiento.objects.get_or_create(
+                usuario_id=usuario_id, establecimiento=establecimiento,
+                defaults={
+                    'nombre': ROL_PROPIETARIO,
+                    'fecha_ingreso': date.today(),
+                    'estado_acceso': estado,
+                },
+            )
     except (KeyError, ValueError, ValidationError):
         return JsonResponse({'error': 'Completá nombre, fecha de inicio y ubicación del establecimiento.'}, status=400)
     request.session['establecimiento_id'] = establecimiento.id
     return JsonResponse({'id': establecimiento.id, 'establecimiento': _establecimiento_data(establecimiento)}, status=201)
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
+def eliminar_establecimiento(request, establecimiento_id):
+    """Elimina un establecimiento y todos sus datos asociados (parcelas, roles, registros)."""
+    try:
+        establecimiento = Establecimiento.objects.get(pk=establecimiento_id)
+    except (TypeError, ValueError, Establecimiento.DoesNotExist):
+        return JsonResponse({'error': 'El establecimiento no existe.'}, status=404)
+
+    if Establecimiento.objects.count() <= 1:
+        return JsonResponse({'error': 'No se puede eliminar el único establecimiento del sistema.'}, status=400)
+
+    nombre = establecimiento.nombre
+    with transaction.atomic():
+        establecimiento.delete()
+
+    if request.session.get('establecimiento_id') == establecimiento_id:
+        request.session.pop('establecimiento_id', None)
+
+    return JsonResponse({'ok': True, 'eliminado': nombre})
 
 
 @require_POST

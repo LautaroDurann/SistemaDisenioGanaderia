@@ -1,4 +1,5 @@
-from datetime import date
+import logging
+from datetime import date, datetime
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -6,6 +7,7 @@ from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
+from django.core.validators import validate_email
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -21,6 +23,8 @@ from .auth import (
     usuario_actual,
     verificar_clave,
 )
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -40,6 +44,8 @@ def login_view(request):
             if not _usuario_puede_acceder(usuario):
                 error = 'Tu usuario está inactivo. Contactate con el propietario.'
             else:
+                usuario.fecha_ultimo_acceso = datetime.now()
+                usuario.save(update_fields=['fecha_ultimo_acceso'])
                 request.session.flush()
                 request.session['usuario_id'] = usuario.id
                 _establecimiento_por_defecto(request, usuario)
@@ -60,26 +66,44 @@ def logout_view(request):
 
 
 def cambiar_clave_view(request):
-    """Primer ingreso con credenciales temporales: obliga a definir una clave nueva."""
+    """Primer ingreso con credenciales temporales: obliga a definir una clave nueva
+    y a confirmar/cargar el correo electrónico (necesario para poder recuperarla)."""
     usuario = usuario_actual(request)
     if usuario is None:
         return redirect('login')
     error = None
+    correo = ''
     if request.method == 'POST':
+        correo = request.POST.get('correo_electronico', '').strip().lower()
         clave = request.POST.get('clave', '')
         clave_confirmacion = request.POST.get('clave_confirmacion', '')
-        if not clave or len(clave) < 6:
-            error = 'La contraseña debe tener al menos 6 caracteres.'
-        elif clave != clave_confirmacion:
-            error = 'Las contraseñas no coinciden.'
-        elif verificar_clave(usuario, clave):
-            error = 'La nueva contraseña no puede ser igual a la anterior.'
+        if not correo:
+            error = 'Ingresá tu correo electrónico.'
         else:
+            try:
+                validate_email(correo)
+            except ValidationError:
+                error = 'El correo electrónico no es válido.'
+            else:
+                if usuario.persona.correo_electronico and usuario.persona.correo_electronico.lower() != correo:
+                    error = 'El correo no coincide con el registrado para tu usuario.'
+        if error is None:
+            if not clave or len(clave) < 6:
+                error = 'La contraseña debe tener al menos 6 caracteres.'
+            elif clave != clave_confirmacion:
+                error = 'Las contraseñas no coinciden.'
+            elif verificar_clave(usuario, clave):
+                error = 'La nueva contraseña no puede ser igual a la anterior.'
+        if error is None:
+            usuario.persona.correo_electronico = correo
+            usuario.persona.save(update_fields=['correo_electronico'])
             usuario.clave = make_password(clave)
             usuario.debe_cambiar_clave = False
             usuario.save(update_fields=['clave', 'debe_cambiar_clave'])
             return redirect('dashboard')
-    return render(request, 'auth/cambiar_clave.html', {'error': error})
+    else:
+        correo = (usuario.persona.correo_electronico or '').strip().lower()
+    return render(request, 'auth/cambiar_clave.html', {'error': error, 'correo': correo})
 
 
 def recuperar_view(request):
@@ -91,15 +115,17 @@ def recuperar_view(request):
         if usuario is not None:
             token = _token_para_usuario(usuario)
             url = _url_absoluta(request, 'restablecer', token)
-            send_mail(
-                'Restablecer contraseña - GanaStock',
-                'Recibimos una solicitud para restablecer tu contraseña.\n\n'
-                f'Hacé clic en el siguiente enlace (válido por 1 hora):\n{url}\n\n'
-                'Si no la pediste, podés ignorar este correo.',
-                'no-reply@ganastock.com',
-                [correo],
-                fail_silently=True,
-            )
+            try:
+                send_mail(
+                    'Restablecer contraseña - GanaStock',
+                    'Recibimos una solicitud para restablecer tu contraseña.\n\n'
+                    f'Hacé clic en el siguiente enlace (válido por 1 hora):\n{url}\n\n'
+                    'Si no la pediste, podés ignorar este correo.',
+                    settings.DEFAULT_FROM_EMAIL,
+                    [correo],
+                )
+            except Exception as exc:
+                logger.error('No se pudo enviar el correo de recuperación a %s: %s', correo, exc)
         # Siempre se muestra el mismo mensaje para no revelar qué cuentas existen.
         enviado = True
     return render(request, 'auth/recuperar.html', {'enviado': enviado})
@@ -136,10 +162,17 @@ def _token_para_usuario(usuario):
 
 
 def _url_absoluta(request, nombre_url, token):
-    """URL completa del enlace: usa SITE_URL si está configurado, si no el host de la petición."""
+    """URL completa del enlace para el correo.
+
+    Usa el host de la petición (así funciona aunque cambie la IP de la PC:
+    si pedís la recuperación desde el celular, el enlace apunta a la IP que
+    tu celular ya está usando). Solo cuando la petición viene de localhost o
+    127.0.0.1 (que el celular no puede abrir) se usa SITE_URL como respaldo."""
     path = reverse(nombre_url, args=[token])
+    host = request.get_host()
+    host_local = host.split(':')[0].lower() in ('localhost', '127.0.0.1', '::1', '0.0.0.0')
     sitio = getattr(settings, 'SITE_URL', '').rstrip('/')
-    if sitio:
+    if host_local and sitio:
         return f'{sitio}{path}'
     return request.build_absolute_uri(path)
 
@@ -204,6 +237,10 @@ def _usuario_data(usuario):
         .order_by('establecimiento__nombre')
     )
     rol = roles[0] if roles else None
+    rol_principal = (
+        ROL_PROPIETARIO if any(r.nombre == ROL_PROPIETARIO for r in roles) else ROL_OPERARIO
+    )
+    estado = 'Activo' if any(r.estado_acceso for r in roles) else 'Inactivo'
     return {
         'id': usuario.id,
         'nombre': usuario.persona.nombre,
@@ -212,12 +249,12 @@ def _usuario_data(usuario):
         'email': usuario.persona.correo_electronico or '',
         'telefono': usuario.persona.telefono or '',
         'cargo': '',
-        'rol': rol.nombre if rol else ROL_OPERARIO,
+        'rol': rol_principal,
         'rol_id': rol.id if rol else None,
         'establecimiento_id': rol.establecimiento_id if rol else None,
-        'estado': 'Activo' if (rol.estado_acceso if rol else True) else 'Inactivo',
-        'creado': rol.fecha_ingreso.isoformat() if rol else date.today().isoformat(),
-        'acceso': date.today().isoformat() + 'T00:00',
+        'estado': estado,
+        'creado': usuario.fecha_creacion.isoformat() if usuario.fecha_creacion else None,
+        'acceso': usuario.fecha_ultimo_acceso.isoformat() if usuario.fecha_ultimo_acceso else None,
         'conectado': False,
         'roles': [{
             'id': r.id,
@@ -253,18 +290,25 @@ def crear_usuario_api(request):
         if correo and Persona.objects.filter(correo_electronico=correo).exists():
             raise ValueError('Ese correo electrónico ya está registrado.')
 
+        rol = request.POST.get('rol', ROL_OPERARIO).strip()
+        if rol not in (ROL_PROPIETARIO, ROL_OPERARIO):
+            raise ValueError('Rol no válido.')
+
         establecimiento_ids = request.POST.getlist('establecimiento_ids')
-        roles = request.POST.getlist('roles')
         if len(establecimiento_ids) == 1 and ',' in establecimiento_ids[0]:
             establecimiento_ids = establecimiento_ids[0].split(',')
-        if len(roles) == 1 and ',' in roles[0]:
-            roles = roles[0].split(',')
-        if not establecimiento_ids:
-            # Compatibilidad: un solo acceso con los campos clásicos.
-            establecimiento_ids = [request.POST.get('establecimiento_id', '')]
-            roles = [request.POST.get('rol', ROL_OPERARIO)]
-        if len(roles) != len(establecimiento_ids):
-            roles = [roles[i] if i < len(roles) else ROL_OPERARIO for i in range(len(establecimiento_ids))]
+
+        if rol == ROL_PROPIETARIO:
+            # El propietario accede automáticamente a todos los establecimientos.
+            ids = [e.id for e in Establecimiento.objects.order_by('id')]
+        else:
+            ids = []
+            for est_id in establecimiento_ids:
+                resuelto = _resolver_establecimiento(request, est_id)
+                if resuelto is not None and resuelto not in ids:
+                    ids.append(resuelto)
+        if not ids:
+            ids = [_establecimiento_o_default(request, None)]
 
         persona = Persona.objects.create(
             nombre=nombre, apellido=apellido or None,
@@ -274,27 +318,11 @@ def crear_usuario_api(request):
             nombre_usuario=nombre_usuario, clave=make_password(clave),
             persona=persona, debe_cambiar_clave=True,
         )
-        establecimientos_usados = []
-        for i, est_id in enumerate(establecimiento_ids):
-            rol = roles[i].strip()
-            if rol not in (ROL_PROPIETARIO, ROL_OPERARIO):
-                rol = ROL_OPERARIO
-            resuelto = _resolver_establecimiento(request, est_id)
-            if resuelto is None or resuelto in establecimientos_usados:
-                continue
-            establecimientos_usados.append(resuelto)
+        for est_id in ids:
             RolEstablecimiento.objects.create(
                 usuario=usuario,
-                establecimiento_id=resuelto,
+                establecimiento_id=est_id,
                 nombre=rol,
-                fecha_ingreso=date.today(),
-                estado_acceso=True,
-            )
-        if not establecimientos_usados:
-            RolEstablecimiento.objects.create(
-                usuario=usuario,
-                establecimiento_id=_establecimiento_o_default(request, None),
-                nombre=ROL_OPERARIO,
                 fecha_ingreso=date.today(),
                 estado_acceso=True,
             )
@@ -306,10 +334,44 @@ def crear_usuario_api(request):
 @rol_requerido(ROL_PROPIETARIO)
 @require_POST
 def actualizar_usuario_api(request, usuario_id):
+    """Actualiza clave, rol, establecimientos y acceso de un usuario.
+
+    El rol es a nivel usuario: 'Propietario' accede a todos los establecimientos,
+    'Operario' solo a los establecimientos seleccionados. El estado_acceso
+    activa/desactiva el acceso del usuario por completo.
+    """
     usuario = get_object_or_404(Usuario.objects.select_related('persona'), pk=usuario_id)
     es_el_propio = usuario.id == request.session.get('usuario_id')
-    nueva_clave = request.POST.get('clave', '')
     try:
+        # Datos personales (nombre, apellido, correo, teléfono).
+        persona = usuario.persona
+        nombre = request.POST.get('nombre')
+        if nombre is not None:
+            nombre = nombre.strip()
+            if not nombre:
+                raise ValueError('El nombre es obligatorio.')
+            persona.nombre = nombre
+        apellido = request.POST.get('apellido')
+        if apellido is not None:
+            persona.apellido = apellido.strip() or None
+        correo_nuevo = request.POST.get('email', request.POST.get('correo_electronico'))
+        if correo_nuevo is not None:
+            correo_nuevo = correo_nuevo.strip().lower()
+            if correo_nuevo:
+                try:
+                    validate_email(correo_nuevo)
+                except ValidationError:
+                    raise ValueError('El correo electrónico no es válido.')
+                if Persona.objects.filter(correo_electronico=correo_nuevo).exclude(pk=persona.pk).exists():
+                    raise ValueError('Ese correo electrónico ya está registrado.')
+            persona.correo_electronico = correo_nuevo or None
+        telefono = request.POST.get('telefono')
+        if telefono is not None:
+            persona.telefono = telefono.strip()
+        if any(k in request.POST for k in ('nombre', 'apellido', 'email', 'correo_electronico', 'telefono')):
+            persona.save(update_fields=['nombre', 'apellido', 'correo_electronico', 'telefono'])
+
+        nueva_clave = request.POST.get('clave', '')
         if nueva_clave:
             if len(nueva_clave) < 6:
                 raise ValueError('La contraseña debe tener al menos 6 caracteres.')
@@ -317,95 +379,81 @@ def actualizar_usuario_api(request, usuario_id):
             usuario.debe_cambiar_clave = True
             usuario.save(update_fields=['clave', 'debe_cambiar_clave'])
 
-        eliminar_rol_id = request.POST.get('eliminar_rol_establecimiento_id')
-        rol_establecimiento_id = request.POST.get('rol_establecimiento_id')
-        nuevo_establecimiento_id = request.POST.get('nuevo_establecimiento_id')
-        nuevo_rol = request.POST.get('nuevo_rol', ROL_OPERARIO).strip()
-
-        if eliminar_rol_id:
-            rol = RolEstablecimiento.objects.filter(pk=eliminar_rol_id, usuario=usuario).first()
-            if rol is None:
-                raise ValueError('La asignación de rol no existe.')
-            if es_el_propio and rol.nombre == ROL_PROPIETARIO:
-                raise ValueError('No podés quitarte tu propio rol de propietario.')
-            if rol.nombre == ROL_PROPIETARIO and rol.estado_acceso:
-                _verificar_no_quitar_ultimo_propietario()
-            rol.delete()
-
-        if nuevo_establecimiento_id:
-            if nuevo_rol not in (ROL_PROPIETARIO, ROL_OPERARIO):
+        rol_nuevo = request.POST.get('rol')
+        if rol_nuevo:
+            rol_nuevo = rol_nuevo.strip()
+            if rol_nuevo not in (ROL_PROPIETARIO, ROL_OPERARIO):
                 raise ValueError('Rol no válido.')
-            resuelto = _resolver_establecimiento(request, nuevo_establecimiento_id)
-            if resuelto is None:
-                raise ValueError('Establecimiento no válido.')
-            existente = RolEstablecimiento.objects.filter(usuario=usuario, establecimiento_id=resuelto).first()
-            if existente is not None:
-                existente.nombre = nuevo_rol
-                existente.estado_acceso = True
-                existente.save(update_fields=['nombre', 'estado_acceso'])
-            else:
-                RolEstablecimiento.objects.create(
-                    usuario=usuario, establecimiento_id=resuelto, nombre=nuevo_rol,
-                    fecha_ingreso=date.today(), estado_acceso=True,
-                )
 
-        if rol_establecimiento_id:
-            rol = RolEstablecimiento.objects.filter(pk=rol_establecimiento_id, usuario=usuario).first()
-            if rol is None:
-                raise ValueError('La asignación de rol no existe.')
-            era_propietario_activo = rol.nombre == ROL_PROPIETARIO and rol.estado_acceso
-            rol_nombre = request.POST.get('rol')
-            if rol_nombre:
-                if rol_nombre not in (ROL_PROPIETARIO, ROL_OPERARIO):
-                    raise ValueError('Rol no válido.')
-                if es_el_propio and rol_nombre != ROL_PROPIETARIO:
-                    raise ValueError('No podés quitarte tu propio rol de propietario.')
-                rol.nombre = rol_nombre
-            est_id = request.POST.get('establecimiento_id')
-            if est_id:
-                rol.establecimiento_id = int(est_id)
-            estado = request.POST.get('estado_acceso')
-            if estado is not None:
-                rol.estado_acceso = estado in ('true', 'on', '1', 'Activo')
-            if era_propietario_activo and not (rol.nombre == ROL_PROPIETARIO and rol.estado_acceso):
-                _verificar_no_quitar_ultimo_propietario()
-            rol.save()
-        elif request.POST.get('rol') or request.POST.get('establecimiento_id') or request.POST.get('estado_acceso') is not None:
-            # Compatibilidad: se edita la primera asignación del usuario.
-            rol = RolEstablecimiento.objects.filter(usuario=usuario).first()
-            if rol is None:
-                rol = RolEstablecimiento.objects.create(
-                    usuario=usuario,
-                    establecimiento_id=_establecimiento_o_default(request, request.POST.get('establecimiento_id')),
-                    nombre=request.POST.get('rol', ROL_OPERARIO),
-                    fecha_ingreso=date.today(),
-                    estado_acceso=True,
-                )
-            era_propietario_activo = rol.nombre == ROL_PROPIETARIO and rol.estado_acceso
-            rol_nombre = request.POST.get('rol')
-            if rol_nombre:
-                if rol_nombre not in (ROL_PROPIETARIO, ROL_OPERARIO):
-                    raise ValueError('Rol no válido.')
-                if es_el_propio and rol_nombre != ROL_PROPIETARIO:
-                    raise ValueError('No podés quitarte tu propio rol de propietario.')
-                rol.nombre = rol_nombre
-            if request.POST.get('establecimiento_id'):
-                rol.establecimiento_id = int(request.POST.get('establecimiento_id'))
-            estado = request.POST.get('estado_acceso')
-            if estado is not None:
-                rol.estado_acceso = estado in ('true', 'on', '1', 'Activo')
-            if era_propietario_activo and not (rol.nombre == ROL_PROPIETARIO and rol.estado_acceso):
-                _verificar_no_quitar_ultimo_propietario()
-            rol.save()
+        estado_param = request.POST.get('estado_acceso')
+        nuevo_estado = None
+        if estado_param is not None:
+            nuevo_estado = estado_param in ('true', 'on', '1', 'Activo')
+
+        establecimiento_ids = request.POST.getlist('establecimiento_ids')
+        if len(establecimiento_ids) == 1 and ',' in establecimiento_ids[0]:
+            establecimiento_ids = establecimiento_ids[0].split(',')
+
+        filas = RolEstablecimiento.objects.filter(usuario=usuario)
+        es_propietario_actual = filas.filter(nombre=ROL_PROPIETARIO).exists()
+
+        if es_el_propio and rol_nuevo and rol_nuevo != ROL_PROPIETARIO:
+            raise ValueError('No podés quitarte tu propio rol de propietario.')
+        if es_propietario_actual:
+            if rol_nuevo and rol_nuevo != ROL_PROPIETARIO:
+                _verificar_no_quitar_ultimo_propietario(usuario)
+            if nuevo_estado is False:
+                _verificar_no_quitar_ultimo_propietario(usuario)
+
+        if rol_nuevo == ROL_PROPIETARIO:
+            # El propietario pasa a tener acceso a todos los establecimientos.
+            for est in Establecimiento.objects.order_by('id'):
+                fila = filas.filter(establecimiento=est).first()
+                if fila is None:
+                    RolEstablecimiento.objects.create(
+                        usuario=usuario, establecimiento=est, nombre=ROL_PROPIETARIO,
+                        fecha_ingreso=date.today(), estado_acceso=True,
+                    )
+                else:
+                    fila.nombre = ROL_PROPIETARIO
+                    fila.save(update_fields=['nombre'])
+        elif rol_nuevo == ROL_OPERARIO or establecimiento_ids:
+            # Operario: solo los establecimientos seleccionados.
+            elegidos = set()
+            for est_id in establecimiento_ids:
+                resuelto = _resolver_establecimiento(request, est_id)
+                if resuelto is not None:
+                    elegidos.add(resuelto)
+            if rol_nuevo == ROL_OPERARIO and not elegidos:
+                raise ValueError('Seleccioná al menos un establecimiento para un usuario operario.')
+            for fila in filas.all():
+                if fila.establecimiento_id not in elegidos:
+                    fila.delete()
+            for est_id in elegidos:
+                fila = filas.filter(establecimiento_id=est_id).first()
+                if fila is None:
+                    RolEstablecimiento.objects.create(
+                        usuario=usuario, establecimiento_id=est_id, nombre=ROL_OPERARIO,
+                        fecha_ingreso=date.today(), estado_acceso=True,
+                    )
+                else:
+                    fila.nombre = ROL_OPERARIO
+                    fila.save(update_fields=['nombre'])
+
+        if nuevo_estado is not None:
+            filas.all().update(estado_acceso=nuevo_estado)
     except (ValueError, ValidationError) as exc:
         return JsonResponse({'error': str(exc)}, status=400)
     return JsonResponse({'usuario': _usuario_data(usuario)})
 
 
-def _verificar_no_quitar_ultimo_propietario():
-    """Levanta un error si se intentaría dejar al sistema sin propietarios activos."""
-    activos = RolEstablecimiento.objects.filter(nombre=ROL_PROPIETARIO, estado_acceso=True)
-    if activos.count() <= 1:
+def _verificar_no_quitar_ultimo_propietario(usuario):
+    """Bloquea quitar/desactivar el acceso si el usuario es el último propietario activo."""
+    activos = set(
+        RolEstablecimiento.objects.filter(nombre=ROL_PROPIETARIO, estado_acceso=True)
+        .values_list('usuario_id', flat=True)
+    )
+    if usuario.id in activos and len(activos) <= 1:
         raise ValueError('No podés desactivar al último propietario activo.')
 
 
@@ -422,7 +470,8 @@ def eliminar_usuario_api(request, usuario_id):
 
 
 def _es_ultimo_propietario(usuario):
-    activos = RolEstablecimiento.objects.filter(nombre=ROL_PROPIETARIO, estado_acceso=True)
-    if not activos.filter(usuario=usuario).exists():
-        return False
-    return activos.count() <= 1
+    activos = set(
+        RolEstablecimiento.objects.filter(nombre=ROL_PROPIETARIO, estado_acceso=True)
+        .values_list('usuario_id', flat=True)
+    )
+    return usuario.id in activos and len(activos) <= 1

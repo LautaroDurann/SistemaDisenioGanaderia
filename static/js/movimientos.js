@@ -81,15 +81,15 @@
       const MOVIMIENTOS = window.GANASTOCK_DATA?.movimientos ?? [
         { fecha: '2026-07-14', hora: '09:15', tipo: 'Ingreso', caravana: '0231', animal: 'Luna', categoria: 'Vaca', cantidad: 1, origen: 'La Esperanza', destino: 'Potrero 1', usuario: 'Juan', obs: 'Compra a establecimiento La Esperanza', estado: 'Confirmado' },
         { fecha: '2026-07-13', hora: '17:40', tipo: 'Venta', caravana: '0198', animal: 'Fierro', categoria: 'Toro', cantidad: 1, origen: 'Potrero 2', destino: 'Feria local', usuario: 'Carlos', obs: 'Vendido en remate feria local', estado: 'Confirmado' },
-        { fecha: '2026-07-12', hora: '08:05', tipo: 'Nacimiento', caravana: '0305', animal: 'S/N', categoria: 'Ternero', cantidad: 1, origen: '-', destino: 'Potrero 2', usuario: 'Maria', obs: 'Nacimiento en Potrero 2', estado: 'Confirmado' },
+        { fecha: '2026-07-12', hora: '08:05', tipo: 'Nacimiento', caravana: '0305', animal: 'S/N', categoria: 'Ternero', cantidad: 1, origen: '-', destino: 'Potrero 2', usuario: 'María', obs: 'Nacimiento en Potrero 2', estado: 'Confirmado' },
         { fecha: '2026-07-10', hora: '12:30', tipo: 'Muerte', caravana: '0142', animal: 'Estrella', categoria: 'Vaca', cantidad: 1, origen: 'Potrero 3', destino: '-', usuario: 'Carlos', obs: 'Muerte por causas naturales', estado: 'Confirmado' },
-        { fecha: '2026-07-10', hora: '10:00', tipo: 'Traslado', caravana: '0087', animal: 'S/N', categoria: 'Novillo', cantidad: 1, origen: 'Potrero 1', destino: 'Potrero 3', usuario: 'Maria', obs: 'Traslado por pastura', estado: 'Confirmado' },
-        { fecha: '2026-07-09', hora: '15:20', tipo: 'Compra', caravana: '0056', animal: 'Paloma', categoria: 'Vaquillona', cantidad: 1, origen: 'Cabaña Norte', destino: 'Potrero 4', usuario: 'Juan', obs: 'Compra de reposicion', estado: 'Pendiente' },
-        { fecha: '2026-07-08', hora: '11:10', tipo: 'Alta', caravana: '0412', animal: 'S/N', categoria: 'Ternero', cantidad: 1, origen: '-', destino: 'Potrero 1', usuario: 'Maria', obs: 'Alta por nacimiento tardio', estado: 'Confirmado' },
+        { fecha: '2026-07-10', hora: '10:00', tipo: 'Traslado', caravana: '0087', animal: 'S/N', categoria: 'Novillo', cantidad: 1, origen: 'Potrero 1', destino: 'Potrero 3', usuario: 'María', obs: 'Traslado por pastura', estado: 'Confirmado' },
+        { fecha: '2026-07-09', hora: '15:20', tipo: 'Compra', caravana: '0056', animal: 'Paloma', categoria: 'Vaquillona', cantidad: 1, origen: 'Cabaña Norte', destino: 'Potrero 4', usuario: 'Juan', obs: 'Compra de reposición', estado: 'Pendiente' },
+        { fecha: '2026-07-08', hora: '11:10', tipo: 'Alta', caravana: '0412', animal: 'S/N', categoria: 'Ternero', cantidad: 1, origen: '-', destino: 'Potrero 1', usuario: 'María', obs: 'Alta por nacimiento tardío', estado: 'Confirmado' },
         { fecha: '2026-07-06', hora: '09:45', tipo: 'Baja', caravana: '0329', animal: 'S/N', categoria: 'Novillo', cantidad: 1, origen: 'Potrero 1', destino: '-', usuario: 'Carlos', obs: 'Baja administrativa', estado: 'Confirmado' },
-        { fecha: '2026-07-05', hora: '14:00', tipo: 'Traslado', caravana: '0263', animal: 'Rocio', categoria: 'Vaca', cantidad: 1, origen: 'Potrero 2', destino: 'Potrero 4', usuario: 'Juan', obs: 'Rotacion de pastoreo', estado: 'Confirmado' },
-        { fecha: '2026-07-03', hora: '08:50', tipo: 'Ingreso', caravana: '0177', animal: 'Trueno', categoria: 'Toro', cantidad: 1, origen: 'Cabaña Sur', destino: 'Potrero 4', usuario: 'Maria', obs: 'Ingreso por servicio', estado: 'Confirmado' },
-        { fecha: '2026-07-01', hora: '16:15', tipo: 'Venta', caravana: '0301', animal: 'S/N', categoria: 'Novillo', cantidad: 3, origen: 'Potrero 3', destino: 'Frigorifico', usuario: 'Carlos', obs: 'Venta directa a frigorifico', estado: 'Confirmado' },
+        { fecha: '2026-07-05', hora: '14:00', tipo: 'Traslado', caravana: '0263', animal: 'Rocío', categoria: 'Vaca', cantidad: 1, origen: 'Potrero 2', destino: 'Potrero 4', usuario: 'Juan', obs: 'Rotación de pastoreo', estado: 'Confirmado' },
+        { fecha: '2026-07-03', hora: '08:50', tipo: 'Ingreso', caravana: '0177', animal: 'Trueno', categoria: 'Toro', cantidad: 1, origen: 'Cabaña Sur', destino: 'Potrero 4', usuario: 'María', obs: 'Ingreso por servicio', estado: 'Confirmado' },
+        { fecha: '2026-07-01', hora: '16:15', tipo: 'Venta', caravana: '0301', animal: 'S/N', categoria: 'Novillo', cantidad: 3, origen: 'Potrero 3', destino: 'Frigorífico', usuario: 'Carlos', obs: 'Venta directa a frigorífico', estado: 'Confirmado' },
       ];
 
       const TIPO_BADGE = {
