@@ -15,6 +15,7 @@ urlpatterns = [
     path('finanzas/', views.finanzas, name='finanzas'),
     path('finanzas/ventas/', views.ventas, name='ventas'),
     path('finanzas/compras/', views.compras, name='compras'),
+    path('finanzas/sueldos/', views.sueldos, name='sueldos'),
     # Se conserva la URL anterior para enlaces guardados.
     path('movimientos/', views.finanzas, name='movimientos'),
     path('parcelas/', views.potreros, name='potreros'),
@@ -72,6 +73,9 @@ urlpatterns = [
     path('api/ventas/', views.crear_venta, name='crear_venta'),
     path('api/ventas/<int:venta_id>/', views.actualizar_venta, name='actualizar_venta'),
     path('api/ventas/<int:venta_id>/eliminar/', views.eliminar_venta, name='eliminar_venta'),
+    path('api/liquidaciones/', views.crear_liquidacion, name='crear_liquidacion'),
+    path('api/liquidaciones/<int:liquidacion_id>/', views.actualizar_liquidacion, name='actualizar_liquidacion'),
+    path('api/liquidaciones/<int:liquidacion_id>/eliminar/', views.eliminar_liquidacion, name='eliminar_liquidacion'),
     path('api/parcelas/', views.crear_potrero, name='crear_potrero'),
     path('api/parcelas/<int:parcela_id>/eliminar/', views.eliminar_potrero, name='eliminar_potrero'),
     path('api/establecimientos/', views.establecimientos_api, name='establecimientos_api'),

@@ -1,0 +1,50 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+{% block title %}Liquidación de sueldos | GanaStock{% endblock %}
+{% block content %}
+<div class="app-content-header">
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h3 class="mb-0">Liquidación de sueldos</h3>
+        <p class="text-secondary mb-0">Registrá el pago de sueldos de los operarios del establecimiento.</p>
+      </div>
+      <button class="btn btn-success" id="nueva-liquidacion"><i class="bi bi-plus-lg me-1"></i>Nueva liquidación</button>
+    </div>
+  </div>
+</div>
+<div class="app-content">
+  <div class="container-fluid">
+    <div id="mensaje-sueldo"></div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-secondary small">Total de liquidaciones</div><div class="h4 mb-0" id="kpi-total-liquidaciones">0</div></div></div></div>
+      <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-secondary small">Total pagado en sueldos</div><div class="h4 mb-0" id="kpi-total-sueldos">$ 0,00</div></div></div></div>
+      <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-secondary small">Sueldos este año</div><div class="h4 mb-0" id="kpi-sueldos-anio">$ 0,00</div></div></div></div>
+      <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-secondary small">Empleados del establecimiento</div><div class="h4 mb-0" id="kpi-empleados">0</div></div></div></div>
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-lg-8"><div class="card shadow-sm"><div class="card-header"><h3 class="card-title mb-0">Sueldos por año</h3></div><div class="card-body"><div id="chart-sueldos" style="height: 320px;"></div></div></div></div>
+      <div class="col-lg-4"><div class="card shadow-sm h-100"><div class="card-header"><h3 class="card-title mb-0">Empleados liquidables</h3></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Nombre</th><th>Usuario</th></tr></thead><tbody id="empleados-body"></tbody></table></div></div></div></div>
+    </div>
+    <div class="card shadow-sm"><div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title mb-0">Últimas liquidaciones</h3><button class="btn btn-success btn-sm" id="nueva-liquidacion-tabla"><i class="bi bi-plus-lg me-1"></i>Registrar liquidación</button></div><div class="card-body"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Fecha</th><th>Empleado</th><th>Usuario</th><th>Establecimiento</th><th>Descripción</th><th class="text-end">Sueldo</th><th class="text-end"></th></tr></thead><tbody id="liquidaciones-body"></tbody></table></div></div></div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalLiquidacion" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+  <form id="form-liquidacion" novalidate>
+    <div class="modal-header"><h5 class="modal-title" id="titulo-liquidacion">Registrar liquidación</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="liquidacion-id">
+      <div class="row g-3">
+        <div class="col-md-4"><label class="form-label">Fecha de liquidación</label><input class="form-control" type="date" name="fecha" id="liquidacion-fecha"></div>
+        <div class="col-md-8"><label class="form-label">Empleado</label><select class="form-select" name="empleado_id" id="liquidacion-empleado"><option value="">— Elegí un empleado —</option>{% for empleado in page_data.empleados %}<option value="{{ empleado.id }}">{{ empleado.nombre }} (@{{ empleado.usuario }})</option>{% endfor %}</select></div>
+        <div class="col-md-4"><label class="form-label">Sueldo ($)</label><input class="form-control" type="number" min="0.01" step="0.01" name="sueldo" id="liquidacion-sueldo"></div>
+        <div class="col-md-8"><label class="form-label">Descripción / Detalle</label><input class="form-control" name="descripcion" id="liquidacion-descripcion" placeholder="Opcional. Ej: Sueldo de agosto"></div>
+      </div>
+      <div class="form-text mt-2">Cada liquidación se registra automáticamente como un egreso en el módulo de Finanzas.</div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-success">Guardar liquidación</button></div>
+  </form>
+</div></div></div>
+{% endblock %}
+{% block page_js %}<script src="{% static 'js/sueldos.js' %}"></script>{% endblock %}
