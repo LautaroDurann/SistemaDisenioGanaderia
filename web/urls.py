@@ -7,6 +7,8 @@ urlpatterns = [
     path('', views.dashboard, name='dashboard'),
     path('stock/', views.stock, name='stock'),
     path('finanzas/', views.finanzas, name='finanzas'),
+    path('finanzas/ventas/', views.ventas, name='ventas'),
+    path('finanzas/compras/', views.compras, name='compras'),
     # Se conserva la URL anterior para enlaces guardados.
     path('movimientos/', views.finanzas, name='movimientos'),
     path('potreros/', views.potreros, name='potreros'),

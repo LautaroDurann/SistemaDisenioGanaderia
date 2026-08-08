@@ -5,13 +5,6 @@ class MovimientoFinanciero(models.Model):
     TIPO_CHOICES = [
         ('Ingreso', 'Ingreso'),
         ('Egreso', 'Egreso'),
-        ('Venta', 'Venta'),
-        ('Compra', 'Compra'),
-        ('Muerte', 'Muerte'),
-        ('Traslado', 'Traslado'),
-        ('Nacimiento', 'Nacimiento'),
-        ('Alta', 'Alta'),
-        ('Baja', 'Baja'),
     ]
     
     monto_total = models.DecimalField(max_digits=12, decimal_places=2)
