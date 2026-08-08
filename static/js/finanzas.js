@@ -21,10 +21,11 @@ let kpiBalance = KPI_BALANCE;
 
 function filaMovimientoHTML(m) {
   const esIngreso = m.tipo === 'Ingreso';
-  return `<tr data-id="${m.id}" data-tipo="${m.tipo}" data-monto="${m.monto_total}" data-fecha="${m.fecha}" data-nombre="${m.nombre}">
+  return `<tr data-id="${m.id}" data-tipo="${m.tipo}" data-monto="${m.monto_total}" data-fecha="${m.fecha}" data-nombre="${m.nombre}" data-detalle="${m.detalle || ''}">
     <td>${m.fecha}</td>
     <td><span class="badge ${esIngreso ? 'text-bg-success' : 'text-bg-danger'}">${m.tipo}</span></td>
     <td>${m.nombre}</td>
+    <td>${m.establecimiento || '—'}</td>
     <td>${m.detalle || '-'}</td>
     <td class="text-end">${dinero(m.monto_total)}</td>
     <td class="text-end">
@@ -40,11 +41,11 @@ function filaMovimientoHTML(m) {
 function verMovimiento(row) {
   const id = row.dataset.id;
   const tipo = row.dataset.tipo;
-  const monto = row.children[4]?.textContent.trim() || '';
+  const monto = row.children[5]?.textContent.trim() || '';
   document.getElementById('det-fecha').textContent = row.children[0].textContent.trim();
   document.getElementById('det-tipo').textContent = tipo;
   document.getElementById('det-nombre').textContent = row.children[2].textContent.trim();
-  document.getElementById('det-detalle').textContent = row.children[3].textContent.trim();
+  document.getElementById('det-detalle').textContent = row.children[4].textContent.trim();
   document.getElementById('det-monto').textContent = monto;
   bootstrap.Modal.getOrCreateInstance(document.getElementById('modalVerMovimientoFinanciero')).show();
 }
@@ -55,7 +56,7 @@ function abrirEdicionMovimiento(row) {
   document.getElementById('mov-tipo').value = row.dataset.tipo;
   document.getElementById('mov-monto').value = row.dataset.monto;
   document.getElementById('mov-nombre').value = row.children[2].textContent.trim();
-  document.getElementById('mov-detalle').value = row.children[3].textContent.trim() === '-' ? '' : row.children[3].textContent.trim();
+  document.getElementById('mov-detalle').value = row.children[4].textContent.trim() === '-' ? '' : row.children[4].textContent.trim();
   document.getElementById('titulo-mov-modal').textContent = 'Editar movimiento financiero';
   bootstrap.Modal.getOrCreateInstance(document.getElementById('modalRegistrarMovimientoFinanciero')).show();
 }
@@ -80,7 +81,7 @@ function aplicarFiltros() {
   tbody.querySelectorAll('tr[data-id]').forEach((row) => {
     const fecha = row.dataset.fecha || '';
     const nombre = (row.dataset.nombre || '').toLowerCase();
-    const detalle = (row.children[3]?.textContent || '').toLowerCase();
+    const detalle = (row.children[4]?.textContent || '').toLowerCase();
     let mostrar = true;
     if (desde && fecha < desde) mostrar = false;
     if (hasta && fecha > hasta) mostrar = false;
@@ -94,7 +95,7 @@ function aplicarFiltros() {
   if (hayDatos && visibles === 0) {
     if (filaVacia) filaVacia.style.display = 'none';
     if (!filaFiltro) {
-      tbody.insertAdjacentHTML('beforeend', '<tr class="fila-filtro-vacio"><td colspan="6" class="text-center text-secondary py-4">No se encontraron movimientos para los filtros aplicados.</td></tr>');
+      tbody.insertAdjacentHTML('beforeend', '<tr class="fila-filtro-vacio"><td colspan="7" class="text-center text-secondary py-4">No se encontraron movimientos para los filtros aplicados.</td></tr>');
     }
   } else {
     if (filaVacia) filaVacia.style.display = '';
@@ -253,7 +254,7 @@ document.addEventListener('DOMContentLoaded', function () {
           if (!tbody.querySelector('tr[data-id]')) {
             const filaFiltro = tbody.querySelector('.fila-filtro-vacio');
             if (filaFiltro) filaFiltro.remove();
-            tbody.innerHTML = '<tr id="fila-vacia-movimientos"><td colspan="6" class="text-center text-secondary py-4">No hay movimientos financieros registrados.</td></tr>';
+            tbody.innerHTML = '<tr id="fila-vacia-movimientos"><td colspan="7" class="text-center text-secondary py-4">No hay movimientos financieros registrados.</td></tr>';
           } else {
             aplicarFiltros();
           }

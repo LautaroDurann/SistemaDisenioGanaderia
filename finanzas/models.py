@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 
 # 1. Movimiento Financiero (Centraliza todos los ingresos y egresos)
@@ -12,6 +14,12 @@ class MovimientoFinanciero(models.Model):
     nombre = models.CharField(max_length=100)
     detalle = models.TextField(blank=True, null=True)
     fecha = models.DateField()
+
+    # Establecimiento al que pertenece el movimiento (ventas, compras y gastos propios).
+    establecimiento = models.ForeignKey(
+        'establecimientos.Establecimiento', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='movimientos_financieros',
+    )
 
     def __str__(self):
         return f"{self.tipo}: {self.nombre} (${self.monto_total})"
@@ -44,6 +52,8 @@ class Venta(models.Model):
     fecha = models.DateField()
     # El peso se conserva en la venta para que el comprobante no cambie.
     peso_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    # Porcentaje que se descuenta del peso total (bosta, barro, etc.) antes de facturar.
+    porcentajeDesbaste = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     precio_por_kg = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     monto_total = models.DecimalField(max_digits=12, decimal_places=2)
     detalle = models.TextField(blank=True, null=True)
@@ -51,6 +61,12 @@ class Venta(models.Model):
     # Claves Foráneas
     comprador = models.ForeignKey('usuarios.Comprador', on_delete=models.SET_NULL, null=True, blank=True)
     mov_financiero = models.OneToOneField(MovimientoFinanciero, on_delete=models.CASCADE, null=True, blank=True)
+
+    @property
+    def peso_desbastado(self):
+        """Peso total descontado el porcentaje de desbaste."""
+        descuento = (self.porcentajeDesbaste or Decimal('0')) / Decimal('100')
+        return (self.peso_total * (1 - descuento)).quantize(Decimal('0.01'))
 
     def __str__(self):
         return f"Venta {self.id} - {self.fecha}"

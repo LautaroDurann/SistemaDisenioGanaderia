@@ -32,6 +32,12 @@ class Lote(models.Model):
     # CF: idInsumo -> Insumo(idInsumo)
     insumo = models.ForeignKey(Insumo, on_delete=models.CASCADE, related_name='lotes', null=True, blank=True)
 
+    # Establecimiento al que pertenece el stock del lote.
+    establecimiento = models.ForeignKey(
+        'establecimientos.Establecimiento', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='lotes',
+    )
+
     def __str__(self):
         # Ahora el panel mostrará el nombre del lote si lo tiene, o su ID si no le pusiste nombre
         nombre_mostrar = self.nombre if self.nombre else f"ID {self.id}"

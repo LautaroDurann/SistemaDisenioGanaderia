@@ -37,12 +37,13 @@
         <td>${escapeHtml(c.tipo)}</td>
         <td>${escapeHtml(c.proveedor)}</td>
         <td>${detalleCompra(c)}</td>
+        <td>${escapeHtml(c.establecimiento || '—')}</td>
         <td class="text-end">${dinero(c.monto_total)}</td>
         <td class="text-end">
           <button class="btn btn-sm btn-outline-primary editar" data-id="${c.id}"><i class="bi bi-pencil"></i></button>
           <button class="btn btn-sm btn-outline-danger eliminar" data-id="${c.id}"><i class="bi bi-trash"></i></button>
         </td>
-      </tr>`).join('') || '<tr><td colspan="6" class="text-center text-secondary py-4">Todavía no hay compras registradas.</td></tr>';
+      </tr>`).join('') || '<tr><td colspan="7" class="text-center text-secondary py-4">Todavía no hay compras registradas.</td></tr>';
 
     document.querySelectorAll('.editar').forEach(b => b.onclick = () => abrirEdicion(Number(b.dataset.id)));
     document.querySelectorAll('.eliminar').forEach(b => b.onclick = () => eliminarCompra(Number(b.dataset.id)));

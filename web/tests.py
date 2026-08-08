@@ -385,6 +385,73 @@ class WebIntegrationTests(TestCase):
         self.animal.refresh_from_db()
         self.assertEqual(self.animal.precio_venta, Decimal('630000.00'))
 
+    def test_venta_con_porcentaje_de_desbaste_calcula_peso_neto_y_monto(self):
+        establecimiento = self.animal.parcela.establecimiento
+        self.animal.peso_actual = Decimal('300.00')
+        self.animal.establecimiento = establecimiento
+        self.animal.save(update_fields=['peso_actual', 'establecimiento'])
+        segundo = Animal.objects.create(
+            id_senasa=54322, nombre='Toro 2', tipo_animal='Bovino', sexo='Macho',
+            peso_actual=Decimal('500.00'), parcela=self.parcela,
+            establecimiento=establecimiento, vivo=True,
+        )
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-05', 'tipo': 'Venta de hacienda', 'precio_por_kg': '100.00',
+            'porcentajeDesbaste': '10', 'detalle': 'Venta con desbaste',
+            'animales': [self.animal.idAnimal, segundo.idAnimal],
+        })
+        self.assertEqual(response.status_code, 201)
+        venta = Venta.objects.get(pk=response.json()['id'])
+        self.assertEqual(venta.peso_total, Decimal('800.00'))
+        self.assertEqual(venta.porcentajeDesbaste, Decimal('10.00'))
+        self.assertEqual(venta.peso_desbastado, Decimal('720.00'))
+        self.assertEqual(venta.monto_total, Decimal('72000.00'))
+        self.assertEqual(venta.mov_financiero.monto_total, Decimal('72000.00'))
+        self.animal.refresh_from_db()
+        segundo.refresh_from_db()
+        self.assertEqual(self.animal.precio_venta, Decimal('27000.00'))
+        self.assertEqual(segundo.precio_venta, Decimal('45000.00'))
+
+        payload = response.json()['venta']
+        self.assertEqual(payload['porcentaje_desbaste'], '10.00')
+        self.assertEqual(payload['peso_desbastado'], '720.00')
+
+        page = self.client.get(reverse('ventas'))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, '720.00')
+        self.assertContains(page, 'Peso neto')
+
+    def test_venta_con_desbaste_y_peso_manual(self):
+        self.animal.peso_actual = None
+        self.animal.save(update_fields=['peso_actual'])
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-06', 'tipo': 'Venta de prueba', 'precio_por_kg': '1500.00',
+            'peso_total': '420.00', 'peso_manual': 'on', 'porcentajeDesbaste': '5',
+            'animales': [self.animal.idAnimal],
+        })
+        self.assertEqual(response.status_code, 201)
+        venta = Venta.objects.get(pk=response.json()['id'])
+        self.assertEqual(venta.peso_total, Decimal('420.00'))
+        self.assertEqual(venta.peso_desbastado, Decimal('399.00'))
+        self.assertEqual(venta.monto_total, Decimal('598500.00'))
+        self.animal.refresh_from_db()
+        self.assertEqual(self.animal.precio_venta, Decimal('598500.00'))
+
+    def test_venta_rechaza_porcentaje_de_desbaste_invalido(self):
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-07', 'tipo': 'Venta de prueba', 'precio_por_kg': '100.00',
+            'porcentajeDesbaste': '150', 'animales': [self.animal.idAnimal],
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Venta.objects.exists())
+
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-07', 'tipo': 'Venta de prueba', 'precio_por_kg': '100.00',
+            'porcentajeDesbaste': '-5', 'animales': [self.animal.idAnimal],
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Venta.objects.exists())
+
     def test_editar_y_eliminar_comprador(self):
         comprador = Comprador.objects.create(
             dni='11222333', nombre='Ana', apellido='Gómez',
@@ -738,6 +805,183 @@ class FinanzasSyncTests(TestCase):
         self.assertEqual(compra.detalles.count(), 0)
         self.assertTrue(Lote.objects.filter(pk=lote.pk).exists())
         self.assertTrue(Consumo.objects.filter(lote=lote, evento_sanitario=evento).exists())
+
+
+class MultiEstablecimientoTests(TestCase):
+    def setUp(self):
+        self.establecimiento_a = Establecimiento.objects.create(
+            nombre='Establecimiento A', fecha_inicio=date.today(), ubicacion='Córdoba'
+        )
+        self.establecimiento_b = Establecimiento.objects.create(
+            nombre='Establecimiento B', fecha_inicio=date.today(), ubicacion='Santa Fe'
+        )
+        persona = Persona.objects.create(
+            nombre='Juan', apellido='Fernandez', correo_electronico='juan-multi@test.com',
+        )
+        self.usuario = Usuario.objects.create(
+            nombre_usuario='propietario', clave=make_password('clave123'), persona=persona,
+        )
+        for establecimiento in (self.establecimiento_a, self.establecimiento_b):
+            RolEstablecimiento.objects.create(
+                usuario=self.usuario, establecimiento=establecimiento,
+                nombre='Propietario', fecha_ingreso=date.today(), estado_acceso=True,
+            )
+        session = self.client.session
+        session['usuario_id'] = self.usuario.id
+        session['establecimiento_id'] = self.establecimiento_a.id
+        session.save()
+
+    def activar_establecimiento(self, establecimiento_id):
+        session = self.client.session
+        session['establecimiento_id'] = establecimiento_id
+        session.save()
+
+    def test_movimientos_financieros_creados_con_establecimiento(self):
+        response = self.client.post(reverse('api_finanzas_movimientos'), {
+            'fecha': '2026-08-01', 'tipo': 'Ingreso', 'nombre': 'Movimiento de A',
+            'monto_total': '1000', 'detalle': '',
+        })
+        self.assertEqual(response.status_code, 201)
+        movimiento_a = MovimientoFinanciero.objects.get(pk=response.json()['movimiento']['id'])
+        self.assertEqual(movimiento_a.establecimiento, self.establecimiento_a)
+
+        self.activar_establecimiento(self.establecimiento_b.id)
+        response = self.client.post(reverse('api_finanzas_movimientos'), {
+            'fecha': '2026-08-02', 'tipo': 'Egreso', 'nombre': 'Movimiento de B',
+            'monto_total': '500', 'detalle': '',
+        })
+        self.assertEqual(response.status_code, 201)
+        movimiento_b = MovimientoFinanciero.objects.get(pk=response.json()['movimiento']['id'])
+        self.assertEqual(movimiento_b.establecimiento, self.establecimiento_b)
+
+    def test_pagina_finanzas_muestra_solo_el_establecimiento_activo(self):
+        MovimientoFinanciero.objects.create(
+            fecha=date(2026, 8, 1), tipo='Ingreso', nombre='Concepto A',
+            monto_total=Decimal('1000'), establecimiento=self.establecimiento_a,
+        )
+        MovimientoFinanciero.objects.create(
+            fecha=date(2026, 8, 2), tipo='Egreso', nombre='Concepto B',
+            monto_total=Decimal('500'), establecimiento=self.establecimiento_b,
+        )
+
+        response = self.client.get(reverse('finanzas'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Concepto A')
+        self.assertNotContains(response, 'Concepto B')
+
+        self.activar_establecimiento(self.establecimiento_b.id)
+        response = self.client.get(reverse('finanzas'))
+        self.assertContains(response, 'Concepto B')
+        self.assertNotContains(response, 'Concepto A')
+
+    def test_compra_asigna_establecimiento_a_lote_y_movimiento(self):
+        response = self.client.post(reverse('crear_compra'), {
+            'tipo': 'Insumos', 'fecha': '2026-08-01',
+            'nuevo_insumo': 'Vacuna A', 'tipo_insumo': 'Vacuna',
+            'cantidad': '10', 'precio_unitario': '100',
+        })
+        self.assertEqual(response.status_code, 201)
+        compra = Compra.objects.get(pk=response.json()['id'])
+        lote = compra.detalles.first().lote
+        self.assertEqual(lote.establecimiento, self.establecimiento_a)
+        self.assertEqual(compra.mov_financiero.establecimiento, self.establecimiento_a)
+
+    def test_pagina_compras_muestra_solo_el_establecimiento_activo(self):
+        self.client.post(reverse('crear_compra'), {
+            'tipo': 'Maquinaria', 'fecha': '2026-08-01', 'detalle': 'Tractor de A',
+            'monto_total': '300000',
+        })
+        self.activar_establecimiento(self.establecimiento_b.id)
+        self.client.post(reverse('crear_compra'), {
+            'tipo': 'Maquinaria', 'fecha': '2026-08-02', 'detalle': 'Tractor de B',
+            'monto_total': '400000',
+        })
+
+        self.activar_establecimiento(self.establecimiento_a.id)
+        response = self.client.get(reverse('compras'))
+        self.assertContains(response, 'Tractor de A')
+        self.assertNotContains(response, 'Tractor de B')
+
+        self.activar_establecimiento(self.establecimiento_b.id)
+        response = self.client.get(reverse('compras'))
+        self.assertContains(response, 'Tractor de B')
+        self.assertNotContains(response, 'Tractor de A')
+
+    def test_venta_asigna_establecimiento_al_movimiento_y_se_muestra_separada(self):
+        animal_a = Animal.objects.create(
+            id_senasa=60001, nombre='Vaca de A', tipo_animal='Bovino', sexo='Hembra',
+            vivo=True, peso_actual=Decimal('300'), establecimiento=self.establecimiento_a,
+        )
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-01', 'precio_por_kg': '100', 'animales': [str(animal_a.idAnimal)],
+            'peso_total': '300', 'peso_manual': 'on',
+        })
+        self.assertEqual(response.status_code, 201)
+        venta = Venta.objects.get(pk=response.json()['id'])
+        self.assertEqual(venta.mov_financiero.establecimiento, self.establecimiento_a)
+
+        response = self.client.get(reverse('ventas'))
+        self.assertContains(response, 'Vaca de A')
+
+        self.activar_establecimiento(self.establecimiento_b.id)
+        response = self.client.get(reverse('ventas'))
+        self.assertNotContains(response, 'Vaca de A')
+
+    def test_evento_sanitario_genera_movimiento_del_establecimiento(self):
+        animal = Animal.objects.create(
+            id_senasa=60002, nombre='Vaca evento A', tipo_animal='Bovino', sexo='Hembra',
+            vivo=True, establecimiento=self.establecimiento_a,
+        )
+        response = self.client.post(reverse('crear_evento_sanitario'), {
+            'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'on',
+            'costo_total': '2000', 'animal_id': str(animal.idAnimal),
+        })
+        self.assertEqual(response.status_code, 201)
+        evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
+        self.assertEqual(evento.mov_financiero.establecimiento, self.establecimiento_a)
+
+    def test_lotes_de_sanidad_separados_por_establecimiento(self):
+        self.client.post(reverse('crear_compra'), {
+            'tipo': 'Insumos', 'fecha': '2026-08-01',
+            'nuevo_insumo': 'Vacuna A', 'tipo_insumo': 'Vacuna',
+            'lote_nombre': 'Lote A', 'cantidad': '10', 'precio_unitario': '100',
+        })
+        self.activar_establecimiento(self.establecimiento_b.id)
+        self.client.post(reverse('crear_compra'), {
+            'tipo': 'Insumos', 'fecha': '2026-08-02',
+            'nuevo_insumo': 'Vacuna B', 'tipo_insumo': 'Vacuna',
+            'lote_nombre': 'Lote B', 'cantidad': '20', 'precio_unitario': '50',
+        })
+
+        self.activar_establecimiento(self.establecimiento_a.id)
+        response = self.client.get(reverse('sanidad'))
+        self.assertContains(response, 'Lote A')
+        self.assertNotContains(response, 'Lote B')
+
+        self.activar_establecimiento(self.establecimiento_b.id)
+        response = self.client.get(reverse('sanidad'))
+        self.assertContains(response, 'Lote B')
+        self.assertNotContains(response, 'Lote A')
+
+    def test_pagina_insumos_muestra_stock_del_establecimiento_activo(self):
+        insumo = Insumo.objects.create(nombre='Vacuna unica', tipo='Vacuna', unidadDeMedida='dosis')
+        Lote.objects.create(
+            insumo=insumo, nombre='Stock A', stockActual=Decimal('50'),
+            establecimiento=self.establecimiento_a,
+        )
+        Lote.objects.create(
+            insumo=insumo, nombre='Stock B', stockActual=Decimal('80'),
+            establecimiento=self.establecimiento_b,
+        )
+
+        response = self.client.get(reverse('insumos'))
+        self.assertContains(response, '50.00')
+        self.assertNotContains(response, '80.00')
+
+        self.activar_establecimiento(self.establecimiento_b.id)
+        response = self.client.get(reverse('insumos'))
+        self.assertContains(response, '80.00')
+        self.assertNotContains(response, '50.00')
 
 
 class PreniezModuleTests(TestCase):

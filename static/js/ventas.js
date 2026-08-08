@@ -26,8 +26,10 @@
     const pesoSeleccionado = disponibles.filter(a => seleccionados.has(a.id)).reduce((s, a) => s + Number(a.peso_actual_valor || 0), 0);
     const pesoManual = $('venta-peso-manual').checked;
     const pesoInput = $('venta-peso-total');
+    const pesoDesbastadoInput = $('venta-peso-desbastado');
     const montoInput = $('venta-monto-total');
     const precio = Number($('venta-precio').value || 0);
+    const desbaste = Math.min(100, Math.max(0, Number($('venta-desbaste').value || 0)));
 
     if (pesoManual) {
       pesoInput.removeAttribute('readonly');
@@ -37,7 +39,9 @@
     }
 
     const pesoFinal = pesoManual ? Number(pesoInput.value || 0) : pesoSeleccionado;
-    montoInput.value = dinero(pesoFinal * precio);
+    const pesoDesbastado = pesoFinal * (1 - desbaste / 100);
+    pesoDesbastadoInput.value = pesoDesbastado.toFixed(2);
+    montoInput.value = dinero(pesoDesbastado * precio);
   }
 
   function renderAnimales() {
@@ -69,14 +73,14 @@
         <td>${escapeHtml(v.fecha)}</td>
         <td>${escapeHtml(v.comprador)}</td>
         <td>${escapeHtml((v.animales || []).map(a => `#${a.caravana} ${a.nombre}`).join(', '))}</td>
+        <td>${escapeHtml(v.establecimiento || '—')}</td>
         <td>${escapeHtml(v.peso_total)} kg</td>
+        <td>${escapeHtml(v.peso_desbastado)} kg</td>
         <td>${dinero(v.precio_por_kg)}</td>
         <td class="text-end">${dinero(v.monto_total)}</td>
         <td class="text-end">
-          <button class="btn btn-sm btn-outline-primary editar" data-id="${v.id}"><i class="bi bi-pencil"></i></button>
-          <button class="btn btn-sm btn-outline-danger eliminar" data-id="${v.id}"><i class="bi bi-trash"></i></button>
-        </td>
-      </tr>`).join('') || '<tr><td colspan="7" class="text-center text-secondary py-4">Todavía no hay ventas registradas.</td></tr>';
+
+      </tr>`).join('') || '<tr><td colspan="9" class="text-center text-secondary py-4">Todavía no hay ventas registradas.</td></tr>';
 
     document.querySelectorAll('.editar').forEach(b => b.onclick = () => abrirEdicion(Number(b.dataset.id)));
     document.querySelectorAll('.eliminar').forEach(b => b.onclick = () => eliminarVenta(Number(b.dataset.id)));
@@ -154,6 +158,7 @@
     $('venta-detalle').value = v.detalle;
     $('venta-peso-manual').checked = true;
     $('venta-peso-total').value = v.peso_total;
+    $('venta-desbaste').value = v.porcentaje_desbaste || 0;
     $('titulo-venta').textContent = `Editar venta #${id}`;
     const ids = new Set(v.animales.map(a => a.id));
     seleccionados = ids;
@@ -268,6 +273,7 @@
     $('venta-precio').addEventListener('input', actualizarTotales);
     $('venta-peso-manual').addEventListener('change', actualizarTotales);
     $('venta-peso-total').addEventListener('input', actualizarTotales);
+    $('venta-desbaste').addEventListener('input', actualizarTotales);
 
     $('form-venta').addEventListener('submit', async e => {
       e.preventDefault();

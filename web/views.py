@@ -383,12 +383,15 @@ def dashboard(request):
 def stock(request):
     animales = _animales_de(request).select_related('parcela', 'dieta', 'madre', 'padre', 'compra', 'venta')
     establecimiento = _establecimiento_actual(request)
+    compras = Compra.objects.all()
+    if establecimiento is not None:
+        compras = compras.filter(mov_financiero__establecimiento=establecimiento)
     return _page(request, 'stock.html', 'stock', {
         'animales': [_animal_data(a) for a in animales],
         'parcelas': [{'id': p.id, 'nombre': str(p)} for p in _parcelas_de(request).select_related('establecimiento')],
         'dietas': [{'id': d.id, 'nombre': str(d)} for d in Dieta.objects.all()],
         'progenitores': [{'id': a.idAnimal, 'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}', 'sexo': a.sexo} for a in animales],
-        'compras': [{'id': c.id, 'nombre': str(c)} for c in Compra.objects.all()],
+        'compras': [{'id': c.id, 'nombre': str(c)} for c in compras],
         'ventas': [{'id': v.id, 'nombre': str(v)} for v in _ventas_de(request)],
         'establecimiento_id': establecimiento.id if establecimiento else None,
     })
@@ -410,12 +413,17 @@ def _normalizar_dni(valor):
 
 def _venta_data(venta):
     animales = list(venta.animal_set.all())
+    establecimiento = next((a.establecimiento for a in animales if a.establecimiento_id is not None), None)
     return {
         'id': venta.id, 'tipo': venta.tipo, 'fecha': _to_iso_date(venta.fecha),
-        'peso_total': str(venta.peso_total), 'precio_por_kg': str(venta.precio_por_kg),
+        'peso_total': str(venta.peso_total), 'porcentaje_desbaste': str((venta.porcentajeDesbaste or Decimal('0')).quantize(Decimal('0.01'))),
+        'peso_desbastado': str(venta.peso_desbastado),
+        'precio_por_kg': str(venta.precio_por_kg),
         'monto_total': str(venta.monto_total), 'detalle': venta.detalle or '',
         'comprador_id': venta.comprador_id,
         'comprador': str(venta.comprador) if venta.comprador else 'Sin comprador',
+        'establecimiento_id': establecimiento.id if establecimiento else None,
+        'establecimiento': establecimiento.nombre if establecimiento else '',
         'animales': [_animal_data(a) for a in animales],
     }
 
@@ -480,28 +488,40 @@ def _compra_data(compra):
         'monto_total': str(compra.monto_total), 'detalle': compra.detalle or '',
         'proveedor_id': compra.proveedor_id,
         'proveedor': str(compra.proveedor) if compra.proveedor else 'Sin proveedor',
+        'establecimiento_id': compra.mov_financiero.establecimiento_id if compra.mov_financiero_id else None,
+        'establecimiento': compra.mov_financiero.establecimiento.nombre if compra.mov_financiero_id and compra.mov_financiero.establecimiento else '',
         'lote': detalle_insumo,
         'animal': detalle_animal,
     }
 
 
-def _movimientos_financieros_data():
+def _movimientos_financieros_data(request=None):
+    movimientos = MovimientoFinanciero.objects.order_by('-fecha', '-id')
+    establecimiento = _establecimiento_actual(request) if request is not None else None
+    if establecimiento is not None:
+        movimientos = movimientos.filter(establecimiento=establecimiento)
     return [{
         'id': m.id, 'fecha': m.fecha.isoformat(), 'tipo': m.tipo, 'nombre': m.nombre,
         'detalle': m.detalle or '', 'monto_total': str(m.monto_total),
-    } for m in MovimientoFinanciero.objects.order_by('-fecha', '-id')]
+        'establecimiento_id': m.establecimiento_id,
+        'establecimiento': m.establecimiento.nombre if m.establecimiento else '',
+    } for m in movimientos]
 
 
 @rol_requerido(ROL_PROPIETARIO)
 def finanzas(request):
     # Pantalla central de Finanzas: métricas, gráfico y listado CRUD de movimientos financieros.
-    # Los movimientos financieros no tienen establecimiento asociado en la base de datos,
-    # por lo que se muestran de forma global para todos los establecimientos.
+    # Los movimientos se muestran según el establecimiento activo en la sesión.
     today = date.today()
     anio = today.year
     mes = today.month
 
-    movimientos_mes = MovimientoFinanciero.objects.filter(fecha__year=anio, fecha__month=mes)
+    establecimiento = _establecimiento_actual(request)
+    movimientos_qs = MovimientoFinanciero.objects.all()
+    if establecimiento is not None:
+        movimientos_qs = movimientos_qs.filter(establecimiento=establecimiento)
+
+    movimientos_mes = movimientos_qs.filter(fecha__year=anio, fecha__month=mes)
     kpi_total = movimientos_mes.count()
     kpi_ingresos = movimientos_mes.filter(tipo='Ingreso').aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
     kpi_egresos = movimientos_mes.filter(tipo='Egreso').aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
@@ -515,7 +535,7 @@ def finanzas(request):
         m = (today.month - i - 1) % 12 + 1
         y = today.year + ((today.month - i - 1) // 12)
         meses.append(f"{y}-{m:02d}")
-        qs = MovimientoFinanciero.objects.filter(fecha__year=y, fecha__month=m)
+        qs = movimientos_qs.filter(fecha__year=y, fecha__month=m)
         ingresos_series.append(float(qs.filter(tipo='Ingreso').aggregate(total=Sum('monto_total'))['total'] or 0))
         egresos_series.append(float(qs.filter(tipo='Egreso').aggregate(total=Sum('monto_total'))['total'] or 0))
 
@@ -527,7 +547,7 @@ def finanzas(request):
             'egresos_mes': float(kpi_egresos),
             'balance_mes': float(kpi_balance),
         },
-        'movimientos': _movimientos_financieros_data()[:50],
+        'movimientos': _movimientos_financieros_data(request)[:50],
         'chart': {
             'labels_json': json.dumps(meses),
             'ingresos_json': json.dumps(ingresos_series),
@@ -544,7 +564,7 @@ def _parse_decimal(value):
 def finanzas_api_list_create(request):
     """GET: lista movimientos (JSON). POST: crear movimiento financiero."""
     if request.method == 'GET':
-        return JsonResponse({'movimientos': _movimientos_financieros_data()})
+        return JsonResponse({'movimientos': _movimientos_financieros_data(request)})
 
     if request.method == 'POST':
         try:
@@ -558,12 +578,15 @@ def finanzas_api_list_create(request):
             movimiento = MovimientoFinanciero.objects.create(
                 fecha=date.fromisoformat(fecha), tipo=tipo, nombre=nombre, detalle=detalle or '',
                 monto_total=_parse_decimal(monto),
+                establecimiento=_establecimiento_actual(request),
             )
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
         return JsonResponse({'movimiento': {
             'id': movimiento.id, 'fecha': movimiento.fecha.isoformat(), 'tipo': movimiento.tipo,
             'nombre': movimiento.nombre, 'detalle': movimiento.detalle or '', 'monto_total': str(movimiento.monto_total),
+            'establecimiento_id': movimiento.establecimiento_id,
+            'establecimiento': movimiento.establecimiento.nombre if movimiento.establecimiento else '',
         }}, status=201)
 
 
@@ -590,6 +613,8 @@ def actualizar_movimiento_financiero(request, movimiento_id):
     return JsonResponse({'movimiento': {
         'id': movimiento.id, 'fecha': movimiento.fecha.isoformat(), 'tipo': movimiento.tipo,
         'nombre': movimiento.nombre, 'detalle': movimiento.detalle or '', 'monto_total': str(movimiento.monto_total),
+        'establecimiento_id': movimiento.establecimiento_id,
+        'establecimiento': movimiento.establecimiento.nombre if movimiento.establecimiento else '',
     }})
 
 
@@ -654,6 +679,9 @@ def compras(request):
     compras_registradas = Compra.objects.select_related('proveedor').prefetch_related(
         'detalles__lote__insumo', 'animal_set'
     ).order_by('-fecha', '-id')
+    establecimiento = _establecimiento_actual(request)
+    if establecimiento is not None:
+        compras_registradas = compras_registradas.filter(mov_financiero__establecimiento=establecimiento)
     today = date.today()
     total_compras = compras_registradas.count()
     egresos_total = compras_registradas.aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
@@ -711,6 +739,8 @@ def _lote_data(lote):
         'insumo_tipo': lote.insumo.tipo if lote.insumo else '',
         'stock': str(lote.stockActual or 0),
         'fecha_vencimiento': lote.fechaVencimiento.isoformat() if lote.fechaVencimiento else '',
+        'establecimiento_id': lote.establecimiento_id,
+        'establecimiento': lote.establecimiento.nombre if lote.establecimiento else '',
     }
 
 
@@ -967,26 +997,28 @@ def _recalcular_estado_enfermo(animal):
 
 def sanidad(request):
     today = date.today()
+    establecimiento = _establecimiento_actual(request)
     # Las inseminaciones se registran desde el módulo de Preñez; no se muestran ni se registran en Sanidad.
-    eventos = EventoSanitario.objects.exclude(tipo=TIPO_INSEMINACION) \
+    eventos = _eventos_sanitarios_de(request).exclude(tipo=TIPO_INSEMINACION) \
         .select_related('veterinario', 'diagnostico', 'lote').prefetch_related('detalles__animal__parcela') \
         .order_by('-fecha_aplicacion', '-id')
-    eventos_aplicados_mes = EventoSanitario.objects.exclude(tipo=TIPO_INSEMINACION).filter(
+    eventos_aplicados_mes = eventos.filter(
         estado=True,
         fecha_aplicacion__year=today.year, fecha_aplicacion__month=today.month,
     ).count()
-    proximas_aplicaciones = EventoSanitario.objects.exclude(tipo=TIPO_INSEMINACION).filter(
+    proximas_aplicaciones = eventos.filter(
         estado=False, fecha_aplicacion__gte=today,
     ).count()
     animales = _animales_de(request).filter(vivo=True).select_related('parcela').order_by('id_senasa')
     animales_enfermos = animales.filter(enfermo=True).count()
     enfermedades = Enfermedad.objects.order_by('nombre')
     diagnosticos = Diagnostico.objects.select_related('animal', 'enfermedad').order_by('-fecha_deteccion')
-    establecimiento = _establecimiento_actual(request)
     if establecimiento is not None:
         diagnosticos = diagnosticos.filter(animal__establecimiento=establecimiento)
     veterinarios = Veterinario.objects.order_by('apellido', 'nombre')
     lotes = Lote.objects.select_related('insumo').order_by('insumo__nombre', 'fechaVencimiento')
+    if establecimiento is not None:
+        lotes = lotes.filter(establecimiento=establecimiento)
     # Incluir animales vivos aunque ya hayan sido vendidos para permitir registrar eventos y diagnósticos históricos.
 
     data = {
@@ -1031,7 +1063,7 @@ def crear_evento_sanitario(request):
             evento.detalles.all().delete()
             for animal_id in animal_ids:
                 DetalleEvento.objects.create(evento=evento, animal_id=animal_id)
-            _sync_movimiento_evento(evento)
+            _sync_movimiento_evento(evento, _establecimiento_actual(request))
     except (KeyError, ValueError, ValidationError) as error:
         return JsonResponse({'error': str(error)}, status=400)
     return JsonResponse({'evento': _evento_sanitario_data(evento)}, status=201)
@@ -1050,13 +1082,13 @@ def actualizar_evento_sanitario(request, evento_id):
             evento.detalles.all().delete()
             for animal_id in animal_ids:
                 DetalleEvento.objects.create(evento=evento, animal_id=animal_id)
-            _sync_movimiento_evento(evento)
+            _sync_movimiento_evento(evento, _establecimiento_actual(request))
     except (KeyError, ValueError, ValidationError) as error:
         return JsonResponse({'error': str(error)}, status=400)
     return JsonResponse({'evento': _evento_sanitario_data(evento)})
 
 
-def _sync_movimiento_evento(evento):
+def _sync_movimiento_evento(evento, establecimiento=None):
     """Registra en Finanzas el gasto del evento cuando está Aplicado y tiene costo, o lo elimina si ya no corresponde."""
     costo = evento.costo_total or Decimal('0')
     if evento.estado and costo > 0:
@@ -1068,6 +1100,7 @@ def _sync_movimiento_evento(evento):
                 'monto_total': costo,
                 'fecha': evento.fecha_aplicacion,
                 'detalle': evento.detalle or f'Gasto de {evento.tipo} registrado desde el módulo de Sanidad.',
+                'establecimiento': establecimiento,
             },
         )
         if evento.mov_financiero_id != movimiento.id:
@@ -1325,22 +1358,30 @@ def _registrar_venta(venta, datos):
     else:
         peso_total = peso_total_manual
 
-    monto_total = (peso_total * precio_por_kg).quantize(Decimal('0.01'))
+    porcentaje_desbaste = _parse_decimal(datos.get('porcentajeDesbaste')) or Decimal('0')
+    if not 0 <= porcentaje_desbaste <= 100:
+        raise ValueError('El porcentaje de desbaste debe estar entre 0 y 100.')
+
+    peso_desbastado = (peso_total * (1 - porcentaje_desbaste / Decimal('100'))).quantize(Decimal('0.01'))
+    monto_total = (peso_desbastado * precio_por_kg).quantize(Decimal('0.01'))
     venta.tipo = datos.get('tipo', 'Venta de animales').strip() or 'Venta de animales'
     venta.fecha = datos.get('fecha') or date.today()
     venta.comprador_id = datos.get('comprador_id') or None
     venta.detalle = datos.get('detalle', '').strip() or None
     venta.peso_total = peso_total
+    venta.porcentajeDesbaste = porcentaje_desbaste
     venta.precio_por_kg = precio_por_kg
     venta.monto_total = monto_total
     venta.full_clean()
     venta.save()
 
+    establecimiento = next((a.establecimiento for a in animales if a.establecimiento_id is not None), None)
     movimiento, _ = MovimientoFinanciero.objects.update_or_create(
         pk=venta.mov_financiero_id,
         defaults={
             'tipo': 'Ingreso', 'nombre': f'Venta #{venta.id}', 'monto_total': monto_total,
             'fecha': venta.fecha, 'detalle': venta.detalle or f'Venta de {len(animales)} animal(es).',
+            'establecimiento': establecimiento,
         },
     )
     if venta.mov_financiero_id != movimiento.id:
@@ -1349,9 +1390,10 @@ def _registrar_venta(venta, datos):
 
     for animal in animales:
         if peso_manual:
-            precio_venta_animal = ((peso_total / len(animales)) * precio_por_kg).quantize(Decimal('0.01'))
+            precio_venta_animal = ((peso_desbastado / len(animales)) * precio_por_kg).quantize(Decimal('0.01'))
         else:
-            precio_venta_animal = ((animal.peso_actual or Decimal('0')) * precio_por_kg).quantize(Decimal('0.01'))
+            factor_desbaste = 1 - porcentaje_desbaste / Decimal('100')
+            precio_venta_animal = ((animal.peso_actual or Decimal('0')) * factor_desbaste * precio_por_kg).quantize(Decimal('0.01'))
         animal.vendido = True
         animal.venta = venta
         animal.precio_venta = precio_venta_animal
@@ -1568,6 +1610,8 @@ def _registrar_compra(compra, datos, establecimiento=None):
         lote.nombre = datos.get('lote_nombre', '').strip() or None
         lote.fechaVencimiento = datos.get('fecha_vencimiento') or None
         lote.stockActual = cantidad
+        if establecimiento is not None:
+            lote.establecimiento = establecimiento
         lote.save()
         DetalleCompra.objects.update_or_create(
             compra=compra,
@@ -1613,6 +1657,7 @@ def _registrar_compra(compra, datos, establecimiento=None):
             'tipo': 'Egreso', 'nombre': f'Compra #{compra.id} - {tipo}',
             'monto_total': compra.monto_total, 'fecha': compra.fecha,
             'detalle': _detalle_efectos_compra(compra),
+            'establecimiento': establecimiento,
         },
     )
     if compra.mov_financiero_id != movimiento.id:
