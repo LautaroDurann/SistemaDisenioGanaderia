@@ -39,14 +39,33 @@
         <td>${detalleCompra(c)}</td>
         <td>${escapeHtml(c.establecimiento || '—')}</td>
         <td class="text-end">${dinero(c.monto_total)}</td>
+        <td>${escapeHtml(c.metodo_de_pago)}</td>
+        <td><span class="badge ${c.estado_de_pago === 'Pagada' ? 'text-bg-success' : 'text-bg-warning'}">${escapeHtml(c.estado_de_pago)}</span></td>
         <td class="text-end">
           <button class="btn btn-sm btn-outline-primary editar" data-id="${c.id}"><i class="bi bi-pencil"></i></button>
           <button class="btn btn-sm btn-outline-danger eliminar" data-id="${c.id}"><i class="bi bi-trash"></i></button>
         </td>
-      </tr>`).join('') || '<tr><td colspan="7" class="text-center text-secondary py-4">Todavía no hay compras registradas.</td></tr>';
+      </tr>`).join('') || '<tr><td colspan="9" class="text-center text-secondary py-4">Todavía no hay compras registradas.</td></tr>';
 
     document.querySelectorAll('.editar').forEach(b => b.onclick = () => abrirEdicion(Number(b.dataset.id)));
     document.querySelectorAll('.eliminar').forEach(b => b.onclick = () => eliminarCompra(Number(b.dataset.id)));
+  }
+
+  function renderMontosTipo() {
+    const tbody = $('montos-tipo-body');
+    if (!tbody) return;
+    const anio = String(new Date().getFullYear());
+    const delAnio = compras.filter(c => String(c.fecha || '').startsWith(anio));
+    const porTipo = {};
+    delAnio.forEach(c => {
+      porTipo[c.tipo] = (porTipo[c.tipo] || 0) + Number(c.monto_total || 0);
+    });
+    const tipos = ['Insumos', 'Animales', 'Maquinaria', 'Otros'];
+    tbody.innerHTML = tipos.map(t => `
+      <tr>
+        <td>${escapeHtml(t)}</td>
+        <td class="text-end">${dinero(porTipo[t] || 0)}</td>
+      </tr>`).join('');
   }
 
   function renderProveedores() {
@@ -144,6 +163,8 @@
     $('compra-proveedor').value = c.proveedor_id || '';
     $('compra-detalle').value = c.detalle;
     $('compra-tipo').value = c.tipo;
+    $('compra-metodo').value = c.metodo_de_pago || 'Efectivo';
+    $('compra-estado').value = c.estado_de_pago || 'Pendiente';
     setTipoPanel(c.tipo);
     $('titulo-compra').textContent = `Editar compra #${id}`;
 
@@ -231,6 +252,7 @@
     renderCompras();
     renderSummary();
     renderChart();
+    renderMontosTipo();
     mostrar('Compra eliminada.', 'success');
   }
 
@@ -251,6 +273,7 @@
     renderProveedores();
     renderChart();
     renderCompras();
+    renderMontosTipo();
 
     $('nueva-compra').onclick = abrirNueva;
     $('nueva-compra-tabla').onclick = abrirNueva;
@@ -330,6 +353,7 @@
       renderCompras();
       renderSummary();
       renderChart();
+      renderMontosTipo();
       modal.hide();
       mostrar('Compra guardada.', 'success');
     });

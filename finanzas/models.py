@@ -32,11 +32,22 @@ class Compra(models.Model):
         ('Maquinaria', 'Maquinaria'),
         ('Otros', 'Otros'),
     ]
+    ESTADO_PAGO_CHOICES = [
+        ('Pendiente', 'Pendiente'),
+        ('Pagada', 'Pagada'),
+    ]
+    METODO_PAGO_CHOICES = [
+        ('Efectivo', 'Efectivo'),
+        ('Transferencia', 'Transferencia'),
+        ('Cheque', 'Cheque'),
+    ]
     
     tipo = models.CharField(max_length=50, choices=TIPO_CHOICES)
     fecha = models.DateField()
     monto_total = models.DecimalField(max_digits=12, decimal_places=2)
     detalle = models.TextField(blank=True, null=True)
+    estadoDePago = models.CharField(max_length=20, choices=ESTADO_PAGO_CHOICES, default='Pendiente')
+    metodoDePago = models.CharField(max_length=20, choices=METODO_PAGO_CHOICES, default='Efectivo')
     
     # Claves Foráneas
     proveedor = models.ForeignKey('usuarios.Proveedor', on_delete=models.SET_NULL, null=True, blank=True)
@@ -48,6 +59,16 @@ class Compra(models.Model):
 
 # 3. Venta
 class Venta(models.Model):
+    ESTADO_COBRO_CHOICES = [
+        ('Pendiente', 'Pendiente'),
+        ('Pagada', 'Pagada'),
+    ]
+    METODO_PAGO_CHOICES = [
+        ('Efectivo', 'Efectivo'),
+        ('Transferencia', 'Transferencia'),
+        ('Cheque', 'Cheque'),
+    ]
+
     tipo = models.CharField(max_length=100)
     fecha = models.DateField()
     # El peso se conserva en la venta para que el comprobante no cambie.
@@ -57,6 +78,8 @@ class Venta(models.Model):
     precio_por_kg = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     monto_total = models.DecimalField(max_digits=12, decimal_places=2)
     detalle = models.TextField(blank=True, null=True)
+    estadoDeCobro = models.CharField(max_length=20, choices=ESTADO_COBRO_CHOICES, default='Pendiente')
+    metodoDePago = models.CharField(max_length=20, choices=METODO_PAGO_CHOICES, default='Efectivo')
     
     # Claves Foráneas
     comprador = models.ForeignKey('usuarios.Comprador', on_delete=models.SET_NULL, null=True, blank=True)

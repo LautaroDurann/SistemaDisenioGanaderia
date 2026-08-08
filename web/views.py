@@ -105,17 +105,21 @@ def _animal_data(animal):
     }
 
 
-def _establecimiento_actual(request):
-    """Devuelve el establecimiento activo en la sesión (o el único al que el usuario accede)."""
-    establecimiento_id = request.session.get('establecimiento_id')
+def _establecimientos_permitidos(request):
+    """Todos los establecimientos a los que el usuario accede."""
     usuario = usuario_actual(request)
     if usuario is not None and not _usuario_es_propietario_global(request):
         permitidos_ids = set(
             RolEstablecimiento.objects.filter(usuario=usuario).values_list('establecimiento_id', flat=True)
         )
-        permitidos = [e for e in Establecimiento.objects.order_by('nombre') if e.id in permitidos_ids]
-    else:
-        permitidos = list(Establecimiento.objects.order_by('nombre'))
+        return [e for e in Establecimiento.objects.order_by('nombre') if e.id in permitidos_ids]
+    return list(Establecimiento.objects.order_by('nombre'))
+
+
+def _establecimiento_actual(request):
+    """Devuelve el establecimiento activo en la sesión (o el único al que el usuario accede)."""
+    establecimiento_id = request.session.get('establecimiento_id')
+    permitidos = _establecimientos_permitidos(request)
 
     if establecimiento_id:
         for establecimiento in permitidos:
@@ -420,6 +424,8 @@ def _venta_data(venta):
         'peso_desbastado': str(venta.peso_desbastado),
         'precio_por_kg': str(venta.precio_por_kg),
         'monto_total': str(venta.monto_total), 'detalle': venta.detalle or '',
+        'estado_de_cobro': venta.estadoDeCobro or 'Pendiente',
+        'metodo_de_pago': venta.metodoDePago or 'Efectivo',
         'comprador_id': venta.comprador_id,
         'comprador': str(venta.comprador) if venta.comprador else 'Sin comprador',
         'establecimiento_id': establecimiento.id if establecimiento else None,
@@ -486,6 +492,8 @@ def _compra_data(compra):
     return {
         'id': compra.id, 'tipo': compra.tipo, 'fecha': _to_iso_date(compra.fecha),
         'monto_total': str(compra.monto_total), 'detalle': compra.detalle or '',
+        'estado_de_pago': compra.estadoDePago or 'Pendiente',
+        'metodo_de_pago': compra.metodoDePago or 'Efectivo',
         'proveedor_id': compra.proveedor_id,
         'proveedor': str(compra.proveedor) if compra.proveedor else 'Sin proveedor',
         'establecimiento_id': compra.mov_financiero.establecimiento_id if compra.mov_financiero_id else None,
@@ -539,7 +547,54 @@ def finanzas(request):
         ingresos_series.append(float(qs.filter(tipo='Ingreso').aggregate(total=Sum('monto_total'))['total'] or 0))
         egresos_series.append(float(qs.filter(tipo='Egreso').aggregate(total=Sum('monto_total'))['total'] or 0))
 
-    import json
+    # 1) Flujo de caja acumulado del mes (día a día)
+    netos_por_dia = {}
+    for m in movimientos_mes:
+        netos_por_dia[m.fecha.day] = netos_por_dia.get(m.fecha.day, Decimal('0')) + (
+            m.monto_total if m.tipo == 'Ingreso' else -m.monto_total
+        )
+    dias_mes = calendar.monthrange(anio, mes)[1]
+    flujo_etiquetas = []
+    flujo_valores = []
+    saldo = Decimal('0')
+    for d in range(1, dias_mes + 1):
+        saldo += netos_por_dia.get(d, Decimal('0'))
+        flujo_etiquetas.append(f"{d:02d}")
+        flujo_valores.append(float(saldo))
+
+    # 2) Egresos por categoría (año actual), clasificando el origen de cada egreso
+    mov_egresos_anio = movimientos_qs.filter(tipo='Egreso', fecha__year=anio)
+    compra_tipo_por_mov = {
+        c.mov_financiero_id: c.tipo
+        for c in Compra.objects.filter(mov_financiero_id__in=mov_egresos_anio.values('id'))
+    }
+    evento_mov_ids = set(
+        EventoSanitario.objects.filter(mov_financiero_id__in=mov_egresos_anio.values('id'))
+        .values_list('mov_financiero_id', flat=True)
+    )
+    categorias = {}
+    for m in mov_egresos_anio:
+        categoria = compra_tipo_por_mov.get(m.id) or ('Sanidad' if m.id in evento_mov_ids else 'Gastos varios')
+        categorias[categoria] = categorias.get(categoria, Decimal('0')) + m.monto_total
+    categorias_ordenadas = sorted(categorias.items(), key=lambda par: par[1], reverse=True)
+    categorias_etiquetas = [c for c, _ in categorias_ordenadas]
+    categorias_valores = [float(v) for _, v in categorias_ordenadas]
+
+    # 3) Comparativa entre establecimientos (año actual)
+    establecimientos = _establecimientos_permitidos(request)
+    establecimientos_etiquetas = []
+    establecimientos_ingresos = []
+    establecimientos_egresos = []
+    for e in establecimientos:
+        qs_e = MovimientoFinanciero.objects.filter(establecimiento=e, fecha__year=anio)
+        establecimientos_etiquetas.append(e.nombre)
+        establecimientos_ingresos.append(float(
+            qs_e.filter(tipo='Ingreso').aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+        ))
+        establecimientos_egresos.append(float(
+            qs_e.filter(tipo='Egreso').aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+        ))
+
     return _page(request, 'finanzas.html', 'finanzas', {
         'kpis': {
             'total_movimientos_mes': kpi_total,
@@ -552,7 +607,20 @@ def finanzas(request):
             'labels_json': json.dumps(meses),
             'ingresos_json': json.dumps(ingresos_series),
             'egresos_json': json.dumps(egresos_series),
-        }
+        },
+        'flujo': {
+            'etiquetas_json': json.dumps(flujo_etiquetas),
+            'valores_json': json.dumps(flujo_valores),
+        },
+        'categorias': {
+            'etiquetas_json': json.dumps(categorias_etiquetas),
+            'valores_json': json.dumps(categorias_valores),
+        },
+        'establecimientos': {
+            'etiquetas_json': json.dumps(establecimientos_etiquetas),
+            'ingresos_json': json.dumps(establecimientos_ingresos),
+            'egresos_json': json.dumps(establecimientos_egresos),
+        },
     })
 
 
@@ -1362,6 +1430,13 @@ def _registrar_venta(venta, datos):
     if not 0 <= porcentaje_desbaste <= 100:
         raise ValueError('El porcentaje de desbaste debe estar entre 0 y 100.')
 
+    estado_cobro = datos.get('estadoDeCobro', 'Pendiente').strip() or 'Pendiente'
+    if estado_cobro not in dict(Venta.ESTADO_COBRO_CHOICES):
+        raise ValueError('Indicá un estado de cobro válido.')
+    metodo_pago = datos.get('metodoDePago', 'Efectivo').strip() or 'Efectivo'
+    if metodo_pago not in dict(Venta.METODO_PAGO_CHOICES):
+        raise ValueError('Indicá un método de pago válido.')
+
     peso_desbastado = (peso_total * (1 - porcentaje_desbaste / Decimal('100'))).quantize(Decimal('0.01'))
     monto_total = (peso_desbastado * precio_por_kg).quantize(Decimal('0.01'))
     venta.tipo = datos.get('tipo', 'Venta de animales').strip() or 'Venta de animales'
@@ -1370,6 +1445,8 @@ def _registrar_venta(venta, datos):
     venta.detalle = datos.get('detalle', '').strip() or None
     venta.peso_total = peso_total
     venta.porcentajeDesbaste = porcentaje_desbaste
+    venta.estadoDeCobro = estado_cobro
+    venta.metodoDePago = metodo_pago
     venta.precio_por_kg = precio_por_kg
     venta.monto_total = monto_total
     venta.full_clean()
@@ -1590,6 +1667,15 @@ def _registrar_compra(compra, datos, establecimiento=None):
     compra.fecha = datos.get('fecha') or date.today()
     compra.proveedor_id = datos.get('proveedor_id') or None
     compra.detalle = datos.get('detalle', '').strip() or None
+
+    estado_pago = datos.get('estadoDePago', 'Pendiente').strip() or 'Pendiente'
+    if estado_pago not in dict(Compra.ESTADO_PAGO_CHOICES):
+        raise ValueError('Indicá un estado de pago válido.')
+    metodo_pago = datos.get('metodoDePago', 'Efectivo').strip() or 'Efectivo'
+    if metodo_pago not in dict(Compra.METODO_PAGO_CHOICES):
+        raise ValueError('Indicá un método de pago válido.')
+    compra.estadoDePago = estado_pago
+    compra.metodoDePago = metodo_pago
 
     _sincronizar_efectos_compra(compra, tipo)
 

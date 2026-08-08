@@ -18,6 +18,61 @@ let kpiTotal = KPI_TOTAL;
 let kpiIngresos = KPI_INGRESOS;
 let kpiEgresos = KPI_EGRESOS;
 let kpiBalance = KPI_BALANCE;
+let chartFlujo = null;
+let chartCategorias = null;
+let chartEstablecimientos = null;
+
+function renderChartsAnaliticos() {
+  const elFlujo = document.querySelector('#chart-flujo');
+  if (elFlujo) {
+    chartFlujo?.destroy();
+    chartFlujo = new ApexCharts(elFlujo, {
+      chart: { height: 280, type: 'line', toolbar: { show: false } },
+      series: [{ name: 'Saldo acumulado', data: FLUJO_VALORES }],
+      xaxis: { categories: FLUJO_ETIQUETAS },
+      colors: ['#0d6efd'],
+      stroke: { width: 2, curve: 'smooth' },
+      markers: { size: 3 },
+      yaxis: { labels: { formatter: value => dinero(value) } },
+      tooltip: { y: { formatter: value => dinero(value) } },
+    });
+    chartFlujo.render().catch(() => {});
+  }
+
+  const elCategorias = document.querySelector('#chart-categorias');
+  if (elCategorias) {
+    chartCategorias?.destroy();
+    const sinDatos = !CATEGORIAS_VALORES.length || CATEGORIAS_VALORES.every(v => !v);
+    chartCategorias = new ApexCharts(elCategorias, {
+      chart: { height: 280, type: 'pie', toolbar: { show: false } },
+      series: sinDatos ? [1] : CATEGORIAS_VALORES,
+      labels: sinDatos ? ['Sin egresos'] : CATEGORIAS_ETIQUETAS,
+      legend: { position: 'bottom' },
+      colors: ['#dc3545', '#fd7e14', '#ffc107', '#198754', '#0dcaf0'],
+      dataLabels: { formatter: (val, opt) => `${opt.w.globals.labels[opt.seriesIndex]}: ${Math.round(val)}%` },
+      tooltip: { y: { formatter: value => dinero(value) } },
+    });
+    chartCategorias.render().catch(() => {});
+  }
+
+  const elEst = document.querySelector('#chart-establecimientos');
+  if (elEst) {
+    chartEstablecimientos?.destroy();
+    chartEstablecimientos = new ApexCharts(elEst, {
+      chart: { height: 300, type: 'bar', toolbar: { show: false } },
+      series: [
+        { name: 'Ingresos', data: ESTABLECIMIENTOS_INGRESOS },
+        { name: 'Egresos', data: ESTABLECIMIENTOS_EGRESOS },
+      ],
+      xaxis: { categories: ESTABLECIMIENTOS_ETIQUETAS },
+      colors: ['#198754', '#dc3545'],
+      dataLabels: { enabled: false },
+      plotOptions: { bar: { horizontal: false, columnWidth: '50%' } },
+      tooltip: { y: { formatter: value => dinero(value) } },
+    });
+    chartEstablecimientos.render().catch(() => {});
+  }
+}
 
 function filaMovimientoHTML(m) {
   const esIngreso = m.tipo === 'Ingreso';
@@ -172,6 +227,8 @@ document.addEventListener('DOMContentLoaded', function () {
   } catch (e) {
     console.error('Error renderizando gráfico de finanzas', e);
   }
+
+  renderChartsAnaliticos();
 
   // Form submit (crear o editar)
   const form = document.getElementById('form-registrar-mov-financiero');

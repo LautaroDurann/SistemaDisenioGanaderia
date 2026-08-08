@@ -63,6 +63,26 @@
 				</div>
 			</div>
 
+			<div class="row g-3 mb-3">
+				<div class="col-lg-6">
+					<div class="card h-100">
+						<div class="card-header"><h3 class="card-title mb-0">Flujo de caja acumulado (mes)</h3></div>
+						<div class="card-body"><div id="chart-flujo" style="height:280px"></div></div>
+					</div>
+				</div>
+				<div class="col-lg-6">
+					<div class="card h-100">
+						<div class="card-header"><h3 class="card-title mb-0">Egresos por categoría</h3></div>
+						<div class="card-body"><div id="chart-categorias" style="height:280px"></div></div>
+					</div>
+				</div>
+			</div>
+
+			<div class="card mb-3">
+				<div class="card-header"><h3 class="card-title mb-0">Comparativa entre establecimientos</h3></div>
+				<div class="card-body"><div id="chart-establecimientos" style="height:300px"></div></div>
+			</div>
+
 			<div class="card mb-3">
 				<div class="card-body">
 					<div class="row g-2 align-items-end mb-3" id="filtros-movimientos">
@@ -211,6 +231,13 @@
 		const KPI_INGRESOS = {{ page_data.kpis.ingresos_mes|stringformat:".2f" }};
 		const KPI_EGRESOS = {{ page_data.kpis.egresos_mes|stringformat:".2f" }};
 		const KPI_BALANCE = {{ page_data.kpis.balance_mes|stringformat:".2f" }};
+		const FLUJO_ETIQUETAS = JSON.parse('{{ page_data.flujo.etiquetas_json|escapejs }}');
+		const FLUJO_VALORES = JSON.parse('{{ page_data.flujo.valores_json|escapejs }}');
+		const CATEGORIAS_ETIQUETAS = JSON.parse('{{ page_data.categorias.etiquetas_json|escapejs }}');
+		const CATEGORIAS_VALORES = JSON.parse('{{ page_data.categorias.valores_json|escapejs }}');
+		const ESTABLECIMIENTOS_ETIQUETAS = JSON.parse('{{ page_data.establecimientos.etiquetas_json|escapejs }}');
+		const ESTABLECIMIENTOS_INGRESOS = JSON.parse('{{ page_data.establecimientos.ingresos_json|escapejs }}');
+		const ESTABLECIMIENTOS_EGRESOS = JSON.parse('{{ page_data.establecimientos.egresos_json|escapejs }}');
 	</script>
 	<script src="{% static 'js/finanzas.js' %}"></script>
 {% endblock %}

@@ -78,12 +78,27 @@
         <td>${escapeHtml(v.peso_desbastado)} kg</td>
         <td>${dinero(v.precio_por_kg)}</td>
         <td class="text-end">${dinero(v.monto_total)}</td>
+        <td><span class="badge ${v.estado_de_cobro === 'Pagada' ? 'text-bg-success' : 'text-bg-warning'}">${escapeHtml(v.estado_de_cobro)}</span></td>
+        <td>${escapeHtml(v.metodo_de_pago)}</td>
         <td class="text-end">
 
-      </tr>`).join('') || '<tr><td colspan="9" class="text-center text-secondary py-4">Todavía no hay ventas registradas.</td></tr>';
+      </tr>`).join('') || '<tr><td colspan="11" class="text-center text-secondary py-4">Todavía no hay ventas registradas.</td></tr>';
 
     document.querySelectorAll('.editar').forEach(b => b.onclick = () => abrirEdicion(Number(b.dataset.id)));
     document.querySelectorAll('.eliminar').forEach(b => b.onclick = () => eliminarVenta(Number(b.dataset.id)));
+  }
+
+  function renderResumenMes() {
+    const mesActual = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+    const delMes = ventas.filter(v => String(v.fecha || '').startsWith(mesActual));
+    const ingresos = delMes.reduce((s, v) => s + Number(v.monto_total || 0), 0);
+    const cobrado = delMes.filter(v => v.estado_de_cobro === 'Pagada').reduce((s, v) => s + Number(v.monto_total || 0), 0);
+    const kilos = delMes.reduce((s, v) => s + Number(v.peso_desbastado || 0), 0);
+    const el = (id) => document.getElementById(id);
+    if (el('resumen-mes-cantidad')) el('resumen-mes-cantidad').textContent = delMes.length;
+    if (el('resumen-mes-ingresos')) el('resumen-mes-ingresos').textContent = dinero(ingresos);
+    if (el('resumen-mes-cobrado')) el('resumen-mes-cobrado').textContent = dinero(cobrado);
+    if (el('resumen-mes-kilos')) el('resumen-mes-kilos').textContent = `${kilos.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} kg`;
   }
 
   function renderCompradores() {
@@ -159,6 +174,8 @@
     $('venta-peso-manual').checked = true;
     $('venta-peso-total').value = v.peso_total;
     $('venta-desbaste').value = v.porcentaje_desbaste || 0;
+    $('venta-estado').value = v.estado_de_cobro || 'Pendiente';
+    $('venta-metodo').value = v.metodo_de_pago || 'Efectivo';
     $('titulo-venta').textContent = `Editar venta #${id}`;
     const ids = new Set(v.animales.map(a => a.id));
     seleccionados = ids;
@@ -217,6 +234,7 @@
     renderSummary();
     renderChart();
     renderAnimales();
+    renderResumenMes();
     mostrar('Venta eliminada. Los animales volvieron al stock.', 'success');
   }
 
@@ -256,6 +274,7 @@
     renderCompradores();
     renderChart();
     renderVentas();
+    renderResumenMes();
     renderAnimales();
     actualizarFiltroCategoria();
 
@@ -326,6 +345,7 @@
       renderSummary();
       renderChart();
       renderAnimales();
+      renderResumenMes();
       modal.hide();
       mostrar('Venta guardada.', 'success');
     });

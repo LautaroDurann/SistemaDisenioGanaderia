@@ -24,9 +24,10 @@
     </div>
     <div class="row g-3 mb-4">
       <div class="col-lg-8"><div class="card shadow-sm"><div class="card-header"><h3 class="card-title mb-0">Egresos por año</h3></div><div class="card-body"><div id="chart-compras" style="height: 320px;"></div></div></div></div>
-      <div class="col-lg-4"><div class="card shadow-sm h-100"><div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title mb-0">Proveedores</h3><button class="btn btn-sm btn-outline-primary" id="nuevo-proveedor"><i class="bi bi-person-plus"></i> Nuevo</button></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Nombre</th><th>Correo</th><th>Teléfono</th><th></th></tr></thead><tbody id="proveedores-body"></tbody></table></div></div></div></div>
+      <div class="col-lg-4"><div class="card shadow-sm h-100"><div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title mb-0">Proveedores</h3><button class="btn btn-sm btn-outline-primary" id="nuevo-proveedor"><i class="bi bi-person-plus"></i> Nuevo</button></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Nombre</th><th>Correo</th><th>Teléfono</th><th></th></tr></thead><tbody id="proveedores-body"></tbody></table></div></div></div>
+      <div class="card shadow-sm mt-3"><div class="card-header"><h3 class="card-title mb-0">Montos por tipo (año)</h3></div><div class="card-body p-0"><table class="table align-middle mb-0"><tbody id="montos-tipo-body"></tbody></table></div></div></div>
     </div>
-    <div class="card shadow-sm"><div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title mb-0">Últimas compras</h3><button class="btn btn-success btn-sm" id="nueva-compra-tabla"><i class="bi bi-plus-lg me-1"></i>Registrar compra</button></div><div class="card-body"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Fecha</th><th>Tipo</th><th>Proveedor</th><th>Detalle</th><th>Establecimiento</th><th class="text-end">Monto total</th><th></th></tr></thead><tbody id="compras-body"></tbody></table></div></div></div>
+    <div class="card shadow-sm"><div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title mb-0">Últimas compras</h3><button class="btn btn-success btn-sm" id="nueva-compra-tabla"><i class="bi bi-plus-lg me-1"></i>Registrar compra</button></div><div class="card-body"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Fecha</th><th>Tipo</th><th>Proveedor</th><th>Detalle</th><th>Establecimiento</th><th class="text-end">Monto total</th><th>Pago</th><th>Estado</th><th></th></tr></thead><tbody id="compras-body"></tbody></table></div></div></div>
   </div>
 </div>
 
@@ -80,8 +81,10 @@
       </div>
 
       <div class="row g-3 mb-3">
-        <div class="col-md-4 d-none" id="grupo-monto-generico"><label class="form-label">Monto total</label><input class="form-control" type="number" min="0.01" step="0.01" name="monto_total" id="compra-monto-total" required></div>
-        <div class="col-md-8"><label class="form-label">Detalle de la compra</label><input class="form-control" name="detalle" id="compra-detalle" placeholder="Opcional"></div>
+        <div class="col-md-3"><label class="form-label">Método de pago</label><select class="form-select" name="metodoDePago" id="compra-metodo"><option value="Efectivo">Efectivo</option><option value="Transferencia">Transferencia</option><option value="Cheque">Cheque</option></select></div>
+        <div class="col-md-3"><label class="form-label">Estado de pago</label><select class="form-select" name="estadoDePago" id="compra-estado"><option value="Pendiente">Pendiente</option><option value="Pagada">Pagada</option></select></div>
+        <div class="col-md-3 d-none" id="grupo-monto-generico"><label class="form-label">Monto total</label><input class="form-control" type="number" min="0.01" step="0.01" name="monto_total" id="compra-monto-total" required></div>
+        <div class="col-md-3"><label class="form-label">Detalle de la compra</label><input class="form-control" name="detalle" id="compra-detalle" placeholder="Opcional"></div>
       </div>
     </div>
     <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-success">Guardar compra</button></div>

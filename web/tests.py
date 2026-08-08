@@ -744,6 +744,155 @@ class FinanzasSyncTests(TestCase):
         self.assertTrue(Compra.objects.filter(pk=compra.id).exists())
         self.assertTrue(MovimientoFinanciero.objects.filter(pk=movimiento_id).exists())
 
+    def get_page_data(self, url_name):
+        response = self.client.get(reverse(url_name))
+        content = response.content.decode()
+        inicio = content.index('id="ganastock-page-data"')
+        inicio = content.index('>', inicio) + 1
+        fin = content.index('</script>', inicio)
+        return response, json.loads(content[inicio:fin])
+
+    def crear_animal_venta(self, id_senasa):
+        return Animal.objects.create(
+            id_senasa=id_senasa, nombre='Vaca venta', tipo_animal='Bovino', sexo='Hembra',
+            vivo=True, peso_actual=Decimal('300'), establecimiento=self.establecimiento,
+        )
+
+    def test_venta_guarda_estado_de_cobro_y_metodo_de_pago(self):
+        animal = self.crear_animal_venta(55520)
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-01', 'precio_por_kg': '100', 'animales': [str(animal.idAnimal)],
+            'peso_total': '300', 'peso_manual': 'on',
+            'estadoDeCobro': 'Pagada', 'metodoDePago': 'Transferencia',
+        })
+        self.assertEqual(response.status_code, 201)
+        venta = Venta.objects.get(pk=response.json()['id'])
+        self.assertEqual(venta.estadoDeCobro, 'Pagada')
+        self.assertEqual(venta.metodoDePago, 'Transferencia')
+        payload = response.json()['venta']
+        self.assertEqual(payload['estado_de_cobro'], 'Pagada')
+        self.assertEqual(payload['metodo_de_pago'], 'Transferencia')
+
+    def test_compra_guarda_estado_de_pago_y_metodo_de_pago(self):
+        response = self.client.post(reverse('crear_compra'), {
+            'tipo': 'Otros', 'fecha': '2026-08-01', 'monto_total': '500',
+            'estadoDePago': 'Pagada', 'metodoDePago': 'Cheque',
+        })
+        self.assertEqual(response.status_code, 201)
+        compra = Compra.objects.get(pk=response.json()['id'])
+        self.assertEqual(compra.estadoDePago, 'Pagada')
+        self.assertEqual(compra.metodoDePago, 'Cheque')
+
+    def test_venta_y_compra_usan_estados_por_defecto(self):
+        animal = self.crear_animal_venta(55521)
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-01', 'precio_por_kg': '100', 'animales': [str(animal.idAnimal)],
+            'peso_total': '300', 'peso_manual': 'on',
+        })
+        self.assertEqual(response.status_code, 201)
+        venta = Venta.objects.get(pk=response.json()['id'])
+        self.assertEqual(venta.estadoDeCobro, 'Pendiente')
+        self.assertEqual(venta.metodoDePago, 'Efectivo')
+
+        response = self.client.post(reverse('crear_compra'), {
+            'tipo': 'Otros', 'fecha': '2026-08-01', 'monto_total': '500',
+        })
+        self.assertEqual(response.status_code, 201)
+        compra = Compra.objects.get(pk=response.json()['id'])
+        self.assertEqual(compra.estadoDePago, 'Pendiente')
+        self.assertEqual(compra.metodoDePago, 'Efectivo')
+
+    def test_venta_rechaza_estado_de_cobro_invalido(self):
+        animal = self.crear_animal_venta(55522)
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-01', 'precio_por_kg': '100', 'animales': [str(animal.idAnimal)],
+            'peso_total': '300', 'peso_manual': 'on', 'estadoDeCobro': 'Cobrado',
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Venta.objects.exists())
+
+    def test_compra_rechaza_metodo_de_pago_invalido(self):
+        response = self.client.post(reverse('crear_compra'), {
+            'tipo': 'Otros', 'fecha': '2026-08-01', 'monto_total': '500',
+            'metodoDePago': 'Bitcoin',
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Compra.objects.exists())
+
+    def test_pagina_ventas_embebe_estado_y_resumen_del_mes(self):
+        animal = self.crear_animal_venta(55523)
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-01', 'precio_por_kg': '100', 'animales': [str(animal.idAnimal)],
+            'peso_total': '300', 'peso_manual': 'on',
+            'estadoDeCobro': 'Pagada', 'metodoDePago': 'Cheque',
+        })
+        self.assertEqual(response.status_code, 201)
+        response, data = self.get_page_data('ventas')
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn('resumen-mes-cantidad', content)
+        self.assertIn('resumen-mes-ingresos', content)
+        self.assertIn('resumen-mes-cobrado', content)
+        venta = data['ventas'][0]
+        self.assertEqual(venta['estado_de_cobro'], 'Pagada')
+        self.assertEqual(venta['metodo_de_pago'], 'Cheque')
+
+    def test_pagina_compras_muestra_montos_por_tipo(self):
+        response = self.client.post(reverse('crear_compra'), {
+            'tipo': 'Insumos', 'fecha': '2026-08-01', 'nuevo_insumo': 'Vacuna aftosa',
+            'tipo_insumo': 'Vacuna', 'cantidad': '10', 'precio_unitario': '100',
+        })
+        self.assertEqual(response.status_code, 201)
+        response = self.client.post(reverse('crear_compra'), {
+            'tipo': 'Maquinaria', 'fecha': '2026-08-02', 'monto_total': '500',
+            'estadoDePago': 'Pendiente', 'metodoDePago': 'Transferencia',
+        })
+        self.assertEqual(response.status_code, 201)
+        response, data = self.get_page_data('compras')
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn('montos-tipo-body', content)
+        tipos = sorted(c['tipo'] for c in data['compras'])
+        self.assertEqual(tipos, ['Insumos', 'Maquinaria'])
+        maquinaria = next(c for c in data['compras'] if c['tipo'] == 'Maquinaria')
+        self.assertEqual(maquinaria['estado_de_pago'], 'Pendiente')
+        self.assertEqual(maquinaria['metodo_de_pago'], 'Transferencia')
+
+    def test_pagina_finanzas_incluye_flujo_categorias_y_comparativa(self):
+        animal = self.crear_animal_venta(55524)
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-01', 'precio_por_kg': '100', 'animales': [str(animal.idAnimal)],
+            'peso_total': '300', 'peso_manual': 'on',
+        })
+        self.assertEqual(response.status_code, 201)
+        response = self.client.post(reverse('crear_compra'), {
+            'tipo': 'Insumos', 'fecha': '2026-08-01', 'nuevo_insumo': 'Vacuna aftosa',
+            'tipo_insumo': 'Vacuna', 'cantidad': '10', 'precio_unitario': '100',
+        })
+        self.assertEqual(response.status_code, 201)
+        response = self.client.post(reverse('api_finanzas_movimientos'), {
+            'fecha': '2026-08-02', 'tipo': 'Egreso', 'nombre': 'Gasto general',
+            'monto_total': '200', 'detalle': '',
+        })
+        self.assertEqual(response.status_code, 201)
+        response, data = self.get_page_data('finanzas')
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn('chart-flujo', content)
+        self.assertIn('chart-categorias', content)
+        self.assertIn('chart-establecimientos', content)
+
+        flujo = data['flujo']
+        valores = json.loads(flujo['valores_json'])
+        self.assertEqual(valores[-1], 28800.0)
+        categorias = json.loads(data['categorias']['valores_json'])
+        self.assertEqual(dict(zip(json.loads(data['categorias']['etiquetas_json']), categorias)),
+                         {'Insumos': 1000.0, 'Gastos varios': 200.0})
+        establecimientos = data['establecimientos']
+        self.assertEqual(json.loads(establecimientos['etiquetas_json']), ['Campo de prueba'])
+        self.assertEqual(json.loads(establecimientos['ingresos_json']), [30000.0])
+        self.assertEqual(json.loads(establecimientos['egresos_json']), [1200.0])
+
     def test_eliminar_movimiento_vinculado_a_evento_bloqueado(self):
         animal = Animal.objects.create(
             id_senasa=55512, nombre='Vaca evento', tipo_animal='Bovino', sexo='Hembra', vivo=True,
