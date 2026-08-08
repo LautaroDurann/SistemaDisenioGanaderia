@@ -14,7 +14,7 @@ from django.views.decorators.http import require_POST
 
 from animales.models import Animal, MovimientoAnimal, Parto, Preniez
 from establecimientos.models import Establecimiento, Parcela
-from finanzas.models import Compra, MovimientoFinanciero, Venta
+from finanzas.models import Compra, LiquidacionSueldo, MovimientoFinanciero, Venta
 from inventario.models import ComposicionDieta, Consumo, DetalleCompra, Dieta, Insumo, Lote
 from sanidad.models import DetalleEvento, EventoSanitario, Enfermedad, Diagnostico
 from usuarios.models import Comprador, Proveedor, RolEstablecimiento, Usuario, Veterinario
@@ -572,9 +572,15 @@ def finanzas(request):
         EventoSanitario.objects.filter(mov_financiero_id__in=mov_egresos_anio.values('id'))
         .values_list('mov_financiero_id', flat=True)
     )
+    liquidacion_mov_ids = set(
+        LiquidacionSueldo.objects.filter(movimiento_financiero_id__in=mov_egresos_anio.values('id'))
+        .values_list('movimiento_financiero_id', flat=True)
+    )
     categorias = {}
     for m in mov_egresos_anio:
-        categoria = compra_tipo_por_mov.get(m.id) or ('Sanidad' if m.id in evento_mov_ids else 'Gastos varios')
+        categoria = (compra_tipo_por_mov.get(m.id)
+                     or ('Sanidad' if m.id in evento_mov_ids else None)
+                     or ('Sueldos' if m.id in liquidacion_mov_ids else 'Gastos varios'))
         categorias[categoria] = categorias.get(categoria, Decimal('0')) + m.monto_total
     categorias_ordenadas = sorted(categorias.items(), key=lambda par: par[1], reverse=True)
     categorias_etiquetas = [c for c, _ in categorias_ordenadas]
@@ -692,9 +698,10 @@ def eliminar_movimiento_financiero(request, movimiento_id):
     movimiento = get_object_or_404(MovimientoFinanciero, pk=movimiento_id)
     if (Venta.objects.filter(mov_financiero_id=movimiento.id).exists()
             or Compra.objects.filter(mov_financiero_id=movimiento.id).exists()
-            or EventoSanitario.objects.filter(mov_financiero_id=movimiento.id).exists()):
+            or EventoSanitario.objects.filter(mov_financiero_id=movimiento.id).exists()
+            or LiquidacionSueldo.objects.filter(movimiento_financiero_id=movimiento.id).exists()):
         return JsonResponse({
-            'error': 'Este movimiento está vinculado a una venta, compra o evento sanitario. '
+            'error': 'Este movimiento está vinculado a una venta, compra, evento sanitario o liquidación de sueldo. '
                      'Eliminalo desde el módulo correspondiente para mantener la coherencia del sistema.'
         }, status=400)
     movimiento.delete()
@@ -702,11 +709,13 @@ def eliminar_movimiento_financiero(request, movimiento_id):
 
 
 def _sincronizar_costo_entidades(movimiento):
-    """Mantiene el costo del movimiento sincronizado con la entidad asociada (venta, compra o evento sanitario)."""
+    """Mantiene el costo del movimiento sincronizado con la entidad asociada
+    (venta, compra, evento sanitario o liquidación de sueldo)."""
     monto = movimiento.monto_total
     Venta.objects.filter(mov_financiero_id=movimiento.id).update(monto_total=monto)
     Compra.objects.filter(mov_financiero_id=movimiento.id).update(monto_total=monto)
     EventoSanitario.objects.filter(mov_financiero_id=movimiento.id).update(costo_total=monto)
+    LiquidacionSueldo.objects.filter(movimiento_financiero_id=movimiento.id).update(sueldo=monto)
 
 
 @rol_requerido(ROL_PROPIETARIO)
@@ -1828,6 +1837,174 @@ def actualizar_proveedor(request, proveedor_id):
 def eliminar_proveedor(request, proveedor_id):
     proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
     proveedor.delete()
+    return JsonResponse({'ok': True})
+
+
+# ---------------------------------------------------------------------------
+# Módulo de Liquidación de Sueldos
+# ---------------------------------------------------------------------------
+
+def _empleados_de(request):
+    """Usuarios con rol en el establecimiento activo (candidatos a liquidar sueldos)."""
+    establecimiento = _establecimiento_actual(request)
+    queryset = Usuario.objects.select_related('persona').order_by('persona__nombre')
+    if establecimiento is not None:
+        queryset = queryset.filter(rolestablecimiento__establecimiento=establecimiento).distinct()
+    return list(queryset)
+
+
+def _empleado_data(usuario):
+    return {
+        'id': usuario.id,
+        'nombre': f'{usuario.persona.nombre} {usuario.persona.apellido or ""}'.strip(),
+        'usuario': usuario.nombre_usuario,
+    }
+
+
+def _liquidacion_data(liquidacion):
+    empleado = liquidacion.empleado
+    nombre_empleado = (
+        f'{empleado.persona.nombre} {empleado.persona.apellido or ""}'.strip()
+        if empleado else 'S/N'
+    )
+    return {
+        'id': liquidacion.idLiquidacion,
+        'fecha': _to_iso_date(liquidacion.fecha),
+        'sueldo': str(liquidacion.sueldo),
+        'descripcion': liquidacion.descripcion or '',
+        'empleado_id': liquidacion.empleado_id,
+        'empleado': nombre_empleado,
+        'empleado_usuario': empleado.nombre_usuario if empleado else '',
+        'establecimiento_id': liquidacion.establecimiento_id,
+        'establecimiento': liquidacion.establecimiento.nombre if liquidacion.establecimiento else '',
+        'movimiento_financiero_id': liquidacion.movimiento_financiero_id,
+    }
+
+
+@rol_requerido(ROL_PROPIETARIO)
+def sueldos(request):
+    establecimiento = _establecimiento_actual(request)
+    liquidaciones = LiquidacionSueldo.objects.select_related(
+        'empleado__persona', 'establecimiento'
+    ).order_by('-fecha', '-idLiquidacion')
+    if establecimiento is not None:
+        liquidaciones = liquidaciones.filter(establecimiento=establecimiento)
+
+    today = date.today()
+    total_liquidaciones = liquidaciones.count()
+    total_sueldos = liquidaciones.aggregate(total=Sum('sueldo'))['total'] or Decimal('0')
+    total_anio_actual = liquidaciones.filter(fecha__year=today.year).aggregate(total=Sum('sueldo'))['total'] or Decimal('0')
+    empleados = _empleados_de(request)
+
+    chart_years = [today.year - i for i in range(4, -1, -1)]
+    chart_labels = [str(year) for year in chart_years]
+    chart_series = []
+    for year in chart_years:
+        total = liquidaciones.filter(fecha__year=year).aggregate(total=Sum('sueldo'))['total'] or Decimal('0')
+        chart_series.append(float(total))
+
+    return _page(request, 'sueldos.html', 'sueldos', {
+        'liquidaciones': [_liquidacion_data(l) for l in liquidaciones],
+        'empleados': [_empleado_data(e) for e in empleados],
+        'summary': {
+            'total_liquidaciones': total_liquidaciones,
+            'total_sueldos': float(total_sueldos),
+            'total_anio_actual': float(total_anio_actual),
+            'empleados': len(empleados),
+        },
+        'chart': {
+            'labels_json': json.dumps(chart_labels),
+            'series_json': json.dumps(chart_series),
+        },
+    })
+
+
+def _registrar_liquidacion(liquidacion, datos, establecimiento=None):
+    """Guarda una liquidación de sueldo y su egreso financiero en una transacción."""
+    fecha = datos.get('fecha') or date.today()
+    sueldo = _parse_decimal(datos.get('sueldo'))
+    empleado_id = datos.get('empleado_id')
+    if not fecha:
+        raise ValueError('Indicá la fecha de la liquidación.')
+    if sueldo is None or sueldo <= 0:
+        raise ValueError('Indicá un monto de sueldo válido.')
+    if not empleado_id:
+        raise ValueError('Seleccioná el empleado a liquidar.')
+
+    empleado = Usuario.objects.select_related('persona').filter(pk=empleado_id).first()
+    if empleado is None:
+        raise ValueError('El empleado seleccionado ya no existe.')
+    if establecimiento is not None:
+        pertenece = RolEstablecimiento.objects.filter(
+            usuario=empleado, establecimiento=establecimiento
+        ).exists()
+        if not pertenece:
+            raise ValueError('El empleado seleccionado no pertenece al establecimiento activo.')
+
+    liquidacion.fecha = fecha
+    liquidacion.sueldo = sueldo
+    liquidacion.descripcion = datos.get('descripcion', '').strip() or None
+    liquidacion.empleado = empleado
+    if establecimiento is not None:
+        liquidacion.establecimiento = establecimiento
+    elif liquidacion.establecimiento_id is None:
+        raise ValueError('No hay ningún establecimiento activo para registrar el egreso.')
+
+    liquidacion.full_clean()
+    liquidacion.save()
+
+    nombre_empleado = f'{empleado.persona.nombre} {empleado.persona.apellido or ""}'.strip()
+    nombre = f'Sueldo - {nombre_empleado}'
+    if len(nombre) > 100:
+        nombre = nombre[:99] + '…'
+
+    movimiento, _ = MovimientoFinanciero.objects.update_or_create(
+        pk=liquidacion.movimiento_financiero_id,
+        defaults={
+            'tipo': 'Egreso', 'nombre': nombre,
+            'monto_total': sueldo, 'fecha': fecha,
+            'detalle': liquidacion.descripcion,
+            'establecimiento': liquidacion.establecimiento,
+        },
+    )
+    if liquidacion.movimiento_financiero_id != movimiento.id:
+        liquidacion.movimiento_financiero = movimiento
+        liquidacion.save(update_fields=['movimiento_financiero'])
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
+def crear_liquidacion(request):
+    try:
+        with transaction.atomic():
+            liquidacion = LiquidacionSueldo()
+            _registrar_liquidacion(liquidacion, request.POST, establecimiento=_establecimiento_actual(request))
+    except (ValueError, ValidationError, IntegrityError, ArithmeticError) as error:
+        return JsonResponse({'error': str(error) or 'No se pudo registrar la liquidación.'}, status=400)
+    return JsonResponse({'id': liquidacion.idLiquidacion, 'liquidacion': _liquidacion_data(liquidacion)}, status=201)
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
+def actualizar_liquidacion(request, liquidacion_id):
+    try:
+        with transaction.atomic():
+            liquidacion = get_object_or_404(LiquidacionSueldo.objects.select_for_update(), pk=liquidacion_id)
+            _registrar_liquidacion(liquidacion, request.POST, establecimiento=_establecimiento_actual(request))
+    except (ValueError, ValidationError, IntegrityError, ArithmeticError) as error:
+        return JsonResponse({'error': str(error) or 'No se pudo actualizar la liquidación.'}, status=400)
+    return JsonResponse({'liquidacion': _liquidacion_data(liquidacion)})
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
+def eliminar_liquidacion(request, liquidacion_id):
+    with transaction.atomic():
+        liquidacion = get_object_or_404(LiquidacionSueldo.objects.select_for_update(), pk=liquidacion_id)
+        movimiento = liquidacion.movimiento_financiero
+        liquidacion.delete()
+        if movimiento is not None:
+            movimiento.delete()
     return JsonResponse({'ok': True})
 
 

@@ -93,3 +93,57 @@ class Venta(models.Model):
 
     def __str__(self):
         return f"Venta {self.id} - {self.fecha}"
+
+# 4. Liquidacion de sueldo
+class LiquidacionSueldo(models.Model):
+    # Clave Primaria (CP)
+    idLiquidacion = models.AutoField(primary_key=True)
+    
+    # Atributos básicos
+    fecha = models.DateField(
+        verbose_name="Fecha de Liquidación"
+    )
+    sueldo = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2, 
+        verbose_name="Sueldo (Monto)"
+    )
+    descripcion = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True, 
+        verbose_name="Descripción / Detalle"
+    )
+    
+    # Claves Foráneas (CF)
+    # PROTECT: si un empleado ya tiene liquidaciones no se puede borrar su usuario
+    # (se conserva el historial de sueldos).
+    empleado = models.ForeignKey(
+        'usuarios.Usuario',
+        on_delete=models.PROTECT, 
+        related_name='liquidaciones',
+        verbose_name="Empleado"
+    )
+    # CASCADE + nullable: se crea junto con la liquidación en la misma transacción,
+    # igual que Compra/Venta. Si se elimina la liquidación, se elimina el movimiento.
+    movimiento_financiero = models.OneToOneField(
+        'finanzas.MovimientoFinanciero',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='liquidacion_origen',
+        verbose_name="Movimiento Financiero Asociado"
+    )
+    establecimiento = models.ForeignKey(
+        'establecimientos.Establecimiento',
+        on_delete=models.CASCADE,
+        related_name='liquidaciones_sueldos',
+        verbose_name="Establecimiento"
+    )
+
+    class Meta:
+        verbose_name = "Liquidación de Sueldo"
+        verbose_name_plural = "Liquidaciones de Sueldos"
+        ordering = ['-fecha'] # Ordena de la más reciente a la más antigua
+
+    def __str__(self):
+        return f"Liquidación #{self.idLiquidacion} - Empleado ID: {self.empleado_id} - {self.fecha.strftime('%d/%m/%Y')}"

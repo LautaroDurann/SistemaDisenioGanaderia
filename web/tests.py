@@ -12,7 +12,7 @@ from django.urls import reverse
 
 from animales.models import Animal, MovimientoAnimal, Parto, Preniez
 from establecimientos.models import Establecimiento, Parcela
-from finanzas.models import Compra, MovimientoFinanciero, Venta
+from finanzas.models import Compra, LiquidacionSueldo, MovimientoFinanciero, Venta
 from inventario.models import Consumo, DetalleCompra, Insumo, Lote
 from sanidad.models import DetalleEvento, EventoSanitario
 from web.views import _evento_inseminacion_data
@@ -1131,6 +1131,119 @@ class MultiEstablecimientoTests(TestCase):
         response = self.client.get(reverse('insumos'))
         self.assertContains(response, '80.00')
         self.assertNotContains(response, '50.00')
+
+
+class SueldosModuleTests(TestCase):
+    def setUp(self):
+        self.establecimiento = Establecimiento.objects.create(
+            nombre='Campo de prueba', fecha_inicio=date.today(), ubicacion='Córdoba'
+        )
+        persona = Persona.objects.create(
+            nombre='Juan', apellido='Fernandez', correo_electronico='juan@test.com',
+        )
+        self.propietario = Usuario.objects.create(
+            nombre_usuario='propietario', clave=make_password('clave123'), persona=persona,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=self.propietario, establecimiento=self.establecimiento,
+            nombre='Propietario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        persona_empleado = Persona.objects.create(
+            nombre='Pedro', apellido='Perez', correo_electronico='pedro@test.com',
+        )
+        self.empleado = Usuario.objects.create(
+            nombre_usuario='pedro', clave=make_password('clave123'), persona=persona_empleado,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=self.empleado, establecimiento=self.establecimiento,
+            nombre='Operario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        persona_otro = Persona.objects.create(
+            nombre='Luis', apellido='Lopez', correo_electronico='luis@otro.com',
+        )
+        self.otro_establecimiento = Establecimiento.objects.create(
+            nombre='Campo ajeno', fecha_inicio=date.today(), ubicacion='San Luis'
+        )
+        self.empleado_ajeno = Usuario.objects.create(
+            nombre_usuario='luis', clave=make_password('clave123'), persona=persona_otro,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=self.empleado_ajeno, establecimiento=self.otro_establecimiento,
+            nombre='Operario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        session = self.client.session
+        session['usuario_id'] = self.propietario.id
+        session['establecimiento_id'] = self.establecimiento.id
+        session.save()
+
+    def crear_liquidacion(self, datos):
+        return self.client.post(reverse('crear_liquidacion'), datos)
+
+    def test_pagina_sueldos_responde(self):
+        response = self.client.get(reverse('sueldos'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'window.GANASTOCK_DATA')
+        self.assertContains(response, 'Pedro')
+
+    def test_crear_liquidacion_crea_egreso_financiero(self):
+        response = self.crear_liquidacion({
+            'fecha': '2026-08-01', 'empleado_id': self.empleado.id, 'sueldo': '150000.50',
+            'descripcion': 'Sueldo de agosto',
+        })
+        self.assertEqual(response.status_code, 201)
+        liquidacion = LiquidacionSueldo.objects.get(pk=response.json()['id'])
+        self.assertEqual(liquidacion.empleado, self.empleado)
+        self.assertEqual(liquidacion.sueldo, Decimal('150000.50'))
+        self.assertEqual(liquidacion.establecimiento, self.establecimiento)
+        movimiento = liquidacion.movimiento_financiero
+        self.assertIsNotNone(movimiento)
+        self.assertEqual(movimiento.tipo, 'Egreso')
+        self.assertEqual(movimiento.monto_total, Decimal('150000.50'))
+        self.assertEqual(movimiento.nombre, 'Sueldo - Pedro Perez')
+        self.assertEqual(response.json()['liquidacion']['empleado'], 'Pedro Perez')
+
+    def test_sueldo_invalido_o_sin_empleado(self):
+        response = self.crear_liquidacion({
+            'fecha': '2026-08-01', 'empleado_id': self.empleado.id, 'sueldo': '0',
+        })
+        self.assertEqual(response.status_code, 400)
+        response = self.crear_liquidacion({
+            'fecha': '2026-08-01', 'empleado_id': '', 'sueldo': '10000',
+        })
+        self.assertEqual(response.status_code, 400)
+
+    def test_empleado_de_otro_establecimiento(self):
+        response = self.crear_liquidacion({
+            'fecha': '2026-08-01', 'empleado_id': self.empleado_ajeno.id, 'sueldo': '10000',
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('pertenece', response.json()['error'])
+
+    def test_actualizar_liquidacion_actualiza_egreso(self):
+        response = self.crear_liquidacion({
+            'fecha': '2026-08-01', 'empleado_id': self.empleado.id, 'sueldo': '10000',
+        })
+        liquidacion_id = response.json()['id']
+        response = self.client.post(reverse('actualizar_liquidacion', args=[liquidacion_id]), {
+            'fecha': '2026-08-15', 'empleado_id': self.empleado.id, 'sueldo': '20000',
+            'descripcion': 'Ajustado',
+        })
+        self.assertEqual(response.status_code, 200)
+        liquidacion = LiquidacionSueldo.objects.get(pk=liquidacion_id)
+        self.assertEqual(liquidacion.sueldo, Decimal('20000'))
+        self.assertEqual(liquidacion.movimiento_financiero.monto_total, Decimal('20000'))
+        self.assertEqual(liquidacion.movimiento_financiero.detalle, 'Ajustado')
+
+    def test_eliminar_liquidacion_elimina_egreso(self):
+        response = self.crear_liquidacion({
+            'fecha': '2026-08-01', 'empleado_id': self.empleado.id, 'sueldo': '10000',
+        })
+        liquidacion_id = response.json()['id']
+        movimiento_id = LiquidacionSueldo.objects.get(pk=liquidacion_id).movimiento_financiero_id
+        response = self.client.post(reverse('eliminar_liquidacion', args=[liquidacion_id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(LiquidacionSueldo.objects.filter(pk=liquidacion_id).exists())
+        self.assertFalse(MovimientoFinanciero.objects.filter(pk=movimiento_id).exists())
 
 
 class PreniezModuleTests(TestCase):
