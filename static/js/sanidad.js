@@ -6,7 +6,7 @@ const VETERINARIOS = Array.isArray(SANIDAD_DATA.veterinarios) ? SANIDAD_DATA.vet
 const LOTES = Array.isArray(SANIDAD_DATA.lotes) ? SANIDAD_DATA.lotes : [];
 const INSUMOS = Array.isArray(SANIDAD_DATA.insumos) ? SANIDAD_DATA.insumos : [];
 const ANIMALES = Array.isArray(SANIDAD_DATA.animales) ? SANIDAD_DATA.animales : [];
-const defaultTiposEvento = ['Vacunación', 'Desparasitación', 'Antibiótico', 'Suplemento', 'Castración', 'Inseminación', 'Otro'];
+const defaultTiposEvento = ['Vacunación', 'Desparasitación', 'Antibiótico', 'Suplemento', 'Castración', 'Otro'];
 const TIPOS_EVENTO = Array.isArray(SANIDAD_DATA.tipos_evento)
   ? [...new Set([...SANIDAD_DATA.tipos_evento, 'Otro'])]
   : defaultTiposEvento;

@@ -35,7 +35,7 @@ def _identificador_animal(animal):
         return f'#{animal.id_senasa}'
     if getattr(animal, 'nombre', None):
         return animal.nombre
-    return f'ID {animal.id}'
+    return f'ID {animal.idAnimal}'
 
 
 # 3. Evento Sanitario (Cabecera - Aplica para muchos animales)
@@ -65,7 +65,13 @@ class EventoSanitario(models.Model):
 
     # Movimiento financiero que registra el gasto cuando el evento se marca como Aplicado
     mov_financiero = models.OneToOneField('finanzas.MovimientoFinanciero', on_delete=models.SET_NULL, null=True, blank=True)
-    
+
+    # Solo se usa para el tipo 'Inseminación': el macho que sirve de padre en el evento.
+    padre = models.ForeignKey('animales.Animal', on_delete=models.SET_NULL, null=True, blank=True, related_name='eventos_inseminacion')
+
+    # Solo se usa para el tipo 'Inseminación': características del padre donante de semen.
+    padre_donante = models.CharField(max_length=255, blank=True, null=True)
+
     # ATENCIÓN: El campo 'animal' fue removido de aquí.
 
     def __str__(self):

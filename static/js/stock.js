@@ -103,7 +103,7 @@
 
       const FILAS_POR_PAGINA = 10;
       let paginaActual = 1;
-      let caravanaSeleccionada = null;
+      let animalSeleccionadoId = null;
       let animalEnEdicion = null;
 
       function aplicarFiltros() {
@@ -142,7 +142,7 @@
         tbody.innerHTML = pagina
           .map(
             (a) => `
-          <tr data-caravana="${a.caravana}" class="${a.caravana === caravanaSeleccionada ? 'table-active' : ''}">
+          <tr data-id="${a.id}" class="${a.id === animalSeleccionadoId ? 'table-active' : ''}">
             <td>#${a.caravana}</td>
             <td>${a.nombre}</td>
             <td>${a.tipo_animal}</td>
@@ -195,7 +195,7 @@
 
       // ------------------------------------------------------------------
       // Ficha del animal (panel lateral, a la derecha de la tabla). Al conectar
-      // el backend, reemplazar por un fetch real a la API usando la caravana.
+      // el backend, reemplazar por un fetch real a la API usando el id del animal.
       // ------------------------------------------------------------------
       const COLOR_CATEGORIA = {
         Toro: '#212529',
@@ -205,10 +205,10 @@
         Ternero: '#198754',
       };
 
-      function renderFichaAnimal(caravana) {
-        const a = ANIMALES.find((x) => x.caravana === caravana);
+      function renderFichaAnimal(id) {
+        const a = ANIMALES.find((x) => x.id === id);
         if (!a) return;
-        caravanaSeleccionada = a.caravana;
+        animalSeleccionadoId = a.id;
 
         const imagen = document.getElementById("ficha-imagen");
        
@@ -345,18 +345,18 @@
                 if (!response.ok) throw new Error();
                 const index = ANIMALES.findIndex((item) => item.id === animal.id);
                 if (index !== -1) ANIMALES.splice(index, 1);
-                if (caravanaSeleccionada === animal.caravana) {
-                  caravanaSeleccionada = null;
-                  if (ANIMALES.length) renderFichaAnimal(ANIMALES[0].caravana);
+                if (animalSeleccionadoId === animal.id) {
+                  animalSeleccionadoId = null;
+                  if (ANIMALES.length) renderFichaAnimal(ANIMALES[0].id);
                 }
                 renderTabla();
               })
               .catch(() => alert('No se pudo eliminar el animal.'));
             return;
           }
-          const fila = ev.target.closest('tr[data-caravana]');
+          const fila = ev.target.closest('tr[data-id]');
           if (fila) {
-            renderFichaAnimal(fila.dataset.caravana);
+            renderFichaAnimal(Number(fila.dataset.id));
             renderTabla();
           }
         });
@@ -429,7 +429,7 @@
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'No se pudo guardar el animal.');
             const guardado = result.animal;
-            const estabaSeleccionado = animalEnEdicion && caravanaSeleccionada === animalEnEdicion.caravana;
+            const estabaSeleccionado = animalEnEdicion && animalSeleccionadoId === animalEnEdicion.id;
             if (animalEnEdicion) {
               const index = ANIMALES.findIndex((item) => item.id === animalEnEdicion.id);
               if (index !== -1) ANIMALES[index] = guardado;
@@ -437,7 +437,7 @@
             } else {
               ANIMALES.push(guardado);
             }
-            if (estabaSeleccionado) renderFichaAnimal(guardado.caravana);
+            if (estabaSeleccionado) renderFichaAnimal(guardado.id);
             renderTabla();
             bootstrap.Modal.getInstance(document.getElementById('modalNuevoAnimal'))?.hide();
           } catch (exception) {
