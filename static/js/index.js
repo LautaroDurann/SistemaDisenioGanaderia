@@ -76,8 +76,8 @@ document.addEventListener('DOMContentLoaded', function () {
 // ------------------------------------------------------------------
 // DATOS: provienen del servidor (Django) filtrados por establecimiento
 // ------------------------------------------------------------------
-const GANASTOCK = window.GANASTOCK_DATA || {};
-const KPIS = GANASTOCK.kpis ?? {
+const HUACAPP = window.HUACAPP_DATA || {};
+const KPIS = HUACAPP.kpis ?? {
   total_animales: 0,
   ventas_mes: 0,
   gastos_mes: 0,
@@ -111,7 +111,7 @@ function renderReloj() {
   document.getElementById('hora-actual').textContent = hora;
 }
 
-const DISTRIBUCION = GANASTOCK.distribucion ?? {};
+const DISTRIBUCION = HUACAPP.distribucion ?? {};
 
 const COLORES_CATEGORIA = {
   Vaca: '#198754',

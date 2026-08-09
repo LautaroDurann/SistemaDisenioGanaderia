@@ -1174,7 +1174,7 @@ class SueldosModuleTests(TestCase):
     def test_pagina_sueldos_responde(self):
         response = self.client.get(reverse('sueldos'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'window.GANASTOCK_DATA')
+        self.assertContains(response, 'window.HUACAPP_DATA')
         self.assertContains(response, 'Pedro')
 
     def test_pagina_gastos_incluye_sueldos_en_graficos(self):
@@ -1186,9 +1186,9 @@ class SueldosModuleTests(TestCase):
         })
         response = self.client.get(reverse('gastos'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'window.GANASTOCK_DATA')
+        self.assertContains(response, 'window.HUACAPP_DATA')
         contenido = response.content.decode()
-        inicio = contenido.index('id="ganastock-page-data"')
+        inicio = contenido.index('id="huacapp-page-data"')
         inicio = contenido.index('>', inicio) + 1
         fin = contenido.index('</script>', inicio)
         datos = json.loads(contenido[inicio:fin])
@@ -1273,6 +1273,16 @@ class PreniezModuleTests(TestCase):
             'madre_id': self.vaca.idAnimal, 'padre_id': self.toro.idAnimal, 'fecha': '2026-08-01',
             'tipo': 'Natural', 'estado_actual': 'Preñada',
         }
+        self._loguear('preniez-tester')
+
+    def _loguear(self, nombre_usuario):
+        persona = Persona.objects.create(nombre=nombre_usuario, apellido='Test')
+        usuario = Usuario.objects.create(
+            nombre_usuario=nombre_usuario, clave=make_password('clave123'), persona=persona,
+        )
+        session = self.client.session
+        session['usuario_id'] = usuario.id
+        session.save()
 
     def crear_preniez(self):
         return self.client.post(reverse('crear_preniez'), self.datos)
@@ -1450,6 +1460,20 @@ class InseminacionModuleTests(TestCase):
         self.toro = Animal.objects.create(
             id_senasa=90003, nombre='Toro Insemina', tipo_animal='Bovino', sexo='Macho', vivo=True,
         )
+        self.establecimiento = Establecimiento.objects.create(
+            nombre='Campo de prueba', fecha_inicio=date.today(), ubicacion='Córdoba',
+        )
+        persona = Persona.objects.create(nombre='Propietario', apellido='Test')
+        usuario = Usuario.objects.create(
+            nombre_usuario='propietario', clave=make_password('clave123'), persona=persona,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=usuario, establecimiento=self.establecimiento, nombre='Propietario',
+            fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        session = self.client.session
+        session['usuario_id'] = usuario.id
+        session.save()
 
     def crear_evento(self, animales=None, estado='false', costo=''):
         return self.client.post(reverse('crear_evento_inseminacion'), {
