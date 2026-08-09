@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from animales.models import Animal, MovimientoAnimal, Preniez
+from animales.models import Animal, Preniez
 from establecimientos.models import Establecimiento, Parcela
 
 
@@ -162,10 +162,6 @@ class Command(BaseCommand):
             toros[caravana] = animal
             if creado:
                 creados += 1
-                MovimientoAnimal.objects.create(
-                    animal=animal, fecha=nacimiento, tipo='Alta',
-                    destino=potreros[potrero], observaciones='Ingreso como reproductor.',
-                )
 
         vacas = {}
         for caravana, nombre, raza, color, nacimiento, peso, potrero in VACAS:
@@ -176,10 +172,6 @@ class Command(BaseCommand):
             vacas[caravana] = animal
             if creado:
                 creados += 1
-                MovimientoAnimal.objects.create(
-                    animal=animal, fecha=nacimiento, tipo='Alta',
-                    destino=potreros[potrero], observaciones='Ingreso como madre.',
-                )
 
         padres = list(toros.values())
         for i, (caravana, nombre, sexo, raza, color, nacimiento, peso, madre_caravana) in enumerate(TERNEROS):
@@ -192,10 +184,6 @@ class Command(BaseCommand):
             )
             if creado:
                 creados += 1
-                MovimientoAnimal.objects.create(
-                    animal=animal, fecha=nacimiento, tipo='Nacimiento',
-                    destino=potrero, observaciones='Nacimiento en el establecimiento.',
-                )
 
         prenieces = 0
         for caravana_madre, tipo, fecha, estado, costo in PRENIEZ:

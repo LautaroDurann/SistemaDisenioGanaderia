@@ -10,7 +10,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
-from animales.models import Animal, MovimientoAnimal, Parto, Preniez
+from animales.models import Animal, Parto, Preniez
 from establecimientos.models import Establecimiento, Parcela
 from finanzas.models import Compra, LiquidacionSueldo, MovimientoFinanciero, Venta
 from inventario.models import Consumo, DetalleCompra, Insumo, Lote
@@ -239,7 +239,6 @@ class WebIntegrationTests(TestCase):
         animal = Animal.objects.get(id_senasa=67890)
         self.assertEqual(animal.parcela, self.parcela)
         self.assertEqual(str(animal.peso_actual), '285.00')
-        self.assertTrue(MovimientoAnimal.objects.filter(animal=animal, tipo='Alta').exists())
 
     def test_crear_animal_sin_nombre(self):
         response = self.client.post(reverse('crear_animal'), {
@@ -280,17 +279,6 @@ class WebIntegrationTests(TestCase):
         response = self.client.post(reverse('eliminar_animal', args=[self.animal.idAnimal]))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Animal.objects.filter(pk=self.animal.idAnimal).exists())
-
-    def test_movimiento_actualiza_ubicacion(self):
-        destino = Parcela.objects.create(ancho=30, largo=20, establecimiento=self.parcela.establecimiento)
-        response = self.client.post(reverse('crear_movimiento'), {
-            'animal_id': self.animal.idAnimal, 'fecha': '2026-08-01', 'tipo': 'Traslado',
-            'origen_id': self.parcela.id, 'destino_id': destino.id,
-        })
-        self.assertEqual(response.status_code, 200)
-        self.animal.refresh_from_db()
-        self.assertEqual(self.animal.parcela, destino)
-        self.assertEqual(MovimientoAnimal.objects.count(), 1)
 
     def test_crear_potrero(self):
         response = self.client.post(reverse('crear_potrero'), {
@@ -552,7 +540,6 @@ class CompraModuleTests(TestCase):
         self.assertEqual(animal.establecimiento.nombre, 'Campo de prueba')
         self.assertIsNone(animal.diametro_escrotal)
         self.assertTrue(animal.vivo)
-        self.assertTrue(MovimientoAnimal.objects.filter(animal=animal, tipo='Compra').exists())
 
         movimiento = compra.mov_financiero
         self.assertIsNotNone(movimiento)
@@ -1379,7 +1366,6 @@ class PreniezModuleTests(TestCase):
         cria = Animal.objects.get(nombre='Cría')
         self.assertEqual(cria.parto, preniez.parto)
         self.assertEqual(cria.madre, self.vaca)
-        self.assertTrue(MovimientoAnimal.objects.filter(animal=cria, tipo='Nacimiento').exists())
 
     def test_cambiar_caravana_en_stock_no_desvincula_la_cría_del_parto(self):
         # La edición desde el módulo de Stock no envía 'parto_id'; no debe

@@ -12,7 +12,7 @@ from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 
-from animales.models import Animal, MovimientoAnimal, Parto, Preniez
+from animales.models import Animal, Parto, Preniez
 from establecimientos.models import Establecimiento, Parcela
 from finanzas.models import Compra, LiquidacionSueldo, MovimientoFinanciero, Venta
 from inventario.models import ComposicionDieta, Consumo, DetalleCompra, Dieta, Insumo, Lote
@@ -189,20 +189,6 @@ def _eventos_sanitarios_de(request):
     return qs
 
 
-def _movimientos_data(request=None):
-    movimientos = MovimientoAnimal.objects.select_related('animal', 'origen', 'destino')
-    establecimiento = _establecimiento_actual(request) if request is not None else None
-    if establecimiento is not None:
-        movimientos = movimientos.filter(animal__establecimiento=establecimiento)
-    return [{
-        'fecha': m.fecha.isoformat(), 'hora': '', 'tipo': m.tipo,
-        'caravana': str(m.animal.id_senasa), 'animal': m.animal.nombre,
-        'categoria': _categoria(m.animal), 'cantidad': 1,
-        'origen': str(m.origen) if m.origen else '-', 'destino': str(m.destino) if m.destino else '-',
-        'usuario': 'Sistema', 'obs': m.observaciones or '-', 'estado': 'Confirmado',
-    } for m in movimientos]
-
-
 def _page(request, template, data_key=None, data=None):
     # Fuerza la cookie CSRF para que las acciones AJAX de cada pantalla puedan
     # hacer POST sin desactivar la protección de Django.
@@ -363,10 +349,8 @@ def dashboard(request):
         categoria = _categoria(animal) or animal.tipo_animal
         distribucion[categoria] = distribucion.get(categoria, 0) + 1
 
-    movimientos = _movimientos_data(request)[:10]
     data = {
         'establecimiento_id': establecimiento.id if establecimiento else None,
-        'movimientos': [{**m, 'fecha': '/'.join(reversed(m['fecha'].split('-')))} for m in movimientos],
         'kpis': {
             'total_animales': kpi_total_animales,
             'ventas_mes': kpi_ventas_mes,
@@ -1341,13 +1325,6 @@ def crear_animal(request):
     except IntegrityError:
         return JsonResponse({'error': 'La caravana SENASA ya se encuentra registrada.'}, status=400)
 
-    MovimientoAnimal.objects.create(
-        animal=animal, fecha=request.POST.get('movimiento_fecha') or date.today(),
-        tipo=request.POST.get('movimiento_tipo') or 'Alta', destino=animal.parcela,
-        observaciones=('Nacimiento registrado desde el módulo de Preñez.'
-                       if request.POST.get('movimiento_tipo') == 'Nacimiento'
-                       else 'Alta inicial del animal en el sistema.'),
-    )
     return JsonResponse({'id': animal.idAnimal, 'animal': _animal_data(animal)}, status=201)
 
 
@@ -1418,27 +1395,6 @@ def eliminar_potrero(request, parcela_id):
     parcela = get_object_or_404(Parcela, pk=parcela_id)
     parcela.delete()
     return JsonResponse({'ok': True})
-
-
-@require_POST
-def crear_movimiento(request):
-    try:
-        _validar_parcela_del_establecimiento(request, request.POST.get('origen_id'))
-        _validar_parcela_del_establecimiento(request, request.POST.get('destino_id'))
-        animal = get_object_or_404(Animal, pk=request.POST.get('animal_id'))
-        movimiento = MovimientoAnimal.objects.create(
-            animal=animal, fecha=request.POST.get('fecha') or date.today(), tipo=request.POST['tipo'],
-            origen_id=request.POST.get('origen_id') or None, destino_id=request.POST.get('destino_id') or None,
-            observaciones=request.POST.get('observaciones', ''),
-        )
-    except (ValueError, KeyError, ValidationError):
-        return JsonResponse({'error': 'La parcela seleccionada no pertenece al establecimiento activo.'}, status=400)
-    if movimiento.destino_id:
-        animal.parcela_id = movimiento.destino_id
-        if movimiento.destino is not None:
-            animal.establecimiento_id = movimiento.destino.establecimiento_id
-        animal.save(update_fields=['parcela', 'establecimiento'])
-    return JsonResponse({'id': movimiento.id})
 
 
 def _registrar_venta(venta, datos):
@@ -1513,18 +1469,12 @@ def _registrar_venta(venta, datos):
         animal.venta = venta
         animal.precio_venta = precio_venta_animal
         animal.save(update_fields=['vendido', 'venta', 'precio_venta'])
-        MovimientoAnimal.objects.create(
-            animal=animal, fecha=venta.fecha, tipo='Venta', origen=animal.parcela,
-            observaciones=f'Venta #{venta.id}.',
-        )
 
 
 def _revertir_venta(venta):
     """Deshace los efectos sobre animales para poder editar o eliminar una venta."""
     animales = Animal.objects.select_for_update().filter(venta=venta)
     animales.update(vendido=False, venta=None, precio_venta=None)
-    MovimientoAnimal.objects.filter(animal__in=animales, tipo='Venta', fecha=venta.fecha,
-                                    observaciones=f'Venta #{venta.id}.').delete()
 
 
 def _asignar_comprador(comprador, datos):
@@ -1666,8 +1616,6 @@ def _animal_sin_dependencias(animal):
         return False
     if Preniez.objects.filter(madre=animal).exists():
         return False
-    if animal.movimientos.exclude(tipo='Compra').exists():
-        return False
     return True
 
 
@@ -1750,7 +1698,6 @@ def _registrar_compra(compra, datos, establecimiento=None):
         compra.save()
 
         animal = Animal.objects.filter(compra=compra).first()
-        es_nuevo = animal is None
         animal = animal if animal is not None else Animal(compra=compra)
         _asignar_campos_animal(animal, datos, es_alta=True)
         if animal.compra_id != compra.id:
@@ -1762,11 +1709,6 @@ def _registrar_compra(compra, datos, establecimiento=None):
         animal.costo_adquisicion = monto
         animal.full_clean()
         animal.save()
-        if es_nuevo:
-            MovimientoAnimal.objects.create(
-                animal=animal, fecha=compra.fecha, tipo='Compra',
-                observaciones=f'Compra #{compra.id}.',
-            )
     else:
         monto = _parse_decimal(datos.get('monto_total'))
         if monto is None or monto <= 0:

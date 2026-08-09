@@ -54,7 +54,7 @@
             <i class="nav-icon bi bi-cash-stack"></i>
             <p>Finanzas <i id="finanzas-toggle" class="nav-arrow bi bi-chevron-right" style="cursor: pointer;"></i></p>
           </a>
-          <ul id="submenu-finanzas" class="nav nav-treeview" style="display: {% if request.resolver_match.url_name == 'ventas' or request.resolver_match.url_name == 'gastos' or request.resolver_match.url_name == 'movimientos' %}block{% else %}none{% endif %};">
+          <ul id="submenu-finanzas" class="nav nav-treeview" style="display: {% if request.resolver_match.url_name == 'finanzas' or request.resolver_match.url_name == 'ventas' or request.resolver_match.url_name == 'gastos' or request.resolver_match.url_name == 'movimientos' %}block{% else %}none{% endif %};">
             <li class="nav-item">
               <a href="{% url 'ventas' %}" class="nav-link{% if request.resolver_match.url_name == 'ventas' %} active finanzas-child-active{% endif %}">
                 <i class="nav-icon bi bi-receipt"></i>
