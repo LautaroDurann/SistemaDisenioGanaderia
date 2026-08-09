@@ -77,19 +77,6 @@ document.addEventListener('DOMContentLoaded', function () {
 // DATOS: provienen del servidor (Django) filtrados por establecimiento
 // ------------------------------------------------------------------
 const GANASTOCK = window.GANASTOCK_DATA || {};
-const ULTIMOS_MOVIMIENTOS = GANASTOCK.movimientos ?? [
-  { fecha: '14/07/2026', animal: '#0231 Luna', tipo: 'Ingreso', usuario: 'Juan', obs: 'Compra a La Esperanza' },
-  { fecha: '13/07/2026', animal: '#0198 Fierro', tipo: 'Venta', usuario: 'Carlos', obs: 'Remate feria local' },
-  { fecha: '12/07/2026', animal: '#0305 S/N', tipo: 'Nacimiento', usuario: 'María', obs: 'Nacimiento en Potrero 2' },
-  { fecha: '10/07/2026', animal: '#0142 Estrella', tipo: 'Muerte', usuario: 'Carlos', obs: 'Causas naturales' },
-  { fecha: '10/07/2026', animal: '#0087 S/N', tipo: 'Traslado', usuario: 'María', obs: 'Traslado por pastura' },
-  { fecha: '09/07/2026', animal: '#0056 Paloma', tipo: 'Compra', usuario: 'Juan', obs: 'Reposición de rodeo' },
-  { fecha: '08/07/2026', animal: '#0412 S/N', tipo: 'Alta', usuario: 'María', obs: 'Alta por nacimiento tardío' },
-  { fecha: '06/07/2026', animal: '#0329 S/N', tipo: 'Baja', usuario: 'Carlos', obs: 'Baja administrativa' },
-  { fecha: '05/07/2026', animal: '#0263 Rocío', tipo: 'Traslado', usuario: 'Juan', obs: 'Rotación de pastoreo' },
-  { fecha: '03/07/2026', animal: '#0177 Trueno', tipo: 'Ingreso', usuario: 'María', obs: 'Ingreso por servicio' },
-];
-
 const KPIS = GANASTOCK.kpis ?? {
   total_animales: 0,
   ventas_mes: 0,
@@ -116,38 +103,12 @@ function renderKPIs() {
   if (ingresosMes) ingresosMes.textContent = formatoMoneda(KPIS.ingresos_mes);
 }
 
-const TIPO_BADGE = {
-  Ingreso: 'text-bg-success',
-  Venta: 'text-bg-danger',
-  Muerte: 'text-bg-warning',
-  Traslado: 'text-bg-primary',
-  Nacimiento: 'text-bg-info',
-  Compra: 'text-bg-warning',
-  Baja: 'text-bg-dark',
-  Alta: 'text-bg-success',
-};
-
 function renderReloj() {
   const ahora = new Date();
   const fecha = ahora.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const hora = ahora.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
   document.getElementById('fecha-actual').textContent = fecha.charAt(0).toUpperCase() + fecha.slice(1);
   document.getElementById('hora-actual').textContent = hora;
-}
-
-function renderTablaMovimientos() {
-  document.getElementById('tabla-ultimos-mov').innerHTML = ULTIMOS_MOVIMIENTOS.slice(0, 10)
-    .map(
-      (m) => `
-    <tr>
-      <td>${m.fecha}</td>
-      <td>${m.animal}</td>
-      <td><span class="badge ${TIPO_BADGE[m.tipo] || 'text-bg-secondary'}">${m.tipo}</span></td>
-      <td>${m.usuario}</td>
-      <td>${m.obs}</td>
-    </tr>`,
-    )
-    .join('');
 }
 
 const DISTRIBUCION = GANASTOCK.distribucion ?? {};
@@ -218,7 +179,6 @@ document.addEventListener('DOMContentLoaded', () => {
   renderReloj();
   setInterval(renderReloj, 30000);
   renderKPIs();
-  renderTablaMovimientos();
   renderGraficos();
 
   document.getElementById('btn-actualizar').addEventListener('click', function () {

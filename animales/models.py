@@ -108,23 +108,3 @@ class Preniez(models.Model):
     def __str__(self):
         caravana = self.madre.id_senasa if self.madre and self.madre.id_senasa is not None else 'Sin caravana'
         return f"Preñez {self.id} - Madre SENASA: {caravana}"
-
-
-class MovimientoAnimal(models.Model):
-    TIPO_CHOICES = [
-        ('Alta', 'Alta'), ('Traslado', 'Traslado'), ('Venta', 'Venta'),
-        ('Baja', 'Baja'), ('Nacimiento', 'Nacimiento'), ('Compra', 'Compra'),
-    ]
-    animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='movimientos')
-    fecha = models.DateField()
-    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
-    origen = models.ForeignKey('establecimientos.Parcela', on_delete=models.SET_NULL, null=True, blank=True, related_name='movimientos_origen')
-    destino = models.ForeignKey('establecimientos.Parcela', on_delete=models.SET_NULL, null=True, blank=True, related_name='movimientos_destino')
-    observaciones = models.TextField(blank=True, null=True)
-
-    class Meta:
-        ordering = ['-fecha', '-id']
-
-    def __str__(self):
-        caravana = self.animal.id_senasa if self.animal and self.animal.id_senasa is not None else 'Sin caravana'
-        return f"{self.tipo} - {caravana} ({self.fecha})"

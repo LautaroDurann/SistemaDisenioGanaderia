@@ -59,7 +59,6 @@ urlpatterns = [
     path('api/sanidad/veterinarios/', views.crear_veterinario, name='crear_veterinario'),
     path('api/sanidad/veterinarios/<int:veterinario_id>/', views.actualizar_veterinario, name='actualizar_veterinario'),
     path('api/sanidad/veterinarios/<int:veterinario_id>/eliminar/', views.eliminar_veterinario, name='eliminar_veterinario'),
-    path('api/movimientos/', views.crear_movimiento, name='crear_movimiento'),
     path('api/finanzas/movimientos/', views.finanzas_api_list_create, name='api_finanzas_movimientos'),
     path('api/finanzas/movimientos/<int:movimiento_id>/', views.actualizar_movimiento_financiero, name='actualizar_movimiento_financiero'),
     path('api/finanzas/movimientos/<int:movimiento_id>/eliminar/', views.eliminar_movimiento_financiero, name='eliminar_movimiento_financiero'),

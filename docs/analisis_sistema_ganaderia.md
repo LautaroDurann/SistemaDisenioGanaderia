@@ -33,7 +33,6 @@ Contiene entidades clave como:
 - Animal: información principal del bovino, incluyendo caravana SENASA, datos de nacimiento, sexo, raza, peso, estado de venta, estado vivo/enfermo, y relaciones con parcela, dieta, madre y padre.
 - Preniez: registro de gestaciones.
 - Pesaje: historial de pesos.
-- MovimientoAnimal: trazabilidad de eventos como altas, ventas, transferencias y bajas.
 
 Este módulo permite considerar al animal como un activo con historia y estado dinámico.
 
