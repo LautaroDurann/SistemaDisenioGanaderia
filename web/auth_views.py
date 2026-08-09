@@ -219,9 +219,10 @@ def _usuario_puede_acceder(usuario):
 
 
 def _establecimiento_por_defecto(request, usuario):
+    """Al ingresar siempre queda activo un establecimiento (el primero disponible)."""
     ids = list(RolEstablecimiento.objects.filter(usuario=usuario).values_list('establecimiento_id', flat=True))
     ids = list(dict.fromkeys(ids))
-    if len(ids) == 1:
+    if ids:
         request.session['establecimiento_id'] = ids[0]
     else:
         request.session.pop('establecimiento_id', None)

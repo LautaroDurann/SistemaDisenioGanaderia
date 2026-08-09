@@ -118,7 +118,11 @@ def _establecimientos_permitidos(request):
 
 
 def _establecimiento_actual(request):
-    """Devuelve el establecimiento activo en la sesión (o el único al que el usuario accede)."""
+    """Devuelve el establecimiento activo de la sesión.
+
+    Siempre queda uno seleccionado: si la sesión no tiene ninguno (o el guardado ya
+    no es accesible), se elige el primer establecimiento permitido y se lo persiste.
+    """
     establecimiento_id = request.session.get('establecimiento_id')
     permitidos = _establecimientos_permitidos(request)
 
@@ -127,8 +131,10 @@ def _establecimiento_actual(request):
             if establecimiento.id == establecimiento_id:
                 return establecimiento
         request.session.pop('establecimiento_id', None)
-    if len(permitidos) == 1:
-        return permitidos[0]
+    if permitidos:
+        establecimiento = permitidos[0]
+        request.session['establecimiento_id'] = establecimiento.id
+        return establecimiento
     return None
 
 
@@ -207,8 +213,7 @@ def seleccionar_establecimiento(request):
     """Guarda en la sesión el establecimiento activo para filtrar todo el sistema."""
     establecimiento_id = request.POST.get('establecimiento_id')
     if not establecimiento_id or establecimiento_id in ('', 'todos', 'all'):
-        request.session.pop('establecimiento_id', None)
-        return JsonResponse({'ok': True, 'establecimiento_id': None})
+        return JsonResponse({'error': 'Seleccioná un establecimiento.'}, status=400)
     try:
         establecimiento_id = int(establecimiento_id)
         establecimiento = Establecimiento.objects.get(pk=establecimiento_id)
@@ -372,12 +377,17 @@ def dashboard(request):
 def stock(request):
     animales = _animales_de(request).select_related('parcela', 'dieta', 'madre', 'padre', 'compra', 'venta')
     establecimiento = _establecimiento_actual(request)
+    permitidos = _establecimientos_permitidos(request)
     compras = Compra.objects.all()
     if establecimiento is not None:
         compras = compras.filter(mov_financiero__establecimiento=establecimiento)
     return _page(request, 'stock.html', 'stock', {
         'animales': [_animal_data(a) for a in animales],
-        'parcelas': [{'id': p.id, 'nombre': str(p)} for p in _parcelas_de(request).select_related('establecimiento')],
+        'establecimientos': [{'id': e.id, 'nombre': str(e)} for e in permitidos],
+        'parcelas': [
+            {'id': p.id, 'nombre': str(p), 'establecimiento_id': p.establecimiento_id}
+            for p in Parcela.objects.filter(establecimiento_id__in=[e.id for e in permitidos]).select_related('establecimiento')
+        ],
         'dietas': [{'id': d.id, 'nombre': str(d)} for d in Dieta.objects.all()],
         'progenitores': [{'id': a.idAnimal, 'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}', 'sexo': a.sexo} for a in animales],
         'compras': [{'id': c.id, 'nombre': str(c)} for c in compras],
@@ -1246,13 +1256,23 @@ def stock_api(request):
     return JsonResponse({'animales': [_animal_data(a) for a in _animales_de(request).select_related('parcela', 'dieta', 'madre', 'padre', 'compra', 'venta')]})
 
 
-def _validar_parcela_del_establecimiento(request, parcela_id):
-    """Rechaza parcelas que no pertenezcan al establecimiento activo de la sesión."""
-    establecimiento = _establecimiento_actual(request)
-    if establecimiento is None or not parcela_id:
+def _validar_parcela_del_establecimiento(request, parcela_id, establecimiento_id=None):
+    """Rechaza parcelas que no pertenezcan al establecimiento asignado al animal."""
+    if not parcela_id or not establecimiento_id:
         return
-    if not Parcela.objects.filter(pk=parcela_id, establecimiento=establecimiento).exists():
-        raise ValueError('La parcela seleccionada no pertenece al establecimiento activo.')
+    if not Parcela.objects.filter(pk=parcela_id, establecimiento_id=establecimiento_id).exists():
+        raise ValueError('La parcela seleccionada no pertenece al establecimiento indicado.')
+
+
+def _validar_establecimiento_accesible(request, establecimiento_id):
+    """Rechaza asignar el animal a un establecimiento al que el usuario no accede."""
+    if not establecimiento_id or _usuario_es_propietario_global(request):
+        return
+    usuario = usuario_actual(request)
+    if usuario is not None and not RolEstablecimiento.objects.filter(
+        usuario=usuario, establecimiento_id=establecimiento_id,
+    ).exists():
+        raise ValueError('No tenés acceso a ese establecimiento.')
 
 
 def _asignar_campos_animal(animal, datos, es_alta=False):
@@ -1321,11 +1341,12 @@ def crear_animal(request):
     try:
         animal = Animal()
         _asignar_campos_animal(animal, request.POST, es_alta=True)
-        _validar_parcela_del_establecimiento(request, animal.parcela_id)
         if not animal.establecimiento_id:
             establecimiento = _establecimiento_actual(request)
             if establecimiento is not None:
                 animal.establecimiento_id = establecimiento.id
+        _validar_establecimiento_accesible(request, animal.establecimiento_id)
+        _validar_parcela_del_establecimiento(request, animal.parcela_id, animal.establecimiento_id)
         if 'foto' in request.FILES and request.FILES['foto']:
             animal.foto = request.FILES['foto']
         animal.full_clean()
@@ -1343,7 +1364,8 @@ def actualizar_animal(request, animal_id):
     animal = get_object_or_404(Animal, pk=animal_id)
     try:
         _asignar_campos_animal(animal, request.POST)
-        _validar_parcela_del_establecimiento(request, animal.parcela_id)
+        _validar_establecimiento_accesible(request, animal.establecimiento_id)
+        _validar_parcela_del_establecimiento(request, animal.parcela_id, animal.establecimiento_id)
         if 'foto' in request.FILES and request.FILES['foto']:
             animal.foto = request.FILES['foto']
         animal.full_clean()

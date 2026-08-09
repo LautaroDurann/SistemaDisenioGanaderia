@@ -230,6 +230,9 @@
                           <span class="text-secondary">Parcela</span><span id="ficha-potrero">-</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
+                          <span class="text-secondary">Establecimiento</span><span id="ficha-establecimiento">-</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
                           <span class="text-secondary">Estado</span><span id="ficha-estado">-</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
@@ -302,8 +305,11 @@
                   <input id="animal-fecha-nacimiento" name="fecha_nacimiento" type="date" class="form-control" />
                 </div>
                 <div class="col-md-6">
+                  <label for="animal-establecimiento" class="form-label">Establecimiento</label>
+                  <select id="animal-establecimiento" name="establecimiento_id" class="form-select"><option value="">Sin asignar</option></select>
+                </div>
+                <div class="col-md-6">
                   <label for="animal-parcela" class="form-label">Parcela inicial</label>
-                  <input type="hidden" name="establecimiento_id" value="{{ establecimiento_actual_id|default:'' }}">
                   <select id="animal-parcela" name="parcela_id" class="form-select"><option value="">Sin asignar</option></select>
                 </div>
                 <div class="col-md-4">

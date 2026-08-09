@@ -20,7 +20,7 @@
         <a class="nav-link dropdown-toggle d-flex align-items-center gap-1" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">
           <i class="bi bi-buildings"></i>
           <span class="d-none d-lg-inline text-truncate" style="max-width: 16rem;" id="establecimiento-actual-nombre">
-            {{ establecimiento_actual.nombre|default:'Todos los establecimientos' }}
+            {{ establecimiento_actual.nombre|default:'Seleccionar establecimiento' }}
           </span>
         </a>
         <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end" id="menu-establecimientos">
@@ -35,12 +35,8 @@
             </h6>
           </li>
           <li>
-            <button type="button" class="dropdown-item{% if not establecimiento_actual_id %} active{% endif %}" data-establecimiento-id="">
-              <i class="bi bi-grid-fill me-2"></i> Todos los establecimientos
-            </button>
-          </li>
-          <li><hr class="dropdown-divider" /></li>
-          {% for establecimiento in establecimientos %}
+            {% if establecimientos %}<hr class="dropdown-divider" />{% endif %}
+            {% for establecimiento in establecimientos %}
             <li>
               <button type="button" class="dropdown-item d-flex justify-content-between align-items-center gap-2{% if establecimiento_actual_id == establecimiento.id %} active{% endif %}" data-establecimiento-id="{{ establecimiento.id }}">
                 <span class="text-truncate"><i class="bi bi-buildings me-2"></i> {{ establecimiento.nombre }}</span>

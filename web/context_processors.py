@@ -17,6 +17,8 @@ def establecimientos_globales(request):
     """Expone los establecimientos a los que el usuario tiene acceso y el seleccionado.
 
     Un propietario ve todos los establecimientos; un operario solo los que le fueron asignados.
+    Siempre queda un establecimiento activo: si la sesión aún no tiene uno elegido, se
+    selecciona el primero disponible (no existe la vista de "todos los establecimientos").
     """
     usuario = usuario_actual(request)
     todos = list(Establecimiento.objects.order_by('nombre'))
@@ -35,8 +37,9 @@ def establecimientos_globales(request):
             if establecimiento.id == establecimiento_id:
                 establecimiento_actual = establecimiento
                 break
-    if establecimiento_actual is None and len(establecimientos) == 1:
+    if establecimiento_actual is None and establecimientos and usuario is not None:
         establecimiento_actual = establecimientos[0]
+        request.session['establecimiento_id'] = establecimiento_actual.id
 
     return {
         'establecimientos': establecimientos,

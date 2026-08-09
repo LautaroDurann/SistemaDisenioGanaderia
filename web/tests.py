@@ -48,6 +48,12 @@ class WebIntegrationTests(TestCase):
             with self.subTest(url_name=url_name):
                 self.assertEqual(self.client.get(reverse(url_name)).status_code, 200)
 
+    def test_navbar_no_ofrece_todos_los_establecimientos(self):
+        response = self.client.get(reverse('dashboard'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Todos los establecimientos')
+        self.assertContains(response, 'Campo de prueba')
+
     def test_pagina_usuarios_incluye_datos_huacapp(self):
         response = self.client.get(reverse('usuarios'))
         self.assertContains(response, 'huacapp-data-usuarios')
@@ -1123,6 +1129,134 @@ class MultiEstablecimientoTests(TestCase):
         response = self.client.get(reverse('insumos'))
         self.assertContains(response, '80.00')
         self.assertNotContains(response, '50.00')
+
+    def test_pagina_stock_incluye_establecimientos_y_parcelas_con_establecimiento(self):
+        parcela_b = Parcela.objects.create(ancho=12, largo=30, establecimiento=self.establecimiento_b)
+        response = self.client.get(reverse('stock'))
+        self.assertEqual(response.status_code, 200)
+        data = response.context['page_data']
+        self.assertEqual(
+            [e['id'] for e in data['establecimientos']],
+            [self.establecimiento_a.id, self.establecimiento_b.id],
+        )
+        self.assertEqual(data['establecimiento_id'], self.establecimiento_a.id)
+        self.assertTrue(any(
+            p['id'] == parcela_b.id and p['establecimiento_id'] == self.establecimiento_b.id
+            for p in data['parcelas']
+        ))
+
+    def test_crear_animal_asigna_establecimiento_activo_por_defecto(self):
+        parcela = Parcela.objects.create(ancho=12, largo=30, establecimiento=self.establecimiento_a)
+        response = self.client.post(reverse('crear_animal'), {
+            'id_senasa': '61001', 'nombre': 'Vaca nueva A', 'sexo': 'Hembra',
+            'tipo_animal': 'Bovino', 'parcela_id': parcela.id,
+        })
+        self.assertEqual(response.status_code, 201)
+        animal = Animal.objects.get(id_senasa=61001)
+        self.assertEqual(animal.establecimiento, self.establecimiento_a)
+        self.assertEqual(animal.parcela, parcela)
+
+    def test_crear_animal_en_establecimiento_explicito(self):
+        parcela = Parcela.objects.create(ancho=12, largo=30, establecimiento=self.establecimiento_b)
+        response = self.client.post(reverse('crear_animal'), {
+            'id_senasa': '61002', 'nombre': 'Vaca nueva B', 'sexo': 'Hembra',
+            'tipo_animal': 'Bovino', 'establecimiento_id': self.establecimiento_b.id,
+            'parcela_id': parcela.id,
+        })
+        self.assertEqual(response.status_code, 201)
+        animal = Animal.objects.get(id_senasa=61002)
+        self.assertEqual(animal.establecimiento, self.establecimiento_b)
+
+        response = self.client.get(reverse('stock_api'))
+        self.assertNotIn(animal.idAnimal, [a['id'] for a in response.json()['animales']])
+
+        self.activar_establecimiento(self.establecimiento_b.id)
+        response = self.client.get(reverse('stock_api'))
+        self.assertIn(animal.idAnimal, [a['id'] for a in response.json()['animales']])
+
+    def test_actualizar_animal_cambia_de_establecimiento(self):
+        parcela_b = Parcela.objects.create(ancho=12, largo=30, establecimiento=self.establecimiento_b)
+        animal = Animal.objects.create(
+            id_senasa=61003, nombre='Vaca mover', tipo_animal='Bovino', sexo='Hembra',
+            vivo=True, establecimiento=self.establecimiento_a,
+        )
+        response = self.client.post(reverse('actualizar_animal', args=[animal.idAnimal]), {
+            'id_senasa': '61003', 'nombre': 'Vaca mover', 'sexo': 'Hembra',
+            'tipo_animal': 'Bovino', 'establecimiento_id': self.establecimiento_b.id,
+            'parcela_id': parcela_b.id,
+        })
+        self.assertEqual(response.status_code, 200)
+        animal.refresh_from_db()
+        self.assertEqual(animal.establecimiento, self.establecimiento_b)
+        self.assertEqual(animal.parcela, parcela_b)
+
+    def test_parcela_de_otro_establecimiento_se_rechaza(self):
+        parcela_b = Parcela.objects.create(ancho=12, largo=30, establecimiento=self.establecimiento_b)
+        response = self.client.post(reverse('crear_animal'), {
+            'id_senasa': '61004', 'nombre': 'Vaca error', 'sexo': 'Hembra',
+            'tipo_animal': 'Bovino', 'establecimiento_id': self.establecimiento_a.id,
+            'parcela_id': parcela_b.id,
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Animal.objects.filter(id_senasa=61004).exists())
+
+    def test_operario_no_puede_asignar_animal_a_establecimiento_ajeno(self):
+        parcela_b = Parcela.objects.create(ancho=12, largo=30, establecimiento=self.establecimiento_b)
+        persona = Persona.objects.create(nombre='Peon', apellido='Limitado')
+        operario = Usuario.objects.create(
+            nombre_usuario='peon-limitado', clave=make_password('clave123'), persona=persona,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=operario, establecimiento=self.establecimiento_a,
+            nombre='Operario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        session = self.client.session
+        session['usuario_id'] = operario.id
+        session['establecimiento_id'] = self.establecimiento_a.id
+        session.save()
+
+        response = self.client.post(reverse('crear_animal'), {
+            'id_senasa': '61005', 'nombre': 'Vaca ajeno', 'sexo': 'Hembra',
+            'tipo_animal': 'Bovino', 'establecimiento_id': self.establecimiento_b.id,
+            'parcela_id': parcela_b.id,
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Animal.objects.filter(id_senasa=61005).exists())
+
+    def test_sin_establecimiento_en_sesion_se_selecciona_el_primero(self):
+        session = self.client.session
+        session['establecimiento_id'] = None
+        session.save()
+        response = self.client.get(reverse('stock'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            self.client.session.get('establecimiento_id'), self.establecimiento_a.id,
+        )
+        self.assertEqual(response.context['page_data']['establecimiento_id'], self.establecimiento_a.id)
+
+    def test_seleccionar_establecimiento_rechaza_todos(self):
+        for valor in ('', 'todos', 'all'):
+            response = self.client.post(reverse('seleccionar_establecimiento'), {'establecimiento_id': valor})
+            self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            self.client.session.get('establecimiento_id'), self.establecimiento_a.id,
+        )
+
+    def test_login_selecciona_el_primer_establecimiento(self):
+        persona = Persona.objects.create(nombre='Nuevo', apellido='Propietario')
+        Usuario.objects.create(
+            nombre_usuario='multi-nuevo', clave=make_password('clave123'), persona=persona,
+        )
+        for establecimiento in (self.establecimiento_a, self.establecimiento_b):
+            RolEstablecimiento.objects.create(
+                usuario=Usuario.objects.get(nombre_usuario='multi-nuevo'), establecimiento=establecimiento,
+                nombre='Propietario', fecha_ingreso=date.today(), estado_acceso=True,
+            )
+        response = self.client.post(reverse('login'), {'nombre_usuario': 'multi-nuevo', 'clave': 'clave123'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            self.client.session.get('establecimiento_id'), self.establecimiento_a.id,
+        )
 
 
 class SueldosModuleTests(TestCase):

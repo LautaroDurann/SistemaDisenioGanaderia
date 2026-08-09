@@ -222,6 +222,7 @@
         document.getElementById('ficha-edad').textContent = a.edad;
         document.getElementById('ficha-peso').textContent = a.peso;
         document.getElementById('ficha-potrero').textContent = a.parcela;
+        document.getElementById('ficha-establecimiento').textContent = a.establecimiento || '-';
         document.getElementById('ficha-categoria').closest('li').classList.toggle('d-none', a.tipo_animal !== 'Bovino');
         const fichaFoto = document.getElementById('ficha-foto');
         if (a.foto_url) {
@@ -259,6 +260,9 @@
         document.getElementById('animal-raza').value = animal.raza === '-' ? '' : animal.raza;
         document.getElementById('animal-peso').value = animal.peso_actual_valor;
         document.getElementById('animal-fecha-nacimiento').value = animal.ingreso === '-' ? '' : animal.ingreso;
+        const selectEstablecimiento = document.getElementById('animal-establecimiento');
+        selectEstablecimiento.value = animal.establecimiento_id || '';
+        cargarParcelasDeEstablecimiento(selectEstablecimiento.value);
         document.getElementById('animal-parcela').value = animal.parcela_id || '';
         document.getElementById('animal-peso-nacer').value = animal.peso_al_nacer;
         document.getElementById('animal-peso-destete').value = animal.peso_al_destete;
@@ -316,6 +320,15 @@
       function agregarOpciones(selectId, datos, texto, filtro = () => true) {
         const select = document.getElementById(selectId);
         datos.filter(filtro).forEach((dato) => select.add(new Option(texto(dato), dato.id)));
+      }
+
+      function cargarParcelasDeEstablecimiento(establecimientoId) {
+        const selectParcela = document.getElementById('animal-parcela');
+        selectParcela.innerHTML = '<option value="">Sin asignar</option>';
+        if (!establecimientoId) return;
+        (window.HUACAPP_DATA?.parcelas || [])
+          .filter((parcela) => parcela.establecimiento_id === establecimientoId)
+          .forEach((parcela) => selectParcela.add(new Option(parcela.nombre, parcela.id)));
       }
 
       document.addEventListener('DOMContentLoaded', () => {
@@ -391,15 +404,26 @@
           renderTabla();
         });
 
-        const selectParcela = document.getElementById('animal-parcela');
-        (window.HUACAPP_DATA?.parcelas || []).forEach((parcela) => {
-          const option = new Option(parcela.nombre, parcela.id);
-          selectParcela.add(option);
+        const selectEstablecimiento = document.getElementById('animal-establecimiento');
+        const establecimientoActualId = window.HUACAPP_DATA?.establecimiento_id || '';
+        (window.HUACAPP_DATA?.establecimientos || []).forEach((establecimiento) => {
+          selectEstablecimiento.add(new Option(establecimiento.nombre, establecimiento.id));
+        });
+        selectEstablecimiento.value = establecimientoActualId;
+        cargarParcelasDeEstablecimiento(selectEstablecimiento.value);
+        selectEstablecimiento.addEventListener('change', () => {
+          cargarParcelasDeEstablecimiento(selectEstablecimiento.value);
+          const parcela = document.getElementById('animal-parcela');
+          if (parcela.value && ![...parcela.options].some((o) => o.value === parcela.value)) {
+            parcela.value = '';
+          }
         });
         const filtroParcela = document.getElementById('f-parcela');
-        (window.HUACAPP_DATA?.parcelas || []).forEach((parcela) => {
-          filtroParcela.add(new Option(parcela.nombre, parcela.nombre));
-        });
+        (window.HUACAPP_DATA?.parcelas || [])
+          .filter((parcela) => !establecimientoActualId || parcela.establecimiento_id === establecimientoActualId)
+          .forEach((parcela) => {
+            filtroParcela.add(new Option(parcela.nombre, parcela.nombre));
+          });
         agregarOpciones('animal-dieta', window.HUACAPP_DATA?.dietas || [], (dieta) => dieta.nombre);
         agregarOpciones('animal-compra', window.HUACAPP_DATA?.compras || [], (compra) => compra.nombre);
         agregarOpciones('animal-venta', window.HUACAPP_DATA?.ventas || [], (venta) => venta.nombre);
@@ -437,6 +461,8 @@
           animalEnEdicion = null;
           document.getElementById('modalNuevoAnimalTitulo').innerHTML = '<i class="bi bi-cow me-2"></i>Nuevo animal';
           document.getElementById('form-nuevo-animal').reset();
+          selectEstablecimiento.value = establecimientoActualId;
+          cargarParcelasDeEstablecimiento(selectEstablecimiento.value);
           document.getElementById('foto-acciones').classList.add('d-none');
           document.getElementById('foto-preview').classList.add('d-none');
           document.getElementById('animal-eliminar-foto').value = '';
