@@ -1527,18 +1527,23 @@ def _revertir_venta(venta):
                                     observaciones=f'Venta #{venta.id}.').delete()
 
 
+def _asignar_comprador(comprador, datos):
+    comprador.dni = _normalizar_dni(datos.get('dni', ''))
+    comprador.nombre = datos['nombre'].strip()
+    comprador.apellido = datos.get('apellido', '').strip() or None
+    comprador.correo_electronico = datos.get('correo_electronico', '').strip() or None
+    comprador.fecha_nacimiento = datos.get('fecha_nacimiento') or None
+    comprador.telefono = datos.get('telefono', '').strip()
+
+
 @require_POST
 @rol_requerido(ROL_PROPIETARIO)
 def crear_comprador(request):
     try:
-        comprador = Comprador.objects.create(
-            dni=_normalizar_dni(request.POST.get('dni', '')),
-            nombre=request.POST['nombre'].strip(),
-            apellido=request.POST['apellido'].strip(),
-            correo_electronico=request.POST['correo_electronico'],
-            fecha_nacimiento=request.POST['fecha_nacimiento'],
-            telefono=request.POST.get('telefono', '').strip(),
-        )
+        comprador = Comprador()
+        _asignar_comprador(comprador, request.POST)
+        comprador.full_clean()
+        comprador.save()
     except (KeyError, ValueError, ValidationError, IntegrityError) as error:
         return JsonResponse({'error': str(error) or 'No se pudo crear el comprador.'}, status=400)
     return JsonResponse({'id': comprador.id, 'comprador': _comprador_data(comprador)}, status=201)
@@ -1549,15 +1554,10 @@ def crear_comprador(request):
 def actualizar_comprador(request, comprador_id):
     comprador = get_object_or_404(Comprador, pk=comprador_id)
     try:
-        comprador.dni = _normalizar_dni(request.POST.get('dni', comprador.dni))
-        comprador.nombre = request.POST.get('nombre', comprador.nombre).strip()
-        comprador.apellido = request.POST.get('apellido', comprador.apellido).strip()
-        comprador.correo_electronico = request.POST.get('correo_electronico', comprador.correo_electronico)
-        comprador.fecha_nacimiento = request.POST.get('fecha_nacimiento', comprador.fecha_nacimiento)
-        comprador.telefono = request.POST.get('telefono', comprador.telefono or '').strip()
+        _asignar_comprador(comprador, request.POST)
         comprador.full_clean()
         comprador.save()
-    except (ValueError, ValidationError, IntegrityError) as error:
+    except (KeyError, ValueError, ValidationError, IntegrityError) as error:
         return JsonResponse({'error': str(error) or 'No se pudo actualizar el comprador.'}, status=400)
     return JsonResponse({'comprador': _comprador_data(comprador)})
 
@@ -1826,18 +1826,23 @@ def eliminar_compra(request, compra_id):
     return JsonResponse({'ok': True})
 
 
+def _asignar_proveedor(proveedor, datos):
+    proveedor.dni = _normalizar_dni(datos.get('dni', ''))
+    proveedor.nombre = datos['nombre'].strip()
+    proveedor.apellido = datos.get('apellido', '').strip() or None
+    proveedor.correo_electronico = datos.get('correo_electronico', '').strip() or None
+    proveedor.fecha_nacimiento = datos.get('fecha_nacimiento') or None
+    proveedor.telefono = datos.get('telefono', '').strip()
+
+
 @require_POST
 @rol_requerido(ROL_PROPIETARIO)
 def crear_proveedor(request):
     try:
-        proveedor = Proveedor.objects.create(
-            dni=_normalizar_dni(request.POST.get('dni', '')),
-            nombre=request.POST['nombre'].strip(),
-            apellido=request.POST['apellido'].strip(),
-            correo_electronico=request.POST['correo_electronico'],
-            fecha_nacimiento=request.POST['fecha_nacimiento'],
-            telefono=request.POST.get('telefono', '').strip(),
-        )
+        proveedor = Proveedor()
+        _asignar_proveedor(proveedor, request.POST)
+        proveedor.full_clean()
+        proveedor.save()
     except (KeyError, ValueError, ValidationError, IntegrityError) as error:
         return JsonResponse({'error': str(error) or 'No se pudo crear el proveedor.'}, status=400)
     return JsonResponse({'id': proveedor.id, 'proveedor': _proveedor_data(proveedor)}, status=201)
@@ -1848,15 +1853,10 @@ def crear_proveedor(request):
 def actualizar_proveedor(request, proveedor_id):
     proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
     try:
-        proveedor.dni = _normalizar_dni(request.POST.get('dni', proveedor.dni))
-        proveedor.nombre = request.POST.get('nombre', proveedor.nombre).strip()
-        proveedor.apellido = request.POST.get('apellido', proveedor.apellido).strip()
-        proveedor.correo_electronico = request.POST.get('correo_electronico', proveedor.correo_electronico)
-        proveedor.fecha_nacimiento = request.POST.get('fecha_nacimiento', proveedor.fecha_nacimiento)
-        proveedor.telefono = request.POST.get('telefono', proveedor.telefono or '').strip()
+        _asignar_proveedor(proveedor, request.POST)
         proveedor.full_clean()
         proveedor.save()
-    except (ValueError, ValidationError, IntegrityError) as error:
+    except (KeyError, ValueError, ValidationError, IntegrityError) as error:
         return JsonResponse({'error': str(error) or 'No se pudo actualizar el proveedor.'}, status=400)
     return JsonResponse({'proveedor': _proveedor_data(proveedor)})
 
