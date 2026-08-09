@@ -278,6 +278,9 @@
         actualizarCampoDiametro();
         document.getElementById('animal-descripcion').value = animal.notas === '-' ? '' : animal.notas;
         const preview = document.getElementById('foto-preview');
+        document.getElementById('animal-foto').value = '';
+        document.getElementById('animal-eliminar-foto').value = '';
+        document.getElementById('foto-acciones').classList.toggle('d-none', !animal.foto_url);
         if (animal.foto_url) {
           preview.innerHTML = `<img src="${animal.foto_url}" alt="Foto actual" class="img-fluid rounded" style="max-height: 180px; width: 100%; object-fit: contain;">`;
           preview.classList.remove('d-none');
@@ -406,10 +409,37 @@
         document.getElementById('animal-sexo').addEventListener('change', actualizarCampoDiametro);
         actualizarCampoDiametro();
 
+        const fotoInput = document.getElementById('animal-foto');
+        fotoInput.addEventListener('change', () => {
+          const archivo = fotoInput.files[0];
+          const preview = document.getElementById('foto-preview');
+          if (!archivo) return;
+          const lector = new FileReader();
+          lector.onload = () => {
+            preview.innerHTML = `<img src="${lector.result}" alt="Nueva foto" class="img-fluid rounded" style="max-height: 180px; width: 100%; object-fit: contain;">`;
+            preview.classList.remove('d-none');
+          };
+          lector.readAsDataURL(archivo);
+          document.getElementById('foto-acciones').classList.add('d-none');
+          document.getElementById('animal-eliminar-foto').value = '';
+        });
+
+        document.getElementById('btn-eliminar-foto').addEventListener('click', () => {
+          const preview = document.getElementById('foto-preview');
+          preview.innerHTML = '<div class="text-muted small">Sin imagen cargada</div>';
+          preview.classList.remove('d-none');
+          fotoInput.value = '';
+          document.getElementById('foto-acciones').classList.add('d-none');
+          document.getElementById('animal-eliminar-foto').value = '1';
+        });
+
         document.getElementById('modalNuevoAnimal').addEventListener('hidden.bs.modal', () => {
           animalEnEdicion = null;
           document.getElementById('modalNuevoAnimalTitulo').innerHTML = '<i class="bi bi-cow me-2"></i>Nuevo animal';
           document.getElementById('form-nuevo-animal').reset();
+          document.getElementById('foto-acciones').classList.add('d-none');
+          document.getElementById('foto-preview').classList.add('d-none');
+          document.getElementById('animal-eliminar-foto').value = '';
           document.getElementById('animal-form-error').classList.add('d-none');
         });
 
@@ -418,6 +448,12 @@
           const form = event.currentTarget;
           const error = document.getElementById('animal-form-error');
           error.classList.add('d-none');
+          const raza = document.getElementById('animal-raza').value.trim();
+          if (raza && !/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(raza)) {
+            error.textContent = 'La raza debe comenzar con una letra.';
+            error.classList.remove('d-none');
+            return;
+          }
           try {
             const csrf = document.cookie.split('; ').find((row) => row.startsWith('csrftoken='))?.split('=')[1];
             const url = animalEnEdicion ? `/api/animales/${animalEnEdicion.id}/` : '/api/animales/';

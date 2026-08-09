@@ -47,6 +47,8 @@ class Usuario(models.Model):
     fecha_ultimo_acceso = models.DateTimeField(null=True, blank=True)
     # Fecha de alta del usuario (se asigna automáticamente al crearlo).
     fecha_creacion = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    # Foto de perfil del usuario.
+    foto = models.ImageField(upload_to='perfil/', blank=True, null=True)
     # Relación 1 a 1 con Persona (un usuario es una persona)
     persona = models.OneToOneField(Persona, on_delete=models.CASCADE)
 

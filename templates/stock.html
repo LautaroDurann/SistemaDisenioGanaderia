@@ -23,9 +23,6 @@
                 <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevoAnimal">
                   <i class="bi bi-plus-lg me-1"></i> Nuevo Animal
                 </button>
-                <button type="button" class="btn btn-outline-danger">
-                  <i class="bi bi-box-arrow-up me-1"></i> Registrar Salida
-                </button>
               </div>
             </div>
           </div>
@@ -293,8 +290,8 @@
                   <select id="animal-tipo" name="tipo_animal" class="form-select" required><option value="Bovino">Bovino</option><option value="Porcino">Porcino</option><option value="Ovino">Ovino</option></select>
                 </div>
                 <div class="col-md-4">
-                  <label for="animal-raza" class="form-label">Raza</label>
-                  <input id="animal-raza" name="raza" type="text" maxlength="100" class="form-control" placeholder="Ej.: Angus" />
+                  <label for="animal-raza" class="form-label">Raza <span class="text-secondary small fw-normal">(debe comenzar con una letra)</span></label>
+                  <input id="animal-raza" name="raza" type="text" maxlength="100" class="form-control" placeholder="Ej.: Angus" pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ].*" title="La raza debe comenzar con una letra." />
                 </div>
                 <div class="col-md-4">
                   <label for="animal-peso" class="form-label">Peso actual (kg)</label>
@@ -365,6 +362,10 @@
                   <label for="animal-foto" class="form-label">Foto del animal</label>
                   <input id="animal-foto" name="foto" type="file" accept="image/*" class="form-control" />
                   <div id="foto-preview" class="mt-2 border rounded p-2 bg-body-tertiary d-none text-center"></div>
+                  <div id="foto-acciones" class="d-none mt-2">
+                    <button type="button" class="btn btn-outline-danger btn-sm" id="btn-eliminar-foto"><i class="bi bi-trash me-1"></i>Eliminar foto</button>
+                  </div>
+                  <input type="hidden" id="animal-eliminar-foto" name="eliminar_foto" value="" />
                 </div>
                 <div class="col-12">
                   <label for="animal-descripcion" class="form-label">Observaciones</label>

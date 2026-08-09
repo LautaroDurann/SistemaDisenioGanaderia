@@ -159,22 +159,38 @@
       <!--begin::User Menu Dropdown-->
       <li class="nav-item dropdown user-menu">
         <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
-          <img
-            src="{% static 'assets/img/user2-160x160.jpg' %}"
-            class="user-image rounded-circle shadow"
-            alt="User Image"
-          />
+          {% if usuario_actual.foto %}
+            <img
+              src="{{ usuario_actual.foto.url }}"
+              class="user-image rounded-circle shadow"
+              alt="User Image"
+            />
+          {% else %}
+            <img
+              src="{% static 'assets/img/user2-160x160.jpg' %}"
+              class="user-image rounded-circle shadow"
+              alt="User Image"
+            />
+          {% endif %}
           <span class="d-none d-md-inline">
             {{ usuario_actual.persona.nombre|default:usuario_actual.nombre_usuario|default:'Usuario' }}
           </span>
         </a>
         <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
           <li class="user-header text-bg-primary">
-            <img
-              src="{% static 'assets/img/user2-160x160.jpg' %}"
-              class="rounded-circle shadow"
-              alt="User Image"
-            />
+            {% if usuario_actual.foto %}
+              <img
+                src="{{ usuario_actual.foto.url }}"
+                class="rounded-circle shadow"
+                alt="User Image"
+              />
+            {% else %}
+              <img
+                src="{% static 'assets/img/user2-160x160.jpg' %}"
+                class="rounded-circle shadow"
+                alt="User Image"
+              />
+            {% endif %}
             <p>
               {{ usuario_actual.persona.nombre|default:usuario_actual.nombre_usuario|default:'Usuario' }}
               {% if usuario_actual.persona.apellido %} {{ usuario_actual.persona.apellido }}{% endif %}

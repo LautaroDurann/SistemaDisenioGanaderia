@@ -282,6 +282,7 @@ def _usuario_data(usuario):
         'creado': usuario.fecha_creacion.isoformat() if usuario.fecha_creacion else None,
         'acceso': usuario.fecha_ultimo_acceso.isoformat() if usuario.fecha_ultimo_acceso else None,
         'conectado': False,
+        'foto_url': usuario.foto.url if usuario.foto else '',
         'roles': [{
             'id': r.id,
             'establecimiento_id': r.establecimiento_id,
@@ -396,6 +397,14 @@ def actualizar_usuario_api(request, usuario_id):
             persona.telefono = telefono.strip()
         if any(k in request.POST for k in ('nombre', 'apellido', 'email', 'correo_electronico', 'telefono')):
             persona.save(update_fields=['nombre', 'apellido', 'correo_electronico', 'telefono'])
+
+        if request.POST.get('eliminar_foto') == '1' and usuario.foto:
+            usuario.foto.delete(save=False)
+            usuario.foto = None
+        if 'foto' in request.FILES and request.FILES['foto']:
+            usuario.foto = request.FILES['foto']
+        if request.POST.get('eliminar_foto') == '1' or ('foto' in request.FILES and request.FILES['foto']):
+            usuario.save(update_fields=['foto'])
 
         nueva_clave = request.POST.get('clave', '')
         if nueva_clave:

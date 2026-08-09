@@ -10,6 +10,7 @@ from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, render
+from django.templatetags.static import static
 from django.views.decorators.http import require_POST
 
 from animales.models import Animal, Parto, Preniez
@@ -1228,8 +1229,11 @@ def alimentacion(request):
 @rol_requerido(ROL_PROPIETARIO)
 def usuarios(request):
     usuarios_data = [_usuario_data(u) for u in Usuario.objects.select_related('persona')]
+    actual = usuario_actual(request)
     data = {'usuarios': usuarios_data,
-            'establecimientos_data': [{'id': e.id, 'nombre': e.nombre} for e in Establecimiento.objects.order_by('nombre')]}
+            'establecimientos_data': [{'id': e.id, 'nombre': e.nombre} for e in Establecimiento.objects.order_by('nombre')],
+            'usuario_actual_id': actual.id if actual else None,
+            'avatar_default': static('assets/img/user2-160x160.jpg')}
     return _page(request, 'usuarios.html', 'usuarios', data)
 
 
@@ -1258,7 +1262,10 @@ def _asignar_campos_animal(animal, datos, es_alta=False):
     animal.nombre = datos.get('nombre', '').strip()
     animal.tipo_animal = datos['tipo_animal']
     animal.sexo = datos['sexo']
-    animal.raza = datos.get('raza', '').strip() or None
+    raza = datos.get('raza', '').strip() or None
+    if raza and not raza[0].isalpha():
+        raise ValueError('La raza debe comenzar con una letra.')
+    animal.raza = raza
     animal.fecha_nacimiento = datos.get('fecha_nacimiento') or None
     for campo in ('peso_al_nacer', 'peso_al_destete', 'peso_actual', 'costo_adquisicion', 'precio_venta'):
         setattr(animal, campo, datos.get(campo) or None)
@@ -1290,6 +1297,9 @@ def _asignar_campos_animal(animal, datos, es_alta=False):
     if 'parto_id' in datos:
         animal.parto_id = datos.get('parto_id') or None
     animal.descripcion = datos.get('descripcion', '').strip() or None
+    if datos.get('eliminar_foto') == '1' and animal.foto:
+        animal.foto.delete(save=False)
+        animal.foto = None
     if animal.sexo != 'Macho':
         animal.diametro_escrotal = None
     if animal.pk and animal.pk in (animal.madre_id, animal.padre_id):
