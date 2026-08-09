@@ -78,7 +78,7 @@
       // ------------------------------------------------------------------
       // MOCK DATA: reemplazar por datos reales cuando se conecte con Django
       // ------------------------------------------------------------------
-      const MOVIMIENTOS = window.GANASTOCK_DATA?.movimientos ?? [
+      const MOVIMIENTOS = window.HUACAPP_DATA?.movimientos ?? [
         { fecha: '2026-07-14', hora: '09:15', tipo: 'Ingreso', caravana: '0231', animal: 'Luna', categoria: 'Vaca', cantidad: 1, origen: 'La Esperanza', destino: 'Potrero 1', usuario: 'Juan', obs: 'Compra a establecimiento La Esperanza', estado: 'Confirmado' },
         { fecha: '2026-07-13', hora: '17:40', tipo: 'Venta', caravana: '0198', animal: 'Fierro', categoria: 'Toro', cantidad: 1, origen: 'Potrero 2', destino: 'Feria local', usuario: 'Carlos', obs: 'Vendido en remate feria local', estado: 'Confirmado' },
         { fecha: '2026-07-12', hora: '08:05', tipo: 'Nacimiento', caravana: '0305', animal: 'S/N', categoria: 'Ternero', cantidad: 1, origen: '-', destino: 'Potrero 2', usuario: 'María', obs: 'Nacimiento en Potrero 2', estado: 'Confirmado' },

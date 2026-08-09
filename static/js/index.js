@@ -76,8 +76,8 @@ document.addEventListener('DOMContentLoaded', function () {
 // ------------------------------------------------------------------
 // DATOS: provienen del servidor (Django) filtrados por establecimiento
 // ------------------------------------------------------------------
-const GANASTOCK = window.GANASTOCK_DATA || {};
-const ULTIMOS_MOVIMIENTOS = GANASTOCK.movimientos ?? [
+const HUACAPP = window.HUACAPP_DATA || {};
+const ULTIMOS_MOVIMIENTOS = HUACAPP.movimientos ?? [
   { fecha: '14/07/2026', animal: '#0231 Luna', tipo: 'Ingreso', usuario: 'Juan', obs: 'Compra a La Esperanza' },
   { fecha: '13/07/2026', animal: '#0198 Fierro', tipo: 'Venta', usuario: 'Carlos', obs: 'Remate feria local' },
   { fecha: '12/07/2026', animal: '#0305 S/N', tipo: 'Nacimiento', usuario: 'María', obs: 'Nacimiento en Potrero 2' },
@@ -90,7 +90,7 @@ const ULTIMOS_MOVIMIENTOS = GANASTOCK.movimientos ?? [
   { fecha: '03/07/2026', animal: '#0177 Trueno', tipo: 'Ingreso', usuario: 'María', obs: 'Ingreso por servicio' },
 ];
 
-const KPIS = GANASTOCK.kpis ?? {
+const KPIS = HUACAPP.kpis ?? {
   total_animales: 0,
   ventas_mes: 0,
   gastos_mes: 0,
@@ -150,7 +150,7 @@ function renderTablaMovimientos() {
     .join('');
 }
 
-const DISTRIBUCION = GANASTOCK.distribucion ?? {};
+const DISTRIBUCION = HUACAPP.distribucion ?? {};
 
 const COLORES_CATEGORIA = {
   Vaca: '#198754',
@@ -166,9 +166,9 @@ const COLORES_CATEGORIA = {
 function renderGraficos() {
   const chartGanancias = document.querySelector('#chart-ganancias-gastos');
   if (chartGanancias) {
-    const labels = JSON.parse(GANASTOCK.chart?.labels_json ?? '[]');
-    const ingresos = JSON.parse(GANASTOCK.chart?.ingresos_json ?? '[]');
-    const egresos = JSON.parse(GANASTOCK.chart?.egresos_json ?? '[]');
+    const labels = JSON.parse(HUACAPP.chart?.labels_json ?? '[]');
+    const ingresos = JSON.parse(HUACAPP.chart?.ingresos_json ?? '[]');
+    const egresos = JSON.parse(HUACAPP.chart?.egresos_json ?? '[]');
 
     const series = labels.length
       ? [

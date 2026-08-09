@@ -1,4 +1,4 @@
-const SANIDAD_DATA = window.GANASTOCK_DATA || {};
+const SANIDAD_DATA = window.HUACAPP_DATA || {};
 const EVENTOS = Array.isArray(SANIDAD_DATA.eventos) ? [...SANIDAD_DATA.eventos] : [];
 const ENFERMEDADES = Array.isArray(SANIDAD_DATA.enfermedades) ? SANIDAD_DATA.enfermedades : [];
 const DIAGNOSTICOS = Array.isArray(SANIDAD_DATA.diagnosticos) ? SANIDAD_DATA.diagnosticos : [];

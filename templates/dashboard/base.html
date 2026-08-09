@@ -164,9 +164,9 @@
 
 <!--se agrega este bloque vacio para que no choque con los de las paginas que heredan-->
 {% if page_data %}
-  {{ page_data|json_script:"ganastock-page-data" }}
+  {{ page_data|json_script:"huacapp-page-data" }}
   <script>
-    window.GANASTOCK_DATA = JSON.parse(document.getElementById('ganastock-page-data').textContent);
+    window.HUACAPP_DATA = JSON.parse(document.getElementById('huacapp-page-data').textContent);
   </script>
 {% endif %}
 

@@ -48,15 +48,15 @@ class WebIntegrationTests(TestCase):
             with self.subTest(url_name=url_name):
                 self.assertEqual(self.client.get(reverse(url_name)).status_code, 200)
 
-    def test_pagina_usuarios_incluye_datos_ganastock(self):
+    def test_pagina_usuarios_incluye_datos_huacapp(self):
         response = self.client.get(reverse('usuarios'))
-        self.assertContains(response, 'ganastock-data-usuarios')
-        self.assertContains(response, 'ganastock-data-establecimientos')
-        self.assertContains(response, 'window.GANASTOCK_DATA')
+        self.assertContains(response, 'huacapp-data-usuarios')
+        self.assertContains(response, 'huacapp-data-establecimientos')
+        self.assertContains(response, 'window.HUACAPP_DATA')
         self.assertContains(response, 'propietario')
         self.assertContains(response, 'Campo de prueba')
         contenido = response.content.decode()
-        inicio = contenido.index('id="ganastock-data-establecimientos"') 
+        inicio = contenido.index('id="huacapp-data-establecimientos"') 
         inicio = contenido.index('>', inicio) + 1
         fin = contenido.index('</script>', inicio)
         establecimientos = json.loads(contenido[inicio:fin])
@@ -503,7 +503,7 @@ class CompraModuleTests(TestCase):
     def test_pagina_compras_responde(self):
         response = self.client.get(reverse('compras'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'window.GANASTOCK_DATA')
+        self.assertContains(response, 'window.HUACAPP_DATA')
         self.assertContains(response, 'Carlos')
 
     def test_compra_de_insumos_crea_lote_detalle_y_movimiento(self):
@@ -747,7 +747,7 @@ class FinanzasSyncTests(TestCase):
     def get_page_data(self, url_name):
         response = self.client.get(reverse(url_name))
         content = response.content.decode()
-        inicio = content.index('id="ganastock-page-data"')
+        inicio = content.index('id="huacapp-page-data"')
         inicio = content.index('>', inicio) + 1
         fin = content.index('</script>', inicio)
         return response, json.loads(content[inicio:fin])

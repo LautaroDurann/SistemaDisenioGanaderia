@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const data = window.GANASTOCK_DATA || {};
+  const data = window.HUACAPP_DATA || {};
 
   let PRENIECES = data.prenieces || [];
   let PARTOS = data.partos || [];

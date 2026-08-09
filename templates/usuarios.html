@@ -185,7 +185,7 @@
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Email</label>
-                  <input type="email" class="form-control" id="nu-email" placeholder="usuario@ganastock.com" />
+                  <input type="email" class="form-control" id="nu-email" placeholder="usuario@huacapp.com" />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Teléfono</label>
@@ -252,7 +252,7 @@
               </div>
               <div class="col-md-6">
                 <label class="form-label">Email</label>
-                <input type="email" class="form-control" id="ar-email" placeholder="usuario@ganastock.com" />
+                <input type="email" class="form-control" id="ar-email" placeholder="usuario@huacapp.com" />
               </div>
               <div class="col-md-6">
                 <label class="form-label">Teléfono</label>
@@ -296,12 +296,12 @@
 {% endblock %}
 
 {% block page_js%}
-    {{ page_data.usuarios|json_script:"ganastock-data-usuarios" }}
-    {{ page_data.establecimientos_data|json_script:"ganastock-data-establecimientos" }}
+    {{ page_data.usuarios|json_script:"huacapp-data-usuarios" }}
+    {{ page_data.establecimientos_data|json_script:"huacapp-data-establecimientos" }}
     <script>
-      window.GANASTOCK_DATA = {
-        usuarios: JSON.parse(document.getElementById('ganastock-data-usuarios').textContent),
-        establecimientos: JSON.parse(document.getElementById('ganastock-data-establecimientos').textContent),
+      window.HUACAPP_DATA = {
+        usuarios: JSON.parse(document.getElementById('huacapp-data-usuarios').textContent),
+        establecimientos: JSON.parse(document.getElementById('huacapp-data-establecimientos').textContent),
       };
     </script>
     <script src="{% static 'js/usuarios.js' %}?v=10"></script>

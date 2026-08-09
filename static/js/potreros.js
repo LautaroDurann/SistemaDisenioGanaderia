@@ -74,13 +74,13 @@
       // ------------------------------------------------------------------
       // Datos reales de Django. Si no hay datos cargados, se usa un fallback simple.
       // ------------------------------------------------------------------
-      let POTREROS = window.GANASTOCK_DATA?.potreros ?? [
+      let POTREROS = window.HUACAPP_DATA?.potreros ?? [
         { nombre: 'Parcela 1', superficie: 0.02, actual: 0, estado: 'En pastoreo', fecha: '', responsable: '-' },
         { nombre: 'Parcela 2', superficie: 0.03, actual: 0, estado: 'En descanso', fecha: '', responsable: '-' },
       ];
       let PARCELA_EDITANDO_ID = null;
 
-      let ANIMALES_POR_POTRERO = window.GANASTOCK_DATA?.animales_por_potrero ?? {
+      let ANIMALES_POR_POTRERO = window.HUACAPP_DATA?.animales_por_potrero ?? {
         'Potrero 1': [
           { caravana: '0231', nombre: 'Luna', categoria: 'Vaca', sexo: 'Hembra', peso: '480 kg' },
           { caravana: '0412', nombre: 'S/N', categoria: 'Ternero', sexo: 'Hembra', peso: '95 kg' },
@@ -348,8 +348,8 @@
               POTREROS = [{ ...parcela, actual: 0, fecha: '', responsable: '-' }, ...POTREROS];
             }
             ANIMALES_POR_POTRERO[parcela.nombre] = ANIMALES_POR_POTRERO[parcela.nombre] || [];
-            window.GANASTOCK_DATA = window.GANASTOCK_DATA || {};
-            window.GANASTOCK_DATA.potreros = POTREROS;
+            window.HUACAPP_DATA = window.HUACAPP_DATA || {};
+            window.HUACAPP_DATA.potreros = POTREROS;
             potreroSeleccionado = parcela.nombre;
             bootstrap.Modal.getOrCreateInstance(document.getElementById('modalNuevoPotrero')).hide();
             resetearFormulario();

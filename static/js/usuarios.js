@@ -82,8 +82,8 @@ const ESTADO_BADGE = {
   Inactivo: 'text-bg-secondary',
 };
 
-let USUARIOS = window.GANASTOCK_DATA?.usuarios ?? [];
-const ESTABLECIMIENTOS = window.GANASTOCK_DATA?.establecimientos ?? [];
+let USUARIOS = window.HUACAPP_DATA?.usuarios ?? [];
+const ESTABLECIMIENTOS = window.HUACAPP_DATA?.establecimientos ?? [];
 
 const FILAS_POR_PAGINA = 6;
 let paginaActual = 1;

@@ -38,7 +38,7 @@ ALLOWED_HOSTS = ['*']
 
 # URL pública del sitio para los enlaces que se envían por correo
 # (restablecer contraseña). En producción debe apuntar al dominio real,
-# por ejemplo https://ganastock.com. Si queda vacío, se usa el host de la
+# por ejemplo https://huacapp.com. Si queda vacío, se usa el host de la
 # petición (127.0.0.1:8000 en desarrollo local).
 SITE_URL = os.environ.get('SITE_URL', '').rstrip('/')
 
@@ -161,4 +161,4 @@ if os.environ.get('EMAIL_HOST') and os.environ.get('EMAIL_HOST_USER'):
     EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '15'))
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@ganastock.com')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@huacapp.com')

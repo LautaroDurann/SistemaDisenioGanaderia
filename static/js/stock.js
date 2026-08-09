@@ -78,7 +78,7 @@
       // ------------------------------------------------------------------
       // MOCK DATA: reemplazar por datos reales cuando se conecte con Django
       // ------------------------------------------------------------------
-      const ANIMALES = window.GANASTOCK_DATA?.animales ?? [
+      const ANIMALES = window.HUACAPP_DATA?.animales ?? [
         { caravana: '0231', nombre: 'Luna', categoria: 'Vaca', sexo: 'Hembra', raza: 'Angus', edad: '4 años', peso: '480 kg', potrero: 'Potrero 1', estado: 'Activo', ingreso: '10/07/2026', notas: 'Buena productora, sin antecedentes de pérdida de peso. Apta para servicio.' },
         { caravana: '0198', nombre: 'Fierro', categoria: 'Toro', sexo: 'Macho', raza: 'Braford', edad: '5 años', peso: '720 kg', potrero: 'Potrero 2', estado: 'Vendido', ingreso: '02/02/2024', notas: 'Reproductor principal del establecimiento hasta su venta en el remate local.' },
         { caravana: '0305', nombre: 'S/N', categoria: 'Ternero', sexo: 'Macho', raza: 'Angus', edad: '2 meses', peso: '85 kg', potrero: 'Potrero 2', estado: 'Activo', ingreso: '05/07/2026', notas: 'Nacido en el potrero, todavía sin identificación definitiva de nombre.' },
@@ -389,18 +389,18 @@
         });
 
         const selectParcela = document.getElementById('animal-parcela');
-        (window.GANASTOCK_DATA?.parcelas || []).forEach((parcela) => {
+        (window.HUACAPP_DATA?.parcelas || []).forEach((parcela) => {
           const option = new Option(parcela.nombre, parcela.id);
           selectParcela.add(option);
         });
         const filtroParcela = document.getElementById('f-parcela');
-        (window.GANASTOCK_DATA?.parcelas || []).forEach((parcela) => {
+        (window.HUACAPP_DATA?.parcelas || []).forEach((parcela) => {
           filtroParcela.add(new Option(parcela.nombre, parcela.nombre));
         });
-        agregarOpciones('animal-dieta', window.GANASTOCK_DATA?.dietas || [], (dieta) => dieta.nombre);
-        agregarOpciones('animal-compra', window.GANASTOCK_DATA?.compras || [], (compra) => compra.nombre);
-        agregarOpciones('animal-venta', window.GANASTOCK_DATA?.ventas || [], (venta) => venta.nombre);
-        const progenitores = window.GANASTOCK_DATA?.progenitores || [];
+        agregarOpciones('animal-dieta', window.HUACAPP_DATA?.dietas || [], (dieta) => dieta.nombre);
+        agregarOpciones('animal-compra', window.HUACAPP_DATA?.compras || [], (compra) => compra.nombre);
+        agregarOpciones('animal-venta', window.HUACAPP_DATA?.ventas || [], (venta) => venta.nombre);
+        const progenitores = window.HUACAPP_DATA?.progenitores || [];
         agregarOpciones('animal-madre', progenitores, (animal) => animal.nombre, (animal) => animal.sexo === 'Hembra');
         agregarOpciones('animal-padre', progenitores, (animal) => animal.nombre, (animal) => animal.sexo === 'Macho');
         document.getElementById('animal-sexo').addEventListener('change', actualizarCampoDiametro);

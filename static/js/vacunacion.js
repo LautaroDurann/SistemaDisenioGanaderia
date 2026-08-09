@@ -75,7 +75,7 @@
       // MOCK DATA: reemplazar por datos reales cuando se conecte con Django.
       // Los animales/caravanas coinciden con los de Stock y Movimientos.
       // ------------------------------------------------------------------
-      const VACUNACIONES = window.GANASTOCK_DATA?.vacunaciones ?? [
+      const VACUNACIONES = window.HUACAPP_DATA?.vacunaciones ?? [
         { fecha: '2026-07-14', caravana: '0231', animal: 'Luna', categoria: 'Vaca', edad: '4 años', potrero: 'Potrero 1', vacuna: 'Aftosa', proxima: '14/01/2027', veterinario: 'Dr. López', estado: 'Vacunado', obs: 'Sin reacciones' },
         { fecha: '2026-07-14', caravana: '0412', animal: 'S/N', categoria: 'Ternero', edad: '3 meses', potrero: 'Potrero 1', vacuna: 'Clostridiosis', proxima: '14/09/2026', veterinario: 'Dra. Giménez', estado: 'Vacunado', obs: 'Primera dosis' },
         { fecha: '2026-07-10', caravana: '0198', animal: 'Fierro', categoria: 'Toro', edad: '5 años', potrero: 'Potrero 2', vacuna: 'Brucelosis', proxima: '10/07/2027', veterinario: 'Dr. López', estado: 'Vacunado', obs: '-' },

@@ -1,5 +1,5 @@
 (() => {
-  const data = window.GANASTOCK_DATA || {};
+  const data = window.HUACAPP_DATA || {};
   let compras = data.compras || [];
   let proveedores = data.proveedores || [];
   let insumos = data.insumos || [];

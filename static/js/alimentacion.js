@@ -78,7 +78,7 @@
       // ------------------------------------------------------------------
       // MOCK DATA: reemplazar por datos reales cuando se conecte con Django
       // ------------------------------------------------------------------
-      const ALIMENTOS = window.GANASTOCK_DATA?.alimentos ?? [
+      const ALIMENTOS = window.HUACAPP_DATA?.alimentos ?? [
         { id: 'balanceado-engorde', nombre: 'Balanceado Engorde', categoria: 'Balanceado', stock: 3200, unidad: 'kg', consumoMensual: 1800, stockMinimo: 1000, ultimaCompra: '05/07/2026', precioUnitario: 450 },
         { id: 'maiz-grano', nombre: 'Maíz grano', categoria: 'Maíz', stock: 850, unidad: 'kg', consumoMensual: 1200, stockMinimo: 1000, ultimaCompra: '20/06/2026', precioUnitario: 320 },
         { id: 'rollos-alfalfa', nombre: 'Rollos de alfalfa', categoria: 'Rollos', stock: 45, unidad: 'rollos', consumoMensual: 60, stockMinimo: 30, ultimaCompra: '01/07/2026', precioUnitario: 18000 },
