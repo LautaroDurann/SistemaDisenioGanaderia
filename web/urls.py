@@ -14,8 +14,10 @@ urlpatterns = [
     path('stock/', views.stock, name='stock'),
     path('finanzas/', views.finanzas, name='finanzas'),
     path('finanzas/ventas/', views.ventas, name='ventas'),
-    path('finanzas/compras/', views.compras, name='compras'),
-    path('finanzas/sueldos/', views.sueldos, name='sueldos'),
+    path('finanzas/gastos/', views.gastos, name='gastos'),
+    # Se conservan las URL anteriores como alias para enlaces guardados.
+    path('finanzas/compras/', views.gastos, name='compras'),
+    path('finanzas/sueldos/', views.gastos, name='sueldos'),
     # Se conserva la URL anterior para enlaces guardados.
     path('movimientos/', views.finanzas, name='movimientos'),
     path('parcelas/', views.potreros, name='potreros'),

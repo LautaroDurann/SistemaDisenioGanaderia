@@ -883,7 +883,12 @@ class FinanzasSyncTests(TestCase):
         self.assertIn('chart-establecimientos', content)
 
         flujo = data['flujo']
+        etiquetas = json.loads(flujo['etiquetas_json'])
         valores = json.loads(flujo['valores_json'])
+        self.assertEqual(len(valores), 12)
+        self.assertEqual(etiquetas, ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'])
+        self.assertEqual(valores[:7], [0.0] * 7)
+        self.assertEqual(valores[7], 28800.0)
         self.assertEqual(valores[-1], 28800.0)
         categorias = json.loads(data['categorias']['valores_json'])
         self.assertEqual(dict(zip(json.loads(data['categorias']['etiquetas_json']), categorias)),
@@ -1184,6 +1189,29 @@ class SueldosModuleTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'window.GANASTOCK_DATA')
         self.assertContains(response, 'Pedro')
+
+    def test_pagina_gastos_incluye_sueldos_en_graficos(self):
+        self.crear_liquidacion({
+            'fecha': '2026-08-01', 'empleado_id': self.empleado.id, 'sueldo': '150000.50',
+        })
+        self.client.post(reverse('crear_compra'), {
+            'tipo': 'Otros', 'fecha': '2026-08-01', 'monto_total': '300000', 'detalle': 'Tractor',
+        })
+        response = self.client.get(reverse('gastos'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'window.GANASTOCK_DATA')
+        contenido = response.content.decode()
+        inicio = contenido.index('id="ganastock-page-data"')
+        inicio = contenido.index('>', inicio) + 1
+        fin = contenido.index('</script>', inicio)
+        datos = json.loads(contenido[inicio:fin])
+        compras = json.loads(datos['chart_gastos']['compras_json'])
+        sueldos = json.loads(datos['chart_gastos']['sueldos_json'])
+        self.assertIn(float(Decimal('300000.00')), compras)
+        self.assertIn(float(Decimal('150000.50')), sueldos)
+        self.assertEqual(datos['summary']['total_gastos'], 2)
+        self.assertAlmostEqual(datos['summary']['egresos_total'], 450000.50, places=2)
+        self.assertEqual(datos['summary']['total_liquidaciones'], 1)
 
     def test_crear_liquidacion_crea_egreso_financiero(self):
         response = self.crear_liquidacion({

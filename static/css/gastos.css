@@ -1,0 +1,39 @@
+/* Módulo Gastos: todo desplegado con la barra de scroll nativa del navegador.
+   Se desactiva el modo layout-fixed de AdminLTE en este módulo para que la
+   página crezca naturalmente con el contenido:
+   - .app-main deja de tener scroll interno: crece con el contenido.
+   - El sidebar deja de ser sticky: se extiende hasta el final del módulo
+     (no queda cortado).
+   - .sidebar-wrapper no tiene scroll propio.
+   Así hay una sola barra de scroll (la del navegador) y nada queda
+   superpuesto ni recortado. */
+@media (min-width: 992px) {
+  .sidebar-expand-lg.layout-fixed .app-main {
+    overflow: visible;
+  }
+  .sidebar-expand-lg.layout-fixed .app-sidebar {
+    position: static;
+    max-height: none;
+  }
+  .sidebar-expand-lg.layout-fixed .app-sidebar .sidebar-wrapper {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+/* Las columnas de las pestañas Compras/Sueldos conservan su altura natural.
+   Evita que la columna con dos tarjetas (Proveedores + Montos por tipo) se
+   apriete contra la altura de la columna vecina y el contenido desborde
+   (la tarjeta quedaba flotando sobre el fondo, por encima del footer). */
+#pane-compras > .row,
+#pane-sueldos > .row {
+  align-items: flex-start;
+}
+
+/* La página se desplaza con la barra nativa del navegador, siempre visible
+   para que el ancho no cambie al cargar contenido. */
+html {
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+}

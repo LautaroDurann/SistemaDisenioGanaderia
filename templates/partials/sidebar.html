@@ -49,12 +49,12 @@
           </a>
         </li>
         {% if es_propietario %}
-        <li class="nav-item{% if request.resolver_match.url_name == 'ventas' or request.resolver_match.url_name == 'compras' or request.resolver_match.url_name == 'sueldos' or request.resolver_match.url_name == 'movimientos' %} finanzas-branch-active{% endif %}" data-treeview="finanzas">
+        <li class="nav-item{% if request.resolver_match.url_name == 'ventas' or request.resolver_match.url_name == 'gastos' or request.resolver_match.url_name == 'movimientos' %} finanzas-branch-active{% endif %}" data-treeview="finanzas">
           <a href="{% url 'finanzas' %}" id="nav-finanzas" class="nav-link{% if request.resolver_match.url_name == 'finanzas' or request.resolver_match.url_name == 'movimientos' %} active{% endif %}" data-lte-toggle="treeview">
             <i class="nav-icon bi bi-cash-stack"></i>
             <p>Finanzas <i id="finanzas-toggle" class="nav-arrow bi bi-chevron-right" style="cursor: pointer;"></i></p>
           </a>
-          <ul id="submenu-finanzas" class="nav nav-treeview" style="display: {% if request.resolver_match.url_name == 'ventas' or request.resolver_match.url_name == 'compras' or request.resolver_match.url_name == 'sueldos' or request.resolver_match.url_name == 'movimientos' %}block{% else %}none{% endif %};">
+          <ul id="submenu-finanzas" class="nav nav-treeview" style="display: {% if request.resolver_match.url_name == 'ventas' or request.resolver_match.url_name == 'gastos' or request.resolver_match.url_name == 'movimientos' %}block{% else %}none{% endif %};">
             <li class="nav-item">
               <a href="{% url 'ventas' %}" class="nav-link{% if request.resolver_match.url_name == 'ventas' %} active finanzas-child-active{% endif %}">
                 <i class="nav-icon bi bi-receipt"></i>
@@ -62,15 +62,9 @@
               </a>
             </li>
             <li class="nav-item">
-              <a href="{% url 'compras' %}" class="nav-link{% if request.resolver_match.url_name == 'compras' %} active finanzas-child-active{% endif %}">
+              <a href="{% url 'gastos' %}" class="nav-link{% if request.resolver_match.url_name == 'gastos' or request.resolver_match.url_name == 'compras' or request.resolver_match.url_name == 'sueldos' %} active finanzas-child-active{% endif %}">
                 <i class="nav-icon bi bi-cart"></i>
-                <p>Compras</p>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a href="{% url 'sueldos' %}" class="nav-link{% if request.resolver_match.url_name == 'sueldos' %} active finanzas-child-active{% endif %}">
-                <i class="nav-icon bi bi-people"></i>
-                <p>Sueldos</p>
+                <p>Gastos</p>
               </a>
             </li>
           </ul>
