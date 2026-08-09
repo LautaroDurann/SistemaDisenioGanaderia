@@ -1,33 +1,60 @@
 {% extends 'dashboard/base.html' %}
 {% load static %}
-{% block title %}Compras | GanaStock{% endblock %}
+{% block title %}Gastos | GanaStock{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/gastos.css' %}?v=4">{% endblock %}
 {% block content %}
 <div class="app-content-header">
   <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center">
-      <div>
-        <h3 class="mb-0">Compras</h3>
-        <p class="text-secondary mb-0">Gestioná compras, proveedores y gastos del negocio.</p>
-      </div>
-      <button class="btn btn-success" id="nueva-compra"><i class="bi bi-plus-lg me-1"></i>Nueva compra</button>
-    </div>
+    <h3 class="mb-0">Gastos del establecimiento</h3>
+    <p class="text-secondary mb-0">Registrá compras y liquidaciones de sueldos, y controlá los egresos del establecimiento.</p>
   </div>
 </div>
 <div class="app-content">
   <div class="container-fluid">
-    <div id="mensaje-compra"></div>
+    <div id="mensaje-gastos"></div>
     <div class="row g-3 mb-4">
-      <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-secondary small">Total de compras</div><div class="h4 mb-0" id="kpi-total-compras">0</div></div></div></div>
+      <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-secondary small">Total de gastos</div><div class="h4 mb-0" id="kpi-total-gastos">0</div></div></div></div>
       <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-secondary small">Egresos acumulados</div><div class="h4 mb-0" id="kpi-egresos-total">$ 0,00</div></div></div></div>
-      <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-secondary small">Compras este año</div><div class="h4 mb-0" id="kpi-egresos-anio">$ 0,00</div></div></div></div>
+      <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-secondary small">Gastos este año</div><div class="h4 mb-0" id="kpi-egresos-anio">$ 0,00</div></div></div></div>
       <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-secondary small">Proveedores</div><div class="h4 mb-0" id="kpi-proveedores">0</div></div></div></div>
     </div>
     <div class="row g-3 mb-4">
-      <div class="col-lg-8"><div class="card shadow-sm"><div class="card-header"><h3 class="card-title mb-0">Egresos por año</h3></div><div class="card-body"><div id="chart-compras" style="height: 320px;"></div></div></div></div>
-      <div class="col-lg-4"><div class="card shadow-sm h-100"><div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title mb-0">Proveedores</h3><button class="btn btn-sm btn-outline-primary" id="nuevo-proveedor"><i class="bi bi-person-plus"></i> Nuevo</button></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Nombre</th><th>Correo</th><th>Teléfono</th><th></th></tr></thead><tbody id="proveedores-body"></tbody></table></div></div></div>
-      <div class="card shadow-sm mt-3"><div class="card-header"><h3 class="card-title mb-0">Montos por tipo (año)</h3></div><div class="card-body p-0"><table class="table align-middle mb-0"><tbody id="montos-tipo-body"></tbody></table></div></div></div>
+      <div class="col-lg-8"><div class="card shadow-sm h-100"><div class="card-header"><h3 class="card-title mb-0">Gastos por año (compras + sueldos)</h3></div><div class="card-body"><div id="chart-gastos" style="height: 320px;"></div></div></div></div>
+      <div class="col-lg-4"><div class="card shadow-sm h-100"><div class="card-header"><h3 class="card-title mb-0">Sueldos por año</h3></div><div class="card-body"><div id="chart-sueldos" style="height: 320px;"></div></div></div></div>
     </div>
-    <div class="card shadow-sm"><div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title mb-0">Últimas compras</h3><button class="btn btn-success btn-sm" id="nueva-compra-tabla"><i class="bi bi-plus-lg me-1"></i>Registrar compra</button></div><div class="card-body"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Fecha</th><th>Tipo</th><th>Proveedor</th><th>Detalle</th><th>Establecimiento</th><th class="text-end">Monto total</th><th>Pago</th><th>Estado</th><th></th></tr></thead><tbody id="compras-body"></tbody></table></div></div></div>
+
+    <ul class="nav nav-tabs mb-3" id="gastos-tabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-compras" data-bs-toggle="tab" data-bs-target="#pane-compras" type="button" role="tab" aria-controls="pane-compras" aria-selected="true"><i class="bi bi-cart me-1"></i>Compras</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-sueldos" data-bs-toggle="tab" data-bs-target="#pane-sueldos" type="button" role="tab" aria-controls="pane-sueldos" aria-selected="false"><i class="bi bi-people me-1"></i>Sueldos</button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="pane-compras" role="tabpanel" aria-labelledby="tab-compras">
+        <div class="row g-3 mb-4">
+          <div class="col-lg-4">
+            <div class="card shadow-sm h-100"><div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title mb-0">Proveedores</h3><button class="btn btn-sm btn-outline-primary" id="nuevo-proveedor"><i class="bi bi-person-plus"></i> Nuevo</button></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Nombre</th><th>Correo</th><th>Teléfono</th><th></th></tr></thead><tbody id="proveedores-body"></tbody></table></div></div></div>
+            <div class="card shadow-sm mt-3"><div class="card-header"><h3 class="card-title mb-0">Montos por tipo (año)</h3></div><div class="card-body p-0"><table class="table align-middle mb-0"><tbody id="montos-tipo-body"></tbody></table></div></div>
+          </div>
+          <div class="col-lg-8">
+            <div class="card shadow-sm h-100"><div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title mb-0">Últimas compras</h3><button class="btn btn-success btn-sm" id="nueva-compra-tabla"><i class="bi bi-plus-lg me-1"></i>Registrar compra</button></div><div class="card-body"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Fecha</th><th>Tipo</th><th>Proveedor</th><th>Detalle</th><th>Establecimiento</th><th class="text-end">Monto total</th><th>Pago</th><th>Estado</th><th></th></tr></thead><tbody id="compras-body"></tbody></table></div></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="tab-pane fade" id="pane-sueldos" role="tabpanel" aria-labelledby="tab-sueldos">
+        <div class="row g-3">
+          <div class="col-lg-4">
+            <div class="card shadow-sm h-100"><div class="card-header"><h3 class="card-title mb-0">Empleados liquidables</h3></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Nombre</th><th>Usuario</th></tr></thead><tbody id="empleados-body"></tbody></table></div></div></div>
+          </div>
+          <div class="col-lg-8">
+            <div class="card shadow-sm h-100"><div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title mb-0">Últimas liquidaciones</h3><button class="btn btn-success btn-sm" id="nueva-liquidacion-tabla"><i class="bi bi-plus-lg me-1"></i>Registrar liquidación</button></div><div class="card-body"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Fecha</th><th>Empleado</th><th>Usuario</th><th>Establecimiento</th><th>Descripción</th><th class="text-end">Sueldo</th><th class="text-end"></th></tr></thead><tbody id="liquidaciones-body"></tbody></table></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -108,5 +135,22 @@
     <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Guardar proveedor</button></div>
   </form>
 </div></div></div>
+
+<div class="modal fade" id="modalLiquidacion" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+  <form id="form-liquidacion" novalidate>
+    <div class="modal-header"><h5 class="modal-title" id="titulo-liquidacion">Registrar liquidación</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="liquidacion-id">
+      <div class="row g-3">
+        <div class="col-md-4"><label class="form-label">Fecha de liquidación</label><input class="form-control" type="date" name="fecha" id="liquidacion-fecha"></div>
+        <div class="col-md-8"><label class="form-label">Empleado</label><select class="form-select" name="empleado_id" id="liquidacion-empleado"><option value="">— Elegí un empleado —</option>{% for empleado in page_data.empleados %}<option value="{{ empleado.id }}">{{ empleado.nombre }} (@{{ empleado.usuario }})</option>{% endfor %}</select></div>
+        <div class="col-md-4"><label class="form-label">Sueldo ($)</label><input class="form-control" type="number" min="0.01" step="0.01" name="sueldo" id="liquidacion-sueldo"></div>
+        <div class="col-md-8"><label class="form-label">Descripción / Detalle</label><input class="form-control" name="descripcion" id="liquidacion-descripcion" placeholder="Opcional. Ej: Sueldo de agosto"></div>
+      </div>
+      <div class="form-text mt-2">Cada liquidación se registra automáticamente como un egreso y suma a los gráficos de este módulo.</div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-success">Guardar liquidación</button></div>
+  </form>
+</div></div></div>
 {% endblock %}
-{% block page_js %}<script src="{% static 'js/compras.js' %}"></script>{% endblock %}
+{% block page_js %}<script src="{% static 'js/gastos.js' %}"></script>{% endblock %}

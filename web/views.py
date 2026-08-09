@@ -547,19 +547,18 @@ def finanzas(request):
         ingresos_series.append(float(qs.filter(tipo='Ingreso').aggregate(total=Sum('monto_total'))['total'] or 0))
         egresos_series.append(float(qs.filter(tipo='Egreso').aggregate(total=Sum('monto_total'))['total'] or 0))
 
-    # 1) Flujo de caja acumulado del mes (día a día)
-    netos_por_dia = {}
-    for m in movimientos_mes:
-        netos_por_dia[m.fecha.day] = netos_por_dia.get(m.fecha.day, Decimal('0')) + (
+    # 1) Flujo de caja acumulado del año (mes a mes)
+    netos_por_mes = {}
+    for m in movimientos_qs.filter(fecha__year=anio):
+        netos_por_mes[m.fecha.month] = netos_por_mes.get(m.fecha.month, Decimal('0')) + (
             m.monto_total if m.tipo == 'Ingreso' else -m.monto_total
         )
-    dias_mes = calendar.monthrange(anio, mes)[1]
     flujo_etiquetas = []
     flujo_valores = []
     saldo = Decimal('0')
-    for d in range(1, dias_mes + 1):
-        saldo += netos_por_dia.get(d, Decimal('0'))
-        flujo_etiquetas.append(f"{d:02d}")
+    for mes_num in range(1, 13):
+        saldo += netos_por_mes.get(mes_num, Decimal('0'))
+        flujo_etiquetas.append(MESES_NOMBRE[mes_num][:3])
         flujo_valores.append(float(saldo))
 
     # 2) Egresos por categoría (año actual), clasificando el origen de cada egreso
@@ -752,40 +751,70 @@ def ventas(request):
 
 
 @rol_requerido(ROL_PROPIETARIO)
-def compras(request):
+def gastos(request):
+    """Módulo de Gastos: compras del negocio y liquidación de sueldos de empleados."""
+    establecimiento = _establecimiento_actual(request)
+
     compras_registradas = Compra.objects.select_related('proveedor').prefetch_related(
         'detalles__lote__insumo', 'animal_set'
     ).order_by('-fecha', '-id')
-    establecimiento = _establecimiento_actual(request)
+    liquidaciones = LiquidacionSueldo.objects.select_related(
+        'empleado__persona', 'establecimiento'
+    ).order_by('-fecha', '-idLiquidacion')
+
     if establecimiento is not None:
         compras_registradas = compras_registradas.filter(mov_financiero__establecimiento=establecimiento)
+        liquidaciones = liquidaciones.filter(establecimiento=establecimiento)
+
     today = date.today()
     total_compras = compras_registradas.count()
-    egresos_total = compras_registradas.aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
-    egresos_anio_actual = compras_registradas.filter(fecha__year=today.year).aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+    compras_total = compras_registradas.aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+    compras_anio = compras_registradas.filter(fecha__year=today.year).aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+
+    total_liquidaciones = liquidaciones.count()
+    sueldos_total = liquidaciones.aggregate(total=Sum('sueldo'))['total'] or Decimal('0')
+    sueldos_anio = liquidaciones.filter(fecha__year=today.year).aggregate(total=Sum('sueldo'))['total'] or Decimal('0')
+
     proveedores = list(Proveedor.objects.order_by('apellido', 'nombre'))
     insumos = list(Insumo.objects.order_by('tipo', 'nombre'))
+    empleados = _empleados_de(request)
 
+    # Los pagos de sueldos se suman a las compras: ambos son egresos del módulo.
     chart_years = [today.year - i for i in range(4, -1, -1)]
     chart_labels = [str(year) for year in chart_years]
-    chart_series = []
+    chart_series_compras = []
+    chart_series_sueldos = []
     for year in chart_years:
-        total = compras_registradas.filter(fecha__year=year).aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
-        chart_series.append(float(total))
+        total_c = compras_registradas.filter(fecha__year=year).aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+        total_s = liquidaciones.filter(fecha__year=year).aggregate(total=Sum('sueldo'))['total'] or Decimal('0')
+        chart_series_compras.append(float(total_c))
+        chart_series_sueldos.append(float(total_s))
 
-    return _page(request, 'compras.html', 'compras', {
+    return _page(request, 'gastos.html', 'gastos', {
         'compras': [_compra_data(c) for c in compras_registradas],
         'proveedores': [_proveedor_data(p) for p in proveedores],
         'insumos': [_insumo_data(i) for i in insumos],
+        'liquidaciones': [_liquidacion_data(l) for l in liquidaciones],
+        'empleados': [_empleado_data(e) for e in empleados],
         'summary': {
             'total_compras': total_compras,
-            'egresos_total': float(egresos_total),
-            'egresos_anio_actual': float(egresos_anio_actual),
+            'total_liquidaciones': total_liquidaciones,
+            'total_gastos': total_compras + total_liquidaciones,
+            'egresos_total': float(compras_total + sueldos_total),
+            'egresos_anio_actual': float(compras_anio + sueldos_anio),
+            'total_sueldos': float(sueldos_total),
+            'sueldos_anio_actual': float(sueldos_anio),
             'proveedores': len(proveedores),
+            'empleados': len(empleados),
         },
-        'chart': {
+        'chart_gastos': {
             'labels_json': json.dumps(chart_labels),
-            'series_json': json.dumps(chart_series),
+            'compras_json': json.dumps(chart_series_compras),
+            'sueldos_json': json.dumps(chart_series_sueldos),
+        },
+        'chart_sueldos': {
+            'labels_json': json.dumps(chart_labels),
+            'series_json': json.dumps(chart_series_sueldos),
         },
     })
 
@@ -1879,44 +1908,6 @@ def _liquidacion_data(liquidacion):
         'establecimiento': liquidacion.establecimiento.nombre if liquidacion.establecimiento else '',
         'movimiento_financiero_id': liquidacion.movimiento_financiero_id,
     }
-
-
-@rol_requerido(ROL_PROPIETARIO)
-def sueldos(request):
-    establecimiento = _establecimiento_actual(request)
-    liquidaciones = LiquidacionSueldo.objects.select_related(
-        'empleado__persona', 'establecimiento'
-    ).order_by('-fecha', '-idLiquidacion')
-    if establecimiento is not None:
-        liquidaciones = liquidaciones.filter(establecimiento=establecimiento)
-
-    today = date.today()
-    total_liquidaciones = liquidaciones.count()
-    total_sueldos = liquidaciones.aggregate(total=Sum('sueldo'))['total'] or Decimal('0')
-    total_anio_actual = liquidaciones.filter(fecha__year=today.year).aggregate(total=Sum('sueldo'))['total'] or Decimal('0')
-    empleados = _empleados_de(request)
-
-    chart_years = [today.year - i for i in range(4, -1, -1)]
-    chart_labels = [str(year) for year in chart_years]
-    chart_series = []
-    for year in chart_years:
-        total = liquidaciones.filter(fecha__year=year).aggregate(total=Sum('sueldo'))['total'] or Decimal('0')
-        chart_series.append(float(total))
-
-    return _page(request, 'sueldos.html', 'sueldos', {
-        'liquidaciones': [_liquidacion_data(l) for l in liquidaciones],
-        'empleados': [_empleado_data(e) for e in empleados],
-        'summary': {
-            'total_liquidaciones': total_liquidaciones,
-            'total_sueldos': float(total_sueldos),
-            'total_anio_actual': float(total_anio_actual),
-            'empleados': len(empleados),
-        },
-        'chart': {
-            'labels_json': json.dumps(chart_labels),
-            'series_json': json.dumps(chart_series),
-        },
-    })
 
 
 def _registrar_liquidacion(liquidacion, datos, establecimiento=None):
