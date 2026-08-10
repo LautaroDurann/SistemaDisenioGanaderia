@@ -495,11 +495,16 @@
     $('form-proveedor').addEventListener('submit', async e => {
       e.preventDefault();
       const form = new FormData(e.target);
+      const dni = String(form.get('dni') || '').trim();
+      if (dni && (dni.length < 7 || dni.length > 8)) {
+        alert('El DNI debe tener entre 7 y 8 caracteres.');
+        return;
+      }
       const proveedorId = $('proveedor-id').value;
       const url = proveedorId ? `/api/proveedores/${proveedorId}/` : '/api/proveedores/';
       const r = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrf() }, body: form });
       const respuesta = await r.json();
-      if (!r.ok) return mostrar(respuesta.error || 'No se pudo guardar el proveedor.', 'danger');
+      if (!r.ok) return alert(respuesta.error || 'No se pudo guardar el proveedor.');
       if (proveedorId) {
         const idx = proveedores.findIndex(p => p.id === Number(proveedorId));
         if (idx !== -1) proveedores[idx] = respuesta.proveedor;

@@ -878,6 +878,11 @@ async function guardarVeterinario() {
     return;
   }
 
+  if (dni && (dni.length < 7 || dni.length > 8)) {
+    alert('El DNI debe tener entre 7 y 8 caracteres.');
+    return;
+  }
+
   const url = id ? `/api/sanidad/veterinarios/${id}/` : '/api/sanidad/veterinarios/';
   const response = await fetch(url, {
     method: 'POST',

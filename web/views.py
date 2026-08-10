@@ -410,8 +410,11 @@ def _to_iso_date(value):
 
 
 def _normalizar_dni(valor):
-    """Devuelve None cuando el DNI viene vacío para permitir personas sin DNI."""
+    """Devuelve None cuando el DNI viene vacío para permitir personas sin DNI.
+    Si se ingresa, debe tener entre 7 y 8 caracteres."""
     valor = (valor or '').strip()
+    if valor and not (7 <= len(valor) <= 8):
+        raise ValueError('El DNI debe tener entre 7 y 8 caracteres.')
     return valor or None
 
 
@@ -724,8 +727,15 @@ def ventas(request):
     today = date.today()
     total_ventas = ventas_registradas.count()
     ganancia_total = ventas_registradas.aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
-    ganancia_anio_actual = ventas_registradas.filter(fecha__year=today.year).aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+    # Resumen del año activo (calendario).
+    ventas_anio = ventas_registradas.filter(fecha__year=today.year).count()
+    ingresos_anio = ventas_registradas.filter(fecha__year=today.year).aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+    # peso_desbastado es una propiedad (se calcula), por eso se suma en Python.
+    kilos_anio = sum((v.peso_desbastado for v in ventas_registradas.filter(fecha__year=today.year)), Decimal('0'))
     compradores = list(Comprador.objects.order_by('apellido', 'nombre'))
+    # Promedio de ingresos por mes: total histórico repartido entre los meses que registraron ventas.
+    meses_con_ventas = ventas_registradas.dates('fecha', 'month').count()
+    promedio_por_mes = (ganancia_total / meses_con_ventas) if meses_con_ventas else Decimal('0')
     chart_years = [today.year - i for i in range(4, -1, -1)]
     chart_labels = [str(year) for year in chart_years]
     chart_series = []
@@ -740,7 +750,10 @@ def ventas(request):
         'summary': {
             'total_ventas': total_ventas,
             'ganancia_total': float(ganancia_total),
-            'ganancia_anio_actual': float(ganancia_anio_actual),
+            'promedio_por_mes': float(promedio_por_mes),
+            'ventas_anio': ventas_anio,
+            'ingresos_anio': float(ingresos_anio),
+            'kilos_anio': float(kilos_anio),
             'compradores': len(compradores),
         },
         'chart': {

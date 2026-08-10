@@ -985,9 +985,9 @@ class FinanzasSyncTests(TestCase):
         response, data = self.get_page_data('ventas')
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        self.assertIn('resumen-mes-cantidad', content)
-        self.assertIn('resumen-mes-ingresos', content)
-        self.assertIn('resumen-mes-cobrado', content)
+        self.assertIn('resumen-anio-cantidad', content)
+        self.assertIn('resumen-anio-ingresos', content)
+        self.assertIn('resumen-anio-kilos', content)
         venta = data['ventas'][0]
         self.assertEqual(venta['estado_de_cobro'], 'Pagada')
         self.assertEqual(venta['metodo_de_pago'], 'Cheque')
