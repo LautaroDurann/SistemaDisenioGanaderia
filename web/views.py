@@ -10,7 +10,6 @@ from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, render
-from django.templatetags.static import static
 from django.views.decorators.http import require_POST
 
 from animales.models import Animal, Parto, Preniez
@@ -1237,8 +1236,7 @@ def usuarios(request):
     actual = usuario_actual(request)
     data = {'usuarios': usuarios_data,
             'establecimientos_data': [{'id': e.id, 'nombre': e.nombre} for e in Establecimiento.objects.order_by('nombre')],
-            'usuario_actual_id': actual.id if actual else None,
-            'avatar_default': static('assets/img/user2-160x160.jpg')}
+            'usuario_actual_id': actual.id if actual else None}
     return _page(request, 'usuarios.html', 'usuarios', data)
 
 

@@ -308,13 +308,11 @@
     {{ page_data.usuarios|json_script:"huacapp-data-usuarios" }}
     {{ page_data.establecimientos_data|json_script:"huacapp-data-establecimientos" }}
     {{ page_data.usuario_actual_id|json_script:"huacapp-data-usuario-actual" }}
-    {{ page_data.avatar_default|json_script:"huacapp-data-avatar-default" }}
     <script>
       window.HUACAPP_DATA = {
         usuarios: JSON.parse(document.getElementById('huacapp-data-usuarios').textContent),
         establecimientos: JSON.parse(document.getElementById('huacapp-data-establecimientos').textContent),
         usuario_actual_id: JSON.parse(document.getElementById('huacapp-data-usuario-actual').textContent),
-        avatar_default: JSON.parse(document.getElementById('huacapp-data-avatar-default').textContent),
       };
     </script>
     <script src="{% static 'js/usuarios.js' %}?v=11"></script>

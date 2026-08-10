@@ -85,7 +85,6 @@ const ESTADO_BADGE = {
 let USUARIOS = window.HUACAPP_DATA?.usuarios ?? [];
 const ESTABLECIMIENTOS = window.HUACAPP_DATA?.establecimientos ?? [];
 const USUARIO_ACTUAL_ID = window.HUACAPP_DATA?.usuario_actual_id ?? null;
-const AVATAR_DEFAULT = window.HUACAPP_DATA?.avatar_default ?? '';
 
 const FILAS_POR_PAGINA = 6;
 let paginaActual = 1;
@@ -314,10 +313,41 @@ function renderTabla() {
 
 function sincronizarNavbarCon(u) {
   if (!u || USUARIO_ACTUAL_ID == null || u.id !== Number(USUARIO_ACTUAL_ID)) return;
-  const src = u.foto_url || AVATAR_DEFAULT;
-  document.querySelectorAll('.user-menu img').forEach((img) => {
-    img.src = src;
-  });
+  const color = COLOR_ROL[u.rol] || '#6c757d';
+  const texto = iniciales(u);
+  const armarSpan = (grande) => {
+    const span = document.createElement('span');
+    span.className = `vacapp-navbar-iniciales rounded-circle shadow${grande ? ' vacapp-navbar-iniciales-lg d-flex align-items-center justify-content-center' : ''}`;
+    span.style.background = color;
+    span.title = 'User Image';
+    span.textContent = texto;
+    return span;
+  };
+  const sincronizar = (contenedor, claseImg, grande) => {
+    if (!contenedor) return;
+    const span = contenedor.querySelector('.vacapp-navbar-iniciales');
+    const img = contenedor.querySelector(`img.${claseImg}`);
+    if (u.foto_url) {
+      if (span) span.remove();
+      if (!img) {
+        const nuevo = document.createElement('img');
+        nuevo.className = `${claseImg} shadow`;
+        nuevo.alt = 'User Image';
+        contenedor.insertBefore(nuevo, contenedor.firstChild);
+      } else {
+        img.src = u.foto_url;
+      }
+    } else {
+      if (span) {
+        span.style.background = color;
+        span.textContent = texto;
+      } else if (img) {
+        img.replaceWith(armarSpan(grande));
+      }
+    }
+  };
+  sincronizar(document.querySelector('.user-menu .nav-link'), 'user-image', false);
+  sincronizar(document.querySelector('.user-menu .user-header'), 'rounded-circle', true);
 }
 
 function renderPerfil() {
