@@ -271,10 +271,20 @@
         document.getElementById('animal-dieta').value = animal.dieta_id || '';
         document.getElementById('animal-madre').value = animal.madre_id || '';
         document.getElementById('animal-padre').value = animal.padre_id || '';
-        document.getElementById('animal-compra').value = animal.compra_id || '';
-        document.getElementById('animal-venta').value = animal.venta_id || '';
-        document.getElementById('animal-costo').value = animal.costo_adquisicion;
-        document.getElementById('animal-precio-venta').value = animal.precio_venta;
+        const tieneCompra = Boolean(animal.compra_id) && animal.compra && animal.compra !== 'Sin compra asociada';
+        document.getElementById('grupo-compra').classList.toggle('d-none', !tieneCompra);
+        document.getElementById('grupo-costo').classList.toggle('d-none', !tieneCompra);
+        if (tieneCompra) {
+          document.getElementById('animal-compra').value = animal.compra;
+          document.getElementById('animal-costo').value = animal.costo_adquisicion || '-';
+        }
+        const tieneVenta = Boolean(animal.venta_id) && animal.venta && animal.venta !== 'Sin venta asociada';
+        document.getElementById('grupo-venta').classList.toggle('d-none', !tieneVenta);
+        document.getElementById('grupo-precio-venta').classList.toggle('d-none', !tieneVenta);
+        if (tieneVenta) {
+          document.getElementById('animal-venta').value = animal.venta;
+          document.getElementById('animal-precio-venta').value = animal.precio_venta || '-';
+        }
         document.getElementById('animal-vendido').checked = animal.vendido;
         document.getElementById('animal-vivo').checked = animal.vivo;
         document.getElementById('animal-enfermo').checked = animal.enfermo;
@@ -425,8 +435,6 @@
             filtroParcela.add(new Option(parcela.nombre, parcela.nombre));
           });
         agregarOpciones('animal-dieta', window.HUACAPP_DATA?.dietas || [], (dieta) => dieta.nombre);
-        agregarOpciones('animal-compra', window.HUACAPP_DATA?.compras || [], (compra) => compra.nombre);
-        agregarOpciones('animal-venta', window.HUACAPP_DATA?.ventas || [], (venta) => venta.nombre);
         const progenitores = window.HUACAPP_DATA?.progenitores || [];
         agregarOpciones('animal-madre', progenitores, (animal) => animal.nombre, (animal) => animal.sexo === 'Hembra');
         agregarOpciones('animal-padre', progenitores, (animal) => animal.nombre, (animal) => animal.sexo === 'Macho');
@@ -466,6 +474,10 @@
           document.getElementById('foto-acciones').classList.add('d-none');
           document.getElementById('foto-preview').classList.add('d-none');
           document.getElementById('animal-eliminar-foto').value = '';
+          document.getElementById('grupo-compra').classList.add('d-none');
+          document.getElementById('grupo-costo').classList.add('d-none');
+          document.getElementById('grupo-venta').classList.add('d-none');
+          document.getElementById('grupo-precio-venta').classList.add('d-none');
           document.getElementById('animal-form-error').classList.add('d-none');
         });
 

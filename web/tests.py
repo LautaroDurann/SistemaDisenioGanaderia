@@ -286,6 +286,30 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Animal.objects.filter(pk=self.animal.idAnimal).exists())
 
+    def test_editar_animal_conserva_compra_y_venta_asociadas(self):
+        compra = Compra.objects.create(tipo='Animales', fecha='2026-08-01', monto_total=Decimal('500000.00'))
+        venta = Venta.objects.create(
+            tipo='Animales', fecha='2026-08-01', peso_total=Decimal('400.00'),
+            precio_por_kg=Decimal('1000.00'), monto_total=Decimal('396000.00'),
+        )
+        self.animal.compra = compra
+        self.animal.venta = venta
+        self.animal.costo_adquisicion = Decimal('500000.00')
+        self.animal.precio_venta = Decimal('396000.00')
+        self.animal.save()
+
+        response = self.client.post(reverse('actualizar_animal', args=[self.animal.idAnimal]), {
+            'id_senasa': '12345', 'nombre': 'Luna editada', 'sexo': 'Hembra',
+            'tipo_animal': 'Bovino', 'peso_actual': '420.00',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.animal.refresh_from_db()
+        self.assertEqual(self.animal.nombre, 'Luna editada')
+        self.assertEqual(self.animal.compra, compra)
+        self.assertEqual(self.animal.venta, venta)
+        self.assertEqual(self.animal.costo_adquisicion, Decimal('500000.00'))
+        self.assertEqual(self.animal.precio_venta, Decimal('396000.00'))
+
     def test_crear_potrero(self):
         response = self.client.post(reverse('crear_potrero'), {
             'ancho': '15', 'largo': '40', 'descripcion': 'Potrero nuevo', 'estado': 'En pastoreo',
@@ -352,6 +376,64 @@ class WebIntegrationTests(TestCase):
         self.assertIsNone(self.animal.venta)
         self.assertFalse(Venta.objects.exists())
         self.assertFalse(MovimientoFinanciero.objects.exists())
+
+    def test_actualizar_venta_recalcula_montos_y_conserva_animales(self):
+        self.animal.peso_actual = Decimal('300.00')
+        self.animal.save(update_fields=['peso_actual'])
+        segundo = Animal.objects.create(
+            id_senasa=54323, nombre='Toro', tipo_animal='Bovino', sexo='Macho',
+            peso_actual=Decimal('500.00'), parcela=self.parcela, vivo=True,
+        )
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-03', 'tipo': 'Venta de hacienda', 'precio_por_kg': '2500.50',
+            'detalle': 'Venta de prueba', 'animales': [self.animal.idAnimal, segundo.idAnimal],
+        })
+        venta = Venta.objects.get(pk=response.json()['id'])
+        self.assertEqual(venta.monto_total, Decimal('2000400.00'))
+
+        response = self.client.post(reverse('actualizar_venta', args=[venta.id]), {
+            'fecha': '2026-08-10', 'precio_por_kg': '3000.00', 'peso_total': '700.00',
+            'peso_manual': 'on', 'estadoDeCobro': 'Pagada', 'metodoDePago': 'Transferencia',
+            'detalle': 'Venta editada', 'animales': [self.animal.idAnimal, segundo.idAnimal],
+        })
+        self.assertEqual(response.status_code, 200)
+        venta.refresh_from_db()
+        self.assertEqual(venta.precio_por_kg, Decimal('3000.00'))
+        self.assertEqual(venta.peso_total, Decimal('700.00'))
+        self.assertEqual(venta.monto_total, Decimal('2100000.00'))
+        self.assertEqual(venta.estadoDeCobro, 'Pagada')
+        self.assertEqual(venta.mov_financiero.monto_total, Decimal('2100000.00'))
+        self.animal.refresh_from_db()
+        self.assertTrue(self.animal.vendido)
+        self.assertEqual(self.animal.venta, venta)
+        self.assertEqual(self.animal.precio_venta, Decimal('1050000.00'))
+
+    def test_editar_venta_cambiar_animales_restaura_el_stock(self):
+        self.animal.peso_actual = Decimal('300.00')
+        self.animal.save(update_fields=['peso_actual'])
+        segundo = Animal.objects.create(
+            id_senasa=54324, nombre='Toro', tipo_animal='Bovino', sexo='Macho',
+            peso_actual=Decimal('500.00'), parcela=self.parcela, vivo=True,
+        )
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-03', 'precio_por_kg': '1000.00', 'peso_total': '800.00',
+            'peso_manual': 'on', 'animales': [self.animal.idAnimal, segundo.idAnimal],
+        })
+        venta = Venta.objects.get(pk=response.json()['id'])
+        segundo.refresh_from_db()
+        self.assertTrue(segundo.vendido)
+
+        response = self.client.post(reverse('actualizar_venta', args=[venta.id]), {
+            'fecha': '2026-08-03', 'precio_por_kg': '1000.00', 'peso_total': '300.00',
+            'peso_manual': 'on', 'animales': [self.animal.idAnimal],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.animal.refresh_from_db()
+        segundo.refresh_from_db()
+        self.assertTrue(self.animal.vendido)
+        self.assertEqual(self.animal.venta, venta)
+        self.assertFalse(segundo.vendido)
+        self.assertIsNone(segundo.venta)
 
     def test_crear_comprador_y_venta_con_peso_total_manual(self):
         self.animal.peso_actual = None

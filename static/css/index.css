@@ -116,6 +116,34 @@
         gap: 0.5rem;
       }
 
+      /* Avatar con iniciales del usuario en la barra superior
+         (mismo estilo que el módulo de Usuarios). */
+      .vacapp-navbar-iniciales {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        font-size: 0.62rem;
+        font-weight: 600;
+        line-height: 1;
+        letter-spacing: 0.01em;
+        color: #fff;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        flex-shrink: 0;
+        margin-right: 0.4rem;
+      }
+      .vacapp-navbar-iniciales-lg {
+        width: 90px;
+        height: 90px;
+        font-size: 1.7rem;
+        border: 3px solid var(--bs-border-color-translucent);
+        margin: 0 auto;
+      }
+
       .spin {
         animation: vacapp-spin 0.5s linear;
       }

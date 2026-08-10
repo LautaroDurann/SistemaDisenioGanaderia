@@ -378,9 +378,6 @@ def stock(request):
     animales = _animales_de(request).select_related('parcela', 'dieta', 'madre', 'padre', 'compra', 'venta')
     establecimiento = _establecimiento_actual(request)
     permitidos = _establecimientos_permitidos(request)
-    compras = Compra.objects.all()
-    if establecimiento is not None:
-        compras = compras.filter(mov_financiero__establecimiento=establecimiento)
     return _page(request, 'stock.html', 'stock', {
         'animales': [_animal_data(a) for a in animales],
         'establecimientos': [{'id': e.id, 'nombre': str(e)} for e in permitidos],
@@ -390,8 +387,6 @@ def stock(request):
         ],
         'dietas': [{'id': d.id, 'nombre': str(d)} for d in Dieta.objects.all()],
         'progenitores': [{'id': a.idAnimal, 'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}', 'sexo': a.sexo} for a in animales],
-        'compras': [{'id': c.id, 'nombre': str(c)} for c in compras],
-        'ventas': [{'id': v.id, 'nombre': str(v)} for v in _ventas_de(request)],
         'establecimiento_id': establecimiento.id if establecimiento else None,
     })
 
@@ -1287,8 +1282,13 @@ def _asignar_campos_animal(animal, datos, es_alta=False):
         raise ValueError('La raza debe comenzar con una letra.')
     animal.raza = raza
     animal.fecha_nacimiento = datos.get('fecha_nacimiento') or None
-    for campo in ('peso_al_nacer', 'peso_al_destete', 'peso_actual', 'costo_adquisicion', 'precio_venta'):
+    for campo in ('peso_al_nacer', 'peso_al_destete', 'peso_actual'):
         setattr(animal, campo, datos.get(campo) or None)
+    # El costo de adquisición y el precio de venta se cargan desde los módulos
+    # de compras y ventas; el alta/edición de animales no los modifica.
+    for campo in ('costo_adquisicion', 'precio_venta'):
+        if campo in datos:
+            setattr(animal, campo, datos.get(campo) or None)
     # El diámetro escrotal solo se toca si el formulario lo envía (módulo de Stock).
     # Al registrar una compra no se pide, así se conserva el valor cargado en Animales.
     if 'diametro_escrotal' in datos:
@@ -1310,8 +1310,12 @@ def _asignar_campos_animal(animal, datos, es_alta=False):
     animal.dieta_id = datos.get('dieta_id') or None
     animal.madre_id = datos.get('madre_id') or None
     animal.padre_id = datos.get('padre_id') or None
-    animal.compra_id = datos.get('compra_id') or None
-    animal.venta_id = datos.get('venta_id') or None
+    # La compra/venta asociada se define solo desde sus módulos; acá solo se
+    # preserva la existente si el formulario no envía estos campos.
+    if 'compra_id' in datos:
+        animal.compra_id = datos.get('compra_id') or None
+    if 'venta_id' in datos:
+        animal.venta_id = datos.get('venta_id') or None
     # El parto solo se toca cuando el formulario lo envía (módulo de Preñez).
     # Evita que la edición de la caravana en Stock desvincule a la cría de su parto.
     if 'parto_id' in datos:

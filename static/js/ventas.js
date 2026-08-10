@@ -81,7 +81,9 @@
         <td><span class="badge ${v.estado_de_cobro === 'Pagada' ? 'text-bg-success' : 'text-bg-warning'}">${escapeHtml(v.estado_de_cobro)}</span></td>
         <td>${escapeHtml(v.metodo_de_pago)}</td>
         <td class="text-end">
-
+          <button class="btn btn-sm btn-outline-primary editar" data-id="${v.id}" title="Editar"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-sm btn-outline-danger eliminar" data-id="${v.id}" title="Eliminar"><i class="bi bi-trash"></i></button>
+        </td>
       </tr>`).join('') || '<tr><td colspan="11" class="text-center text-secondary py-4">Todavía no hay ventas registradas.</td></tr>';
 
     document.querySelectorAll('.editar').forEach(b => b.onclick = () => abrirEdicion(Number(b.dataset.id)));

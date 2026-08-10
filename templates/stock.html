@@ -340,21 +340,21 @@
                   <label for="animal-padre" class="form-label">Padre</label>
                   <select id="animal-padre" name="padre_id" class="form-select"><option value="">No registrado</option></select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-4 d-none" id="grupo-compra">
                   <label for="animal-compra" class="form-label">Compra asociada</label>
-                  <select id="animal-compra" name="compra_id" class="form-select"><option value="">Sin compra asociada</option></select>
+                  <input id="animal-compra" type="text" class="form-control" readonly />
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-4 d-none" id="grupo-costo">
                   <label for="animal-costo" class="form-label">Costo de adquisición ($)</label>
-                  <input id="animal-costo" name="costo_adquisicion" type="number" min="0" step="0.01" class="form-control" />
+                  <input id="animal-costo" type="text" class="form-control" readonly />
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-4 d-none" id="grupo-venta">
                   <label for="animal-venta" class="form-label">Venta asociada</label>
-                  <select id="animal-venta" name="venta_id" class="form-select"><option value="">Sin venta asociada</option></select>
+                  <input id="animal-venta" type="text" class="form-control" readonly />
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-4 d-none" id="grupo-precio-venta">
                   <label for="animal-precio-venta" class="form-label">Precio de venta ($)</label>
-                  <input id="animal-precio-venta" name="precio_venta" type="number" min="0" step="0.01" class="form-control" />
+                  <input id="animal-precio-venta" type="text" class="form-control" readonly />
                 </div>
                 <div class="col-12">
                   <div class="d-flex flex-wrap gap-4 p-2 border rounded bg-body-tertiary">
