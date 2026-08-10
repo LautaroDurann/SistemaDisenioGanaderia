@@ -131,19 +131,33 @@
                           <option>Hembra</option>
                         </select>
                       </div>
-                      <div class="col-md-2">
+                      <div class="col-md-3">
                         <label class="form-label small mb-1">Estado</label>
                         <select id="f-estado" class="form-select form-select-sm">
                           <option value="">Todos</option>
-                          <option>Activo</option>
+                          <option value="Activo" selected>Activo</option>
                           <option>Vendido</option>
                           <option>Muerto</option>
                         </select>
                       </div>
-                      <div class="col-md-2">
+                      <div class="col-md-3">
                         <label class="form-label small mb-1">Parcela</label>
                         <select id="f-parcela" class="form-select form-select-sm">
                           <option value="">Todos</option>
+                        </select>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label small mb-1">Madre</label>
+                        <select id="f-madre" class="form-select form-select-sm">
+                          <option value="">Todas</option>
+                        </select>
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label small mb-1">Condición</label>
+                        <select id="f-enfermo" class="form-select form-select-sm">
+                          <option value="">Todos</option>
+                          <option value="enfermos">Enfermos</option>
+                          <option value="sanos">Sanos</option>
                         </select>
                       </div>
                       <div class="col-md-1">
@@ -238,6 +252,9 @@
                         <li class="list-group-item d-flex justify-content-between">
                           <span class="text-secondary">Fecha de ingreso</span><span id="ficha-ingreso">-</span>
                         </li>
+                        <li class="list-group-item d-flex justify-content-between d-none" id="fila-ficha-muerte">
+                          <span class="text-secondary">Fecha de muerte</span><span id="ficha-muerte">-</span>
+                        </li>
                         <li class="list-group-item d-flex justify-content-between"><span class="text-secondary">Tipo</span><span id="ficha-tipo">-</span></li>
                         <li class="list-group-item d-flex justify-content-between"><span class="text-secondary">Peso al nacer / destete</span><span id="ficha-pesos-iniciales">-</span></li>
                         <li class="list-group-item d-flex justify-content-between"><span class="text-secondary">Dieta</span><span id="ficha-dieta">-</span></li>
@@ -278,7 +295,7 @@
               <div class="row g-3">
                 <div class="col-md-6">
                   <label for="animal-caravana" class="form-label">Caravana SENASA</label>
-                  <input id="animal-caravana" name="id_senasa" type="number" min="1" class="form-control" />
+                  <input id="animal-caravana" name="id_senasa" type="text" maxlength="50" pattern="[A-Za-z0-9]+" class="form-control" title="Solo letras y números, sin símbolos." placeholder="Solo letras y números" />
                 </div>
                 <div class="col-md-6">
                   <label for="animal-nombre" class="form-label">Nombre o identificación</label>
@@ -363,6 +380,10 @@
                     <div class="form-check"><input id="animal-enfermo" name="enfermo" class="form-check-input" type="checkbox"><label class="form-check-label" for="animal-enfermo">Animal enfermo</label></div>
                     <div class="form-check"><input id="animal-castrado" name="castrado" class="form-check-input" type="checkbox"><label class="form-check-label" for="animal-castrado">Animal castrado</label></div>
                   </div>
+                </div>
+                <div class="col-md-4 d-none" id="grupo-fecha-muerte">
+                  <label for="animal-fecha-muerte" class="form-label">Fecha de muerte</label>
+                  <input id="animal-fecha-muerte" name="fecha_muerte" type="date" class="form-control" />
                 </div>
                 <div class="col-12">
                   <label for="animal-foto" class="form-label">Foto del animal</label>

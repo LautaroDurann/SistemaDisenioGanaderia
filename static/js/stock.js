@@ -113,6 +113,8 @@
         const sexo = document.getElementById('f-sexo').value;
         const estado = document.getElementById('f-estado').value;
         const parcela = document.getElementById('f-parcela').value;
+        const madre = document.getElementById('f-madre').value;
+        const enfermo = document.getElementById('f-enfermo').value;
 
         return ANIMALES.filter((a) => {
           const matchBuscar =
@@ -125,7 +127,9 @@
             (!categoria || a.categoria === categoria) &&
             (!sexo || a.sexo === sexo) &&
             (!estado || a.estado === estado) &&
-            (!parcela || a.parcela === parcela)
+            (!parcela || a.parcela === parcela) &&
+            (!madre || String(a.madre_id) === madre) &&
+            (!enfermo || (enfermo === 'enfermos' ? a.enfermo : !a.enfermo))
           );
         });
       }
@@ -236,6 +240,8 @@
         }
         document.getElementById('ficha-estado').innerHTML = `<span class="badge ${ESTADO_BADGE[a.estado] || 'text-bg-secondary'}">${a.estado}</span>`;
         document.getElementById('ficha-ingreso').textContent = a.ingreso;
+        document.getElementById('ficha-muerte').textContent = a.fecha_muerte || '-';
+        document.getElementById('fila-ficha-muerte').classList.toggle('d-none', a.estado !== 'Muerto');
         document.getElementById('ficha-notas').textContent = a.notas || 'Sin notas cargadas.';
         document.getElementById('ficha-tipo').textContent = a.tipo_animal;
         document.getElementById('ficha-pesos-iniciales').textContent = `${a.peso_al_nacer || '-'} / ${a.peso_al_destete || '-'} kg`;
@@ -289,6 +295,8 @@
         document.getElementById('animal-vivo').checked = animal.vivo;
         document.getElementById('animal-enfermo').checked = animal.enfermo;
         document.getElementById('animal-castrado').checked = animal.castrado;
+        document.getElementById('animal-fecha-muerte').value = animal.fecha_muerte || '';
+        actualizarCampoFechaMuerte();
         actualizarCampoDiametro();
         document.getElementById('animal-descripcion').value = animal.notas === '-' ? '' : animal.notas;
         const preview = document.getElementById('foto-preview');
@@ -327,6 +335,12 @@
         if (!esMacho) document.getElementById('animal-diametro').value = '';
       }
 
+      function actualizarCampoFechaMuerte() {
+        const vivo = document.getElementById('animal-vivo').checked;
+        document.getElementById('grupo-fecha-muerte').classList.toggle('d-none', vivo);
+        if (vivo) document.getElementById('animal-fecha-muerte').value = '';
+      }
+
       function agregarOpciones(selectId, datos, texto, filtro = () => true) {
         const select = document.getElementById(selectId);
         datos.filter(filtro).forEach((dato) => select.add(new Option(texto(dato), dato.id)));
@@ -337,7 +351,7 @@
         selectParcela.innerHTML = '<option value="">Sin asignar</option>';
         if (!establecimientoId) return;
         (window.HUACAPP_DATA?.parcelas || [])
-          .filter((parcela) => parcela.establecimiento_id === establecimientoId)
+          .filter((parcela) => String(parcela.establecimiento_id) === String(establecimientoId))
           .forEach((parcela) => selectParcela.add(new Option(parcela.nombre, parcela.id)));
       }
 
@@ -387,7 +401,7 @@
           }
         });
 
-        ['f-buscar', 'f-tipo-animal', 'f-categoria', 'f-sexo', 'f-estado', 'f-parcela'].forEach((id) => {
+        ['f-buscar', 'f-tipo-animal', 'f-categoria', 'f-sexo', 'f-estado', 'f-parcela', 'f-madre', 'f-enfermo'].forEach((id) => {
           document.getElementById(id).addEventListener('input', () => {
             paginaActual = 1;
             renderTabla();
@@ -399,8 +413,10 @@
           document.getElementById('f-tipo-animal').value = '';
           document.getElementById('f-categoria').value = '';
           document.getElementById('f-sexo').value = '';
-          document.getElementById('f-estado').value = '';
+          document.getElementById('f-estado').value = 'Activo';
           document.getElementById('f-parcela').value = '';
+          document.getElementById('f-madre').value = '';
+          document.getElementById('f-enfermo').value = '';
           document.getElementById('grupo-f-categoria').classList.add('d-none');
           paginaActual = 1;
           renderTabla();
@@ -430,7 +446,7 @@
         });
         const filtroParcela = document.getElementById('f-parcela');
         (window.HUACAPP_DATA?.parcelas || [])
-          .filter((parcela) => !establecimientoActualId || parcela.establecimiento_id === establecimientoActualId)
+          .filter((parcela) => !establecimientoActualId || String(parcela.establecimiento_id) === String(establecimientoActualId))
           .forEach((parcela) => {
             filtroParcela.add(new Option(parcela.nombre, parcela.nombre));
           });
@@ -438,8 +454,11 @@
         const progenitores = window.HUACAPP_DATA?.progenitores || [];
         agregarOpciones('animal-madre', progenitores, (animal) => animal.nombre, (animal) => animal.sexo === 'Hembra');
         agregarOpciones('animal-padre', progenitores, (animal) => animal.nombre, (animal) => animal.sexo === 'Macho');
+        agregarOpciones('f-madre', window.HUACAPP_DATA?.madres || [], (animal) => animal.nombre);
         document.getElementById('animal-sexo').addEventListener('change', actualizarCampoDiametro);
         actualizarCampoDiametro();
+        document.getElementById('animal-vivo').addEventListener('change', actualizarCampoFechaMuerte);
+        actualizarCampoFechaMuerte();
 
         const fotoInput = document.getElementById('animal-foto');
         fotoInput.addEventListener('change', () => {
@@ -471,6 +490,7 @@
           document.getElementById('form-nuevo-animal').reset();
           selectEstablecimiento.value = establecimientoActualId;
           cargarParcelasDeEstablecimiento(selectEstablecimiento.value);
+          actualizarCampoFechaMuerte();
           document.getElementById('foto-acciones').classList.add('d-none');
           document.getElementById('foto-preview').classList.add('d-none');
           document.getElementById('animal-eliminar-foto').value = '';

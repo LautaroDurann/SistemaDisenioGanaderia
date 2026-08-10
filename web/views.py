@@ -1,5 +1,6 @@
 import calendar
 import json
+import re
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -46,6 +47,16 @@ def _es_ternero(animal):
     return date.today() <= date(anio_limite, mes_limite, dia_limite)
 
 
+def _es_madre_elegible(animal):
+    """Madres válidas para el filtro de stock: hembras activas en el
+    establecimiento (no vendidas ni muertas) y, en bovinos, de categoría Vaca."""
+    if animal.sexo != 'Hembra' or not animal.vivo or animal.vendido:
+        return False
+    if animal.tipo_animal == 'Bovino':
+        return _categoria(animal) == 'Vaca'
+    return True
+
+
 def _edad(animal):
     if not animal.fecha_nacimiento:
         return '-'
@@ -89,6 +100,7 @@ def _animal_data(animal):
         'establecimiento_id': animal.establecimiento_id,
         'establecimiento': str(animal.establecimiento) if animal.establecimiento else '',
         'estado': estado, 'ingreso': animal.fecha_nacimiento.isoformat() if animal.fecha_nacimiento else '-',
+        'fecha_muerte': animal.fecha_muerte.isoformat() if animal.fecha_muerte else '',
         'notas': animal.descripcion or '-',
         'tipo_animal': animal.tipo_animal, 'peso_al_nacer': str(animal.peso_al_nacer or ''),
         'peso_al_destete': str(animal.peso_al_destete or ''), 'peso_actual_valor': str(animal.peso_actual or ''),
@@ -386,6 +398,10 @@ def stock(request):
         ],
         'dietas': [{'id': d.id, 'nombre': str(d)} for d in Dieta.objects.all()],
         'progenitores': [{'id': a.idAnimal, 'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}', 'sexo': a.sexo} for a in animales],
+        'madres': [
+            {'id': a.idAnimal, 'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}', 'sexo': a.sexo}
+            for a in animales if _es_madre_elegible(a)
+        ],
         'establecimiento_id': establecimiento.id if establecimiento else None,
     })
 
@@ -1271,7 +1287,11 @@ def _validar_establecimiento_accesible(request, establecimiento_id):
 def _asignar_campos_animal(animal, datos, es_alta=False):
     """Centraliza la asignación para que el alta y la edición tengan las mismas reglas."""
     valor_senasa = datos.get('id_senasa', '').strip()
-    animal.id_senasa = int(valor_senasa) if valor_senasa else None
+    if valor_senasa:
+        # Caravana SENASA alfanumérica: solo letras y números, sin símbolos.
+        if not re.fullmatch(r'[A-Za-z0-9]+', valor_senasa):
+            raise ValueError('La caravana SENASA solo puede contener letras y números.')
+    animal.id_senasa = valor_senasa or None
     animal.nombre = datos.get('nombre', '').strip()
     animal.tipo_animal = datos['tipo_animal']
     animal.sexo = datos['sexo']
@@ -1279,7 +1299,13 @@ def _asignar_campos_animal(animal, datos, es_alta=False):
     if raza and not raza[0].isalpha():
         raise ValueError('La raza debe comenzar con una letra.')
     animal.raza = raza
-    animal.fecha_nacimiento = datos.get('fecha_nacimiento') or None
+    fecha_nacimiento = datos.get('fecha_nacimiento') or None
+    if fecha_nacimiento:
+        try:
+            fecha_nacimiento = date.fromisoformat(fecha_nacimiento)
+        except ValueError:
+            raise ValueError('La fecha de nacimiento no es válida.')
+    animal.fecha_nacimiento = fecha_nacimiento
     for campo in ('peso_al_nacer', 'peso_al_destete', 'peso_actual'):
         setattr(animal, campo, datos.get(campo) or None)
     # El costo de adquisición y el precio de venta se cargan desde los módulos
@@ -1295,6 +1321,21 @@ def _asignar_campos_animal(animal, datos, es_alta=False):
     animal.vivo = datos.get('vivo') == 'on' if 'vivo' in datos else es_alta
     animal.enfermo = datos.get('enfermo') == 'on'
     animal.castrado = datos.get('castrado') == 'on'
+    # Fecha de muerte: solo tiene sentido para animales no vivos. Si el animal
+    # vuelve a estar vivo se limpia; si está muerto y no se envía fecha se
+    # conserva la cargada previamente.
+    if animal.vivo:
+        animal.fecha_muerte = None
+    else:
+        valor_muerte = datos.get('fecha_muerte', '').strip()
+        if valor_muerte:
+            try:
+                fecha_muerte = date.fromisoformat(valor_muerte)
+            except ValueError:
+                raise ValueError('La fecha de muerte no es válida.')
+            if animal.fecha_nacimiento and fecha_muerte < animal.fecha_nacimiento:
+                raise ValueError('La fecha de muerte no puede ser anterior a la fecha de nacimiento.')
+            animal.fecha_muerte = fecha_muerte
     animal.color = datos.get('color', '').strip() or None
     parcela_id = datos.get('parcela_id') or None
     animal.parcela_id = parcela_id

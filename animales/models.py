@@ -26,7 +26,8 @@ class Animal(models.Model):
     # ni las relaciones existentes.
     idAnimal = models.BigAutoField(db_column='id', primary_key=True, serialize=False, verbose_name='ID')
 
-    id_senasa = models.IntegerField(unique=True, null=True, blank=True) # Clave Única (CU)
+    # Caravana SENASA (Clave Única). Admite letras y números, sin símbolos.
+    id_senasa = models.CharField(max_length=50, unique=True, null=True, blank=True)
     nombre = models.CharField(max_length=100, blank=True, default='')
     descripcion = models.TextField(blank=True, null=True)
     foto = models.ImageField(upload_to='animales/', blank=True, null=True)
@@ -42,6 +43,8 @@ class Animal(models.Model):
     enfermo = models.BooleanField(default=False)
     # Se actualiza automáticamente al registrar un evento sanitario de castración.
     castrado = models.BooleanField(default=False)
+    # Fecha en la que el animal murió (solo cuando vivo = False).
+    fecha_muerte = models.DateField(null=True, blank=True)
     
     # Enums de Estrategia 3
     tipo_animal = models.CharField(max_length=10, choices=TIPO_CHOICES)

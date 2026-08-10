@@ -236,6 +236,20 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['animales'][0]['caravana'], '12345')
 
+    def test_filtro_madre_solo_incluye_vacas_activas(self):
+        # self.animal (Luna) es hembra viva del establecimiento: categoría Vaca.
+        Animal.objects.create(id_senasa='20001', nombre='Vendida', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, vivo=True, vendido=True)
+        Animal.objects.create(id_senasa='20002', nombre='Muerta', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, vivo=False)
+        Animal.objects.create(id_senasa='20003', nombre='Ternera', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, vivo=True, fecha_nacimiento=date.today(), peso_actual=Decimal('80.00'))
+        toro = Animal.objects.create(id_senasa='20004', nombre='Toro', tipo_animal='Bovino', sexo='Macho', parcela=self.parcela, vivo=True)
+
+        response = self.client.get(reverse('stock'))
+        self.assertEqual(response.status_code, 200)
+        ids = {m['id'] for m in response.context['page_data']['madres']}
+        self.assertIn(self.animal.idAnimal, ids)
+        self.assertNotIn(toro.idAnimal, ids)
+        self.assertEqual(len(ids), 1)
+
     def test_crear_animal_desde_stock(self):
         response = self.client.post(reverse('crear_animal'), {
             'id_senasa': '67890', 'nombre': 'Mora', 'sexo': 'Hembra',
@@ -285,6 +299,53 @@ class WebIntegrationTests(TestCase):
         response = self.client.post(reverse('eliminar_animal', args=[self.animal.idAnimal]))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Animal.objects.filter(pk=self.animal.idAnimal).exists())
+
+    def test_crear_animal_con_caravana_alfanumerica(self):
+        response = self.client.post(reverse('crear_animal'), {
+            'id_senasa': 'AR2500X7', 'nombre': 'Mora', 'sexo': 'Hembra', 'tipo_animal': 'Bovino',
+        })
+        self.assertEqual(response.status_code, 201)
+        animal = Animal.objects.get(id_senasa='AR2500X7')
+        self.assertEqual(animal.id_senasa, 'AR2500X7')
+
+    def test_crear_animal_caravana_con_simbolos_rechazada(self):
+        response = self.client.post(reverse('crear_animal'), {
+            'id_senasa': 'AR25%#', 'nombre': 'Mora', 'sexo': 'Hembra', 'tipo_animal': 'Bovino',
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Animal.objects.filter(id_senasa='AR25%#').exists())
+
+    def test_marcar_animal_muerto_guarda_fecha_muerte(self):
+        response = self.client.post(reverse('actualizar_animal', args=[self.animal.idAnimal]), {
+            'id_senasa': '12345', 'nombre': 'Luna', 'sexo': 'Hembra',
+            'tipo_animal': 'Bovino', 'fecha_nacimiento': '2020-03-01',
+            'fecha_muerte': '2026-07-15',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.animal.refresh_from_db()
+        self.assertFalse(self.animal.vivo)
+        self.assertEqual(self.animal.fecha_muerte, date(2026, 7, 15))
+
+    def test_animal_vivo_limpia_fecha_muerte(self):
+        self.animal.vivo = False
+        self.animal.fecha_muerte = date(2026, 7, 15)
+        self.animal.save()
+        response = self.client.post(reverse('actualizar_animal', args=[self.animal.idAnimal]), {
+            'id_senasa': '12345', 'nombre': 'Luna', 'sexo': 'Hembra',
+            'tipo_animal': 'Bovino', 'vivo': 'on',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.animal.refresh_from_db()
+        self.assertTrue(self.animal.vivo)
+        self.assertIsNone(self.animal.fecha_muerte)
+
+    def test_fecha_muerte_anterior_al_nacimiento_rechazada(self):
+        response = self.client.post(reverse('actualizar_animal', args=[self.animal.idAnimal]), {
+            'id_senasa': '12345', 'nombre': 'Luna', 'sexo': 'Hembra',
+            'tipo_animal': 'Bovino', 'fecha_nacimiento': '2020-03-01',
+            'fecha_muerte': '2019-01-01',
+        })
+        self.assertEqual(response.status_code, 400)
 
     def test_editar_animal_conserva_compra_y_venta_asociadas(self):
         compra = Compra.objects.create(tipo='Animales', fecha='2026-08-01', monto_total=Decimal('500000.00'))
@@ -621,7 +682,7 @@ class CompraModuleTests(TestCase):
         self.assertEqual(response.status_code, 201)
         compra = Compra.objects.get(pk=response.json()['id'])
         animal = Animal.objects.get(compra=compra)
-        self.assertEqual(animal.id_senasa, 99911)
+        self.assertEqual(animal.id_senasa, '99911')
         self.assertEqual(animal.nombre, 'Toro comprado')
         self.assertEqual(animal.sexo, 'Macho')
         self.assertEqual(animal.costo_adquisicion, Decimal('850000.00'))
@@ -1617,7 +1678,7 @@ class PreniezModuleTests(TestCase):
         })
         self.assertEqual(response.status_code, 200)
         cria = Animal.objects.get(pk=cria_id)
-        self.assertEqual(cria.id_senasa, 50000)
+        self.assertEqual(cria.id_senasa, '50000')
         self.assertEqual(cria.parto_id, parto_id)
 
     def test_eliminar_preñez_elimina_parto(self):
@@ -1860,7 +1921,7 @@ class InseminacionModuleTests(TestCase):
         })
         self.assertEqual(response.status_code, 200)
         cria = Animal.objects.get(pk=cria_id)
-        self.assertEqual(cria.id_senasa, 99999)
+        self.assertEqual(cria.id_senasa, '99999')
         self.assertEqual(cria.parto_id, parto_id)
 
         # La cría sigue figurando en el módulo de Preñez
