@@ -47,16 +47,6 @@ def _es_ternero(animal):
     return date.today() <= date(anio_limite, mes_limite, dia_limite)
 
 
-def _es_madre_elegible(animal):
-    """Madres válidas para el filtro de stock: hembras activas en el
-    establecimiento (no vendidas ni muertas) y, en bovinos, de categoría Vaca."""
-    if animal.sexo != 'Hembra' or not animal.vivo or animal.vendido:
-        return False
-    if animal.tipo_animal == 'Bovino':
-        return _categoria(animal) == 'Vaca'
-    return True
-
-
 def _edad(animal):
     if not animal.fecha_nacimiento:
         return '-'
@@ -397,10 +387,15 @@ def stock(request):
             for p in Parcela.objects.filter(establecimiento_id__in=[e.id for e in permitidos]).select_related('establecimiento')
         ],
         'dietas': [{'id': d.id, 'nombre': str(d)} for d in Dieta.objects.all()],
-        'progenitores': [{'id': a.idAnimal, 'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}', 'sexo': a.sexo} for a in animales],
+        'progenitores': [
+            {'id': a.idAnimal, 'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}', 'sexo': a.sexo, 'tipo_animal': a.tipo_animal}
+            for a in animales
+        ],
+        # Madres para el filtro de stock: todas las hembras del establecimiento
+        # activo que tienen crías registradas, sin importar su estado.
         'madres': [
-            {'id': a.idAnimal, 'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}', 'sexo': a.sexo}
-            for a in animales if _es_madre_elegible(a)
+            {'id': a.idAnimal, 'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}'}
+            for a in animales.filter(sexo='Hembra', hijos__isnull=False).distinct()
         ],
         'establecimiento_id': establecimiento.id if establecimiento else None,
     })
@@ -1367,10 +1362,10 @@ def _asignar_campos_animal(animal, datos, es_alta=False):
         animal.diametro_escrotal = None
     if animal.pk and animal.pk in (animal.madre_id, animal.padre_id):
         raise ValueError('Un animal no puede ser su propio progenitor.')
-    if animal.madre_id and animal.madre.sexo != 'Hembra':
-        raise ValueError('La madre seleccionada debe ser hembra.')
-    if animal.padre_id and animal.padre.sexo != 'Macho':
-        raise ValueError('El padre seleccionado debe ser macho.')
+    if animal.madre_id and (animal.madre.sexo != 'Hembra' or animal.madre.tipo_animal != animal.tipo_animal):
+        raise ValueError('La madre seleccionada debe ser hembra y del mismo tipo de animal.')
+    if animal.padre_id and (animal.padre.sexo != 'Macho' or animal.padre.tipo_animal != animal.tipo_animal):
+        raise ValueError('El padre seleccionado debe ser macho y del mismo tipo de animal.')
     if animal.parto_id:
         parto = Parto.objects.filter(pk=animal.parto_id).first()
         if parto is None:

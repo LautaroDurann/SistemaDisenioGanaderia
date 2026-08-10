@@ -146,13 +146,23 @@
                           <option value="">Todos</option>
                         </select>
                       </div>
-                      <div class="col-md-3">
+                      <div class="col-md-2">
                         <label class="form-label small mb-1">Madre</label>
                         <select id="f-madre" class="form-select form-select-sm">
                           <option value="">Todas</option>
                         </select>
                       </div>
-                      <div class="col-md-2">
+                      <div class="col-md-3">
+                        <label class="form-label small mb-1">Buscar madre</label>
+                        <input
+                          type="text"
+                          id="f-buscar-madre"
+                          class="form-control form-control-sm"
+                          placeholder="Caravana o nombre..."
+                          autocomplete="off"
+                        />
+                      </div>
+                      <div class="col-md-3">
                         <label class="form-label small mb-1">Condición</label>
                         <select id="f-enfermo" class="form-select form-select-sm">
                           <option value="">Todos</option>
@@ -350,11 +360,13 @@
                   <select id="animal-dieta" name="dieta_id" class="form-select"><option value="">Sin dieta</option></select>
                 </div>
                 <div class="col-md-4">
-                  <label for="animal-madre" class="form-label">Madre</label>
+                  <label for="buscar-madre" class="form-label">Madre</label>
+                  <input type="text" id="buscar-madre" class="form-control mb-1" placeholder="Buscar por caravana o nombre..." autocomplete="off" />
                   <select id="animal-madre" name="madre_id" class="form-select"><option value="">No registrada</option></select>
                 </div>
                 <div class="col-md-4">
-                  <label for="animal-padre" class="form-label">Padre</label>
+                  <label for="buscar-padre" class="form-label">Padre</label>
+                  <input type="text" id="buscar-padre" class="form-control mb-1" placeholder="Buscar por caravana o nombre..." autocomplete="off" />
                   <select id="animal-padre" name="padre_id" class="form-select"><option value="">No registrado</option></select>
                 </div>
                 <div class="col-md-4 d-none" id="grupo-compra">

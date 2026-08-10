@@ -236,19 +236,38 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['animales'][0]['caravana'], '12345')
 
-    def test_filtro_madre_solo_incluye_vacas_activas(self):
-        # self.animal (Luna) es hembra viva del establecimiento: categoría Vaca.
-        Animal.objects.create(id_senasa='20001', nombre='Vendida', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, vivo=True, vendido=True)
-        Animal.objects.create(id_senasa='20002', nombre='Muerta', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, vivo=False)
-        Animal.objects.create(id_senasa='20003', nombre='Ternera', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, vivo=True, fecha_nacimiento=date.today(), peso_actual=Decimal('80.00'))
+    def test_filtro_madre_incluye_todas_las_hembras_con_crias(self):
+        # Madre con cría registrada: debe aparecer aunque esté muerta/vendida.
+        madre = Animal.objects.create(id_senasa='20001', nombre='Mama', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, vivo=False)
+        Animal.objects.create(id_senasa='20002', nombre='Cria', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, madre=madre, vivo=True)
+        # Hembra sin crías: no debe aparecer.
+        Animal.objects.create(id_senasa='20003', nombre='Sola', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, vivo=True)
+        # Macho con crías: no debe aparecer.
         toro = Animal.objects.create(id_senasa='20004', nombre='Toro', tipo_animal='Bovino', sexo='Macho', parcela=self.parcela, vivo=True)
+        Animal.objects.create(id_senasa='20005', nombre='Cria toro', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, padre=toro, vivo=True)
 
         response = self.client.get(reverse('stock'))
         self.assertEqual(response.status_code, 200)
         ids = {m['id'] for m in response.context['page_data']['madres']}
-        self.assertIn(self.animal.idAnimal, ids)
-        self.assertNotIn(toro.idAnimal, ids)
-        self.assertEqual(len(ids), 1)
+        self.assertEqual(ids, {madre.idAnimal})
+
+    def test_madre_de_distinto_tipo_rechazada(self):
+        madre_ovino = Animal.objects.create(id_senasa='30001', nombre='Oveja', tipo_animal='Ovino', sexo='Hembra', parcela=self.parcela, vivo=True)
+        response = self.client.post(reverse('crear_animal'), {
+            'id_senasa': '30002', 'nombre': 'Cordero', 'sexo': 'Macho', 'tipo_animal': 'Bovino',
+            'madre_id': madre_ovino.idAnimal,
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Animal.objects.filter(id_senasa='30002').exists())
+
+    def test_padre_de_distinto_tipo_rechazado(self):
+        padre_ovino = Animal.objects.create(id_senasa='30003', nombre='Carnero', tipo_animal='Ovino', sexo='Macho', parcela=self.parcela, vivo=True)
+        response = self.client.post(reverse('crear_animal'), {
+            'id_senasa': '30004', 'nombre': 'Cordero', 'sexo': 'Hembra', 'tipo_animal': 'Bovino',
+            'padre_id': padre_ovino.idAnimal,
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Animal.objects.filter(id_senasa='30004').exists())
 
     def test_crear_animal_desde_stock(self):
         response = self.client.post(reverse('crear_animal'), {
