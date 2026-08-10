@@ -20,41 +20,41 @@
       }
 
       /* Mapa del establecimiento */
-      .mapa-potreros {
+      .mapa-parcelas {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
         gap: 1rem;
       }
-      .potrero-block {
+      .parcela-block {
         border-radius: 0.75rem;
         padding: 1rem;
         color: #fff;
         cursor: pointer;
         border: 2px solid transparent;
         transition: transform 0.1s ease;
-        background-color: var(--potrero-color, #198754);
+        background-color: var(--parcela-color, #198754);
         box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
       }
-      .potrero-block:hover {
+      .parcela-block:hover {
         transform: translateY(-2px);
       }
-      .potrero-block.selected {
+      .parcela-block.selected {
         border-color: var(--bs-body-color);
       }
-      .potrero-block.pastoreo {
+      .parcela-block.pastoreo {
         background: #198754;
       }
-      .potrero-block.descanso {
+      .parcela-block.descanso {
         background: #e0a800;
       }
-      .potrero-block.mantenimiento {
+      .parcela-block.mantenimiento {
         background: #dc3545;
       }
-      .potrero-block h5 {
+      .parcela-block h5 {
         margin-bottom: 0.5rem;
         font-size: 1rem;
       }
-      .potrero-block .small {
+      .parcela-block .small {
         opacity: 0.9;
       }
 

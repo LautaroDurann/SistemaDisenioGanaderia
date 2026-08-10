@@ -74,33 +74,33 @@
       // ------------------------------------------------------------------
       // Datos reales de Django. Si no hay datos cargados, se usa un fallback simple.
       // ------------------------------------------------------------------
-      let POTREROS = window.HUACAPP_DATA?.potreros ?? [
+      let PARCELAS = window.HUACAPP_DATA?.parcelas ?? [
         { nombre: 'Parcela 1', superficie: 0.02, actual: 0, estado: 'En pastoreo', fecha: '', responsable: '-' },
         { nombre: 'Parcela 2', superficie: 0.03, actual: 0, estado: 'En descanso', fecha: '', responsable: '-' },
       ];
       let PARCELA_EDITANDO_ID = null;
 
-      let ANIMALES_POR_POTRERO = window.HUACAPP_DATA?.animales_por_potrero ?? {
-        'Potrero 1': [
+      let ANIMALES_POR_PARCELA = window.HUACAPP_DATA?.animales_por_parcela ?? {
+        'Parcela 1': [
           { caravana: '0231', nombre: 'Luna', categoria: 'Vaca', sexo: 'Hembra', peso: '480 kg' },
           { caravana: '0412', nombre: 'S/N', categoria: 'Ternero', sexo: 'Hembra', peso: '95 kg' },
           { caravana: '0329', nombre: 'S/N', categoria: 'Novillo', sexo: 'Macho', peso: '410 kg' },
         ],
-        'Potrero 2': [
+        'Parcela 2': [
           { caravana: '0198', nombre: 'Fierro', categoria: 'Toro', sexo: 'Macho', peso: '720 kg' },
           { caravana: '0305', nombre: 'S/N', categoria: 'Ternero', sexo: 'Macho', peso: '85 kg' },
           { caravana: '0263', nombre: 'Rocío', categoria: 'Vaca', sexo: 'Hembra', peso: '495 kg' },
         ],
-        'Potrero 3': [
+        'Parcela 3': [
           { caravana: '0142', nombre: 'Estrella', categoria: 'Vaca', sexo: 'Hembra', peso: '510 kg' },
           { caravana: '0087', nombre: 'S/N', categoria: 'Novillo', sexo: 'Macho', peso: '390 kg' },
         ],
-        'Potrero 4': [
+        'Parcela 4': [
           { caravana: '0056', nombre: 'Paloma', categoria: 'Vaquillona', sexo: 'Hembra', peso: '280 kg' },
           { caravana: '0177', nombre: 'Trueno', categoria: 'Toro', sexo: 'Macho', peso: '680 kg' },
         ],
-        'Potrero 5': [],
-        'Potrero 6': [],
+        'Parcela 5': [],
+        'Parcela 6': [],
       };
 
       const ESTADO_BADGE = {
@@ -116,25 +116,25 @@
         return { nivel: 'pastoreo', color: '#198754' };
       }
 
-      let potreroSeleccionado = POTREROS[0]?.nombre || '';
+      let parcelaSeleccionado = PARCELAS[0]?.nombre || '';
       const FILAS_POR_PAGINA = 5;
       let paginaActual = 1;
 
       function aplicarFiltros() {
         const buscar = document.getElementById('f-buscar').value.trim().toLowerCase();
         const estado = document.getElementById('f-estado').value;
-        return POTREROS.filter((p) => {
+        return PARCELAS.filter((p) => {
           const matchBuscar = !buscar || p.nombre.toLowerCase().includes(buscar);
           return matchBuscar && (!estado || p.estado === estado);
         });
       }
 
       function renderMapa() {
-        document.getElementById('mapa-potreros').innerHTML = POTREROS.map((p) => {
+        document.getElementById('mapa-parcelas').innerHTML = PARCELAS.map((p) => {
           const estadoInfo = nivelEstado(p);
-          const seleccionado = p.nombre === potreroSeleccionado ? 'selected' : '';
+          const seleccionado = p.nombre === parcelaSeleccionado ? 'selected' : '';
           return `
-          <div class="potrero-block ${estadoInfo.nivel} ${seleccionado}" data-nombre="${p.nombre}" style="--potrero-color:${estadoInfo.color}">
+          <div class="parcela-block ${estadoInfo.nivel} ${seleccionado}" data-nombre="${p.nombre}" style="--parcela-color:${estadoInfo.color}">
             <h5>${p.nombre}</h5>
             <div class="small">${p.actual} animales</div>
             <div class="small">${p.superficie} ha</div>
@@ -142,9 +142,9 @@
           </div>`;
         }).join('');
 
-        document.querySelectorAll('.potrero-block').forEach((block) => {
+        document.querySelectorAll('.parcela-block').forEach((block) => {
           block.addEventListener('click', () => {
-            potreroSeleccionado = block.dataset.nombre;
+            parcelaSeleccionado = block.dataset.nombre;
             renderMapa();
             renderDetalle();
             document.getElementById('detalle-parcela').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -160,7 +160,7 @@
         const inicio = (paginaActual - 1) * FILAS_POR_PAGINA;
         const pagina = datos.slice(inicio, inicio + FILAS_POR_PAGINA);
 
-        document.getElementById('tabla-potreros-body').innerHTML = pagina
+        document.getElementById('tabla-parcelas-body').innerHTML = pagina
           .map((p) => {
             return `
           <tr>
@@ -168,16 +168,16 @@
             <td>${p.actual}</td>
             <td><span class="badge ${ESTADO_BADGE[p.estado] || 'text-bg-secondary'}">${p.estado}</span></td>
             <td class="text-end">
-              <button class="btn btn-sm btn-outline-secondary btn-ver-potrero" data-id="${p.id}" data-nombre="${p.nombre}" title="Ver detalle"><i class="bi bi-eye"></i></button>
-              <button class="btn btn-sm btn-outline-primary btn-editar-potrero" data-id="${p.id}" data-nombre="${p.nombre}" title="Editar parcela"><i class="bi bi-pencil"></i></button>
-              <button class="btn btn-sm btn-outline-danger btn-eliminar-potrero" data-id="${p.id}" data-nombre="${p.nombre}" title="Eliminar parcela"><i class="bi bi-trash"></i></button>
+              <button class="btn btn-sm btn-outline-secondary btn-ver-parcela" data-id="${p.id}" data-nombre="${p.nombre}" title="Ver detalle"><i class="bi bi-eye"></i></button>
+              <button class="btn btn-sm btn-outline-primary btn-editar-parcela" data-id="${p.id}" data-nombre="${p.nombre}" title="Editar parcela"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger btn-eliminar-parcela" data-id="${p.id}" data-nombre="${p.nombre}" title="Eliminar parcela"><i class="bi bi-trash"></i></button>
             </td>
           </tr>`;
           })
           .join('');
 
         document.getElementById('tabla-info').textContent = datos.length
-          ? `Mostrando ${inicio + 1}-${Math.min(inicio + FILAS_POR_PAGINA, datos.length)} de ${datos.length} potreros`
+          ? `Mostrando ${inicio + 1}-${Math.min(inicio + FILAS_POR_PAGINA, datos.length)} de ${datos.length} parcelas`
           : 'Sin resultados para los filtros aplicados';
 
         const paginacion = document.getElementById('tabla-paginacion');
@@ -191,25 +191,25 @@
           });
         });
 
-        document.querySelectorAll('.btn-ver-potrero').forEach((btn) => {
+        document.querySelectorAll('.btn-ver-parcela').forEach((btn) => {
           btn.addEventListener('click', () => {
-            potreroSeleccionado = btn.dataset.nombre;
+            parcelaSeleccionado = btn.dataset.nombre;
             renderMapa();
             renderDetalle();
           });
         });
 
-        document.querySelectorAll('.btn-editar-potrero').forEach((btn) => {
+        document.querySelectorAll('.btn-editar-parcela').forEach((btn) => {
           btn.addEventListener('click', () => {
-            const parcela = POTREROS.find((p) => String(p.id) === String(btn.dataset.id));
+            const parcela = PARCELAS.find((p) => String(p.id) === String(btn.dataset.id));
             if (!parcela) return;
             abrirModalEdicion(parcela);
           });
         });
 
-        document.querySelectorAll('.btn-eliminar-potrero').forEach((btn) => {
+        document.querySelectorAll('.btn-eliminar-parcela').forEach((btn) => {
           btn.addEventListener('click', async () => {
-            const parcela = POTREROS.find((p) => String(p.id) === String(btn.dataset.id));
+            const parcela = PARCELAS.find((p) => String(p.id) === String(btn.dataset.id));
             if (!parcela || !window.confirm(`¿Eliminar definitivamente ${parcela.nombre}?`)) return;
             const csrf = document.cookie.split('; ').find((row) => row.startsWith('csrftoken='))?.split('=')[1];
             const response = await fetch(`/api/parcelas/${parcela.id}/eliminar/`, {
@@ -219,10 +219,10 @@
               alert('No se pudo eliminar la parcela.');
               return;
             }
-            POTREROS = POTREROS.filter((p) => String(p.id) !== String(parcela.id));
-            delete ANIMALES_POR_POTRERO[parcela.nombre];
-            if (potreroSeleccionado === parcela.nombre) {
-              potreroSeleccionado = POTREROS[0]?.nombre || '';
+            PARCELAS = PARCELAS.filter((p) => String(p.id) !== String(parcela.id));
+            delete ANIMALES_POR_PARCELA[parcela.nombre];
+            if (parcelaSeleccionado === parcela.nombre) {
+              parcelaSeleccionado = PARCELAS[0]?.nombre || '';
             }
             actualizarKpis();
             renderMapa();
@@ -233,24 +233,24 @@
       }
 
       function renderDetalle() {
-        const p = POTREROS.find((x) => x.nombre === potreroSeleccionado);
+        const p = PARCELAS.find((x) => x.nombre === parcelaSeleccionado);
         if (!p) return;
 
         document.getElementById('detalle-nombre').textContent = p.nombre;
 
-        const animales = ANIMALES_POR_POTRERO[p.nombre] || [];
+        const animales = ANIMALES_POR_PARCELA[p.nombre] || [];
         document.getElementById('detalle-animales').innerHTML = animales.length
           ? animales
               .map((a) => `<tr><td>#${a.caravana}</td><td>${a.nombre}</td><td>${a.categoria}</td><td>${a.sexo}</td><td>${a.peso}</td></tr>`)
               .join('')
-          : `<tr><td colspan="5" class="text-secondary">Sin animales en este potrero.</td></tr>`;
+          : `<tr><td colspan="5" class="text-secondary">Sin animales en este parcela.</td></tr>`;
       }
 
       function abrirModalEdicion(parcela) {
-        const modal = document.getElementById('modalNuevoPotrero');
-        const title = document.getElementById('modalNuevoPotreroTitle');
-        const form = document.getElementById('form-nuevo-potrero');
-        document.getElementById('form-potrero-id').value = parcela.id || '';
+        const modal = document.getElementById('modalNuevoParcela');
+        const title = document.getElementById('modalNuevoParcelaTitle');
+        const form = document.getElementById('form-nuevo-parcela');
+        document.getElementById('form-parcela-id').value = parcela.id || '';
         form.querySelector('[name="descripcion"]').value = parcela.descripcion || parcela.nombre || '';
         form.querySelector('[name="ancho"]').value = parcela.ancho ?? '';
         form.querySelector('[name="largo"]').value = parcela.largo ?? '';
@@ -262,18 +262,18 @@
       }
 
       function resetearFormulario() {
-        const form = document.getElementById('form-nuevo-potrero');
+        const form = document.getElementById('form-nuevo-parcela');
         form.reset();
-        document.getElementById('form-potrero-id').value = '';
-        document.getElementById('modalNuevoPotreroTitle').textContent = 'Nueva Parcela';
+        document.getElementById('form-parcela-id').value = '';
+        document.getElementById('modalNuevoParcelaTitle').textContent = 'Nueva Parcela';
         PARCELA_EDITANDO_ID = null;
       }
 
       function actualizarKpis() {
-        const total = POTREROS.length;
-        const ocupados = POTREROS.filter((p) => p.actual > 0).length;
+        const total = PARCELAS.length;
+        const ocupados = PARCELAS.filter((p) => p.actual > 0).length;
         const libres = total - ocupados;
-        const animalesTotal = POTREROS.reduce((acc, p) => acc + p.actual, 0);
+        const animalesTotal = PARCELAS.reduce((acc, p) => acc + p.actual, 0);
 
         document.getElementById('kpi-total').textContent = total;
         document.getElementById('kpi-ocupados').textContent = ocupados;
@@ -303,25 +303,25 @@
           renderTabla();
         });
 
-        const formNuevoPotrero = document.getElementById('form-nuevo-potrero');
-        const btnGuardarPotrero = document.getElementById('btn-guardar-potrero');
+        const formNuevoParcela = document.getElementById('form-nuevo-parcela');
+        const btnGuardarParcela = document.getElementById('btn-guardar-parcela');
 
         document.addEventListener('click', (event) => {
           const target = event.target;
-          if (target instanceof HTMLElement && target.id === 'btn-guardar-potrero') {
+          if (target instanceof HTMLElement && target.id === 'btn-guardar-parcela') {
             event.preventDefault();
             event.stopPropagation();
-            if (formNuevoPotrero) {
-              if (typeof formNuevoPotrero.requestSubmit === 'function') {
-                formNuevoPotrero.requestSubmit();
+            if (formNuevoParcela) {
+              if (typeof formNuevoParcela.requestSubmit === 'function') {
+                formNuevoParcela.requestSubmit();
               } else {
-                formNuevoPotrero.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+                formNuevoParcela.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
               }
             }
           }
         });
 
-        formNuevoPotrero?.addEventListener('submit', async (event) => {
+        formNuevoParcela?.addEventListener('submit', async (event) => {
           event.preventDefault();
           const csrf = document.cookie.split('; ').find((row) => row.startsWith('csrftoken='))?.split('=')[1];
           const formData = new FormData(event.currentTarget);
@@ -343,15 +343,15 @@
               descripcion: (formData.get('observaciones') || '').toString().trim(),
             };
             if (PARCELA_EDITANDO_ID) {
-              POTREROS = POTREROS.map((p) => (String(p.id) === String(parcela.id) ? { ...p, ...parcela } : p));
+              PARCELAS = PARCELAS.map((p) => (String(p.id) === String(parcela.id) ? { ...p, ...parcela } : p));
             } else {
-              POTREROS = [{ ...parcela, actual: 0, fecha: '', responsable: '-' }, ...POTREROS];
+              PARCELAS = [{ ...parcela, actual: 0, fecha: '', responsable: '-' }, ...PARCELAS];
             }
-            ANIMALES_POR_POTRERO[parcela.nombre] = ANIMALES_POR_POTRERO[parcela.nombre] || [];
+            ANIMALES_POR_PARCELA[parcela.nombre] = ANIMALES_POR_PARCELA[parcela.nombre] || [];
             window.HUACAPP_DATA = window.HUACAPP_DATA || {};
-            window.HUACAPP_DATA.potreros = POTREROS;
-            potreroSeleccionado = parcela.nombre;
-            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalNuevoPotrero')).hide();
+            window.HUACAPP_DATA.parcelas = PARCELAS;
+            parcelaSeleccionado = parcela.nombre;
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalNuevoParcela')).hide();
             resetearFormulario();
             actualizarKpis();
             renderMapa();
@@ -365,15 +365,15 @@
             }, 0);
           } else {
             const result = await response.json();
-            alert(result.error || 'No se pudo guardar el potrero.');
+            alert(result.error || 'No se pudo guardar la parcela.');
           }
         });
 
-        document.querySelector('[data-bs-target="#modalNuevoPotrero"]').addEventListener('click', () => {
+        document.querySelector('[data-bs-target="#modalNuevoParcela"]').addEventListener('click', () => {
           resetearFormulario();
         });
 
-        document.getElementById('modalNuevoPotrero').addEventListener('hidden.bs.modal', () => {
+        document.getElementById('modalNuevoParcela').addEventListener('hidden.bs.modal', () => {
           resetearFormulario();
         });
       });

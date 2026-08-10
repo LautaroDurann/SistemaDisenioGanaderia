@@ -315,6 +315,9 @@ function sincronizarNavbarCon(u) {
   if (!u || USUARIO_ACTUAL_ID == null || u.id !== Number(USUARIO_ACTUAL_ID)) return;
   const color = COLOR_ROL[u.rol] || '#6c757d';
   const texto = iniciales(u);
+  const src = u.foto_url
+    ? `${u.foto_url}${u.foto_url.includes('?') ? '&' : '?'}t=${Date.now()}`
+    : '';
   const armarSpan = (grande) => {
     const span = document.createElement('span');
     span.className = `vacapp-navbar-iniciales rounded-circle shadow${grande ? ' vacapp-navbar-iniciales-lg d-flex align-items-center justify-content-center' : ''}`;
@@ -327,15 +330,16 @@ function sincronizarNavbarCon(u) {
     if (!contenedor) return;
     const span = contenedor.querySelector('.vacapp-navbar-iniciales');
     const img = contenedor.querySelector(`img.${claseImg}`);
-    if (u.foto_url) {
+    if (src) {
       if (span) span.remove();
       if (!img) {
         const nuevo = document.createElement('img');
         nuevo.className = `${claseImg} shadow`;
         nuevo.alt = 'User Image';
+        nuevo.src = src;
         contenedor.insertBefore(nuevo, contenedor.firstChild);
       } else {
-        img.src = u.foto_url;
+        img.src = src;
       }
     } else {
       if (span) {
@@ -608,18 +612,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const formData = new FormData();
     formData.append('foto', archivo);
     try {
-      await fetch(`/api/usuarios/${u.id}/`, {
+      const respuesta = await fetch(`/api/usuarios/${u.id}/`, {
         method: 'POST',
         headers: { 'X-CSRFToken': getCookie('csrftoken') },
         body: formData,
-      }).then(async (respuesta) => {
-        const cuerpo = await respuesta.json().catch(() => ({}));
-        if (!respuesta.ok) throw new Error(cuerpo.error || 'No se pudo actualizar la foto.');
-        return cuerpo;
       });
+      const cuerpo = await respuesta.json().catch(() => ({}));
+      if (!respuesta.ok) throw new Error(cuerpo.error || 'No se pudo actualizar la foto.');
       fotoInput.value = '';
+      const actualizado = cuerpo.usuario;
+      if (actualizado) {
+        const idx = USUARIOS.findIndex((x) => x.id === Number(u.id));
+        if (idx >= 0) USUARIOS[idx] = actualizado;
+        sincronizarNavbarCon(actualizado);
+      }
       await cargarUsuarios();
-      sincronizarNavbarCon(USUARIOS.find((x) => x.id === Number(u.id)));
     } catch (error) {
       alert(error.message);
     }

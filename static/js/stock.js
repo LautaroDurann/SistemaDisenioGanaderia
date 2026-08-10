@@ -79,19 +79,19 @@
       // MOCK DATA: reemplazar por datos reales cuando se conecte con Django
       // ------------------------------------------------------------------
       const ANIMALES = window.HUACAPP_DATA?.animales ?? [
-        { caravana: '0231', nombre: 'Luna', categoria: 'Vaca', sexo: 'Hembra', raza: 'Angus', edad: '4 años', peso: '480 kg', potrero: 'Potrero 1', estado: 'Activo', ingreso: '10/07/2026', notas: 'Buena productora, sin antecedentes de pérdida de peso. Apta para servicio.' },
-        { caravana: '0198', nombre: 'Fierro', categoria: 'Toro', sexo: 'Macho', raza: 'Braford', edad: '5 años', peso: '720 kg', potrero: 'Potrero 2', estado: 'Vendido', ingreso: '02/02/2024', notas: 'Reproductor principal del establecimiento hasta su venta en el remate local.' },
-        { caravana: '0305', nombre: 'S/N', categoria: 'Ternero', sexo: 'Macho', raza: 'Angus', edad: '2 meses', peso: '85 kg', potrero: 'Potrero 2', estado: 'Activo', ingreso: '05/07/2026', notas: 'Nacido en el potrero, todavía sin identificación definitiva de nombre.' },
-        { caravana: '0142', nombre: 'Estrella', categoria: 'Vaca', sexo: 'Hembra', raza: 'Hereford', edad: '6 años', peso: '510 kg', potrero: 'Potrero 3', estado: 'Muerto', ingreso: '15/03/2021', notas: 'Baja por causas naturales. Se mantiene el registro histórico completo.' },
-        { caravana: '0087', nombre: 'S/N', categoria: 'Novillo', sexo: 'Macho', raza: 'Braford', edad: '2 años', peso: '390 kg', potrero: 'Potrero 3', estado: 'Activo', ingreso: '29/06/2026', notas: 'Ganancia de peso por debajo de lo esperado para la categoría, en seguimiento.' },
-        { caravana: '0056', nombre: 'Paloma', categoria: 'Vaquillona', sexo: 'Hembra', raza: 'Angus', edad: '1 año', peso: '280 kg', potrero: 'Potrero 4', estado: 'Activo', ingreso: '18/01/2026', notas: 'Buena candidata a servicio en la próxima temporada.' },
-        { caravana: '0412', nombre: 'S/N', categoria: 'Ternero', sexo: 'Hembra', raza: 'Hereford', edad: '3 meses', peso: '95 kg', potrero: 'Potrero 1', estado: 'Activo', ingreso: '20/04/2026', notas: 'Excelente desarrollo, mejor ganancia diaria del lote de terneros.' },
-        { caravana: '0177', nombre: 'Trueno', categoria: 'Toro', sexo: 'Macho', raza: 'Angus', edad: '3 años', peso: '680 kg', potrero: 'Potrero 4', estado: 'Activo', ingreso: '11/09/2023', notas: 'Reproductor de respaldo, sin observaciones sanitarias.' },
-        { caravana: '0263', nombre: 'Rocío', categoria: 'Vaca', sexo: 'Hembra', raza: 'Braford', edad: '5 años', peso: '495 kg', potrero: 'Potrero 2', estado: 'Activo', ingreso: '07/06/2021', notas: 'Pendiente de próximo control de peso.' },
-        { caravana: '0329', nombre: 'S/N', categoria: 'Novillo', sexo: 'Macho', raza: 'Hereford', edad: '2 años', peso: '410 kg', potrero: 'Potrero 1', estado: 'Vendido', ingreso: '02/02/2024', notas: 'Vendido por baja administrativa junto con el lote de novillos.' },
+        { caravana: '0231', nombre: 'Luna', categoria: 'Vaca', sexo: 'Hembra', raza: 'Angus', edad: '4 años', peso: '480 kg', parcela: 'Parcela 1', estado: 'Activo', ingreso: '10/07/2026', notas: 'Buena productora, sin antecedentes de pérdida de peso. Apta para servicio.' },
+        { caravana: '0198', nombre: 'Fierro', categoria: 'Toro', sexo: 'Macho', raza: 'Braford', edad: '5 años', peso: '720 kg', parcela: 'Parcela 2', estado: 'Vendido', ingreso: '02/02/2024', notas: 'Reproductor principal del establecimiento hasta su venta en el remate local.' },
+        { caravana: '0305', nombre: 'S/N', categoria: 'Ternero', sexo: 'Macho', raza: 'Angus', edad: '2 meses', peso: '85 kg', parcela: 'Parcela 2', estado: 'Activo', ingreso: '05/07/2026', notas: 'Nacido en la parcela, todavía sin identificación definitiva de nombre.' },
+        { caravana: '0142', nombre: 'Estrella', categoria: 'Vaca', sexo: 'Hembra', raza: 'Hereford', edad: '6 años', peso: '510 kg', parcela: 'Parcela 3', estado: 'Muerto', ingreso: '15/03/2021', notas: 'Baja por causas naturales. Se mantiene el registro histórico completo.' },
+        { caravana: '0087', nombre: 'S/N', categoria: 'Novillo', sexo: 'Macho', raza: 'Braford', edad: '2 años', peso: '390 kg', parcela: 'Parcela 3', estado: 'Activo', ingreso: '29/06/2026', notas: 'Ganancia de peso por debajo de lo esperado para la categoría, en seguimiento.' },
+        { caravana: '0056', nombre: 'Paloma', categoria: 'Vaquillona', sexo: 'Hembra', raza: 'Angus', edad: '1 año', peso: '280 kg', parcela: 'Parcela 4', estado: 'Activo', ingreso: '18/01/2026', notas: 'Buena candidata a servicio en la próxima temporada.' },
+        { caravana: '0412', nombre: 'S/N', categoria: 'Ternero', sexo: 'Hembra', raza: 'Hereford', edad: '3 meses', peso: '95 kg', parcela: 'Parcela 1', estado: 'Activo', ingreso: '20/04/2026', notas: 'Excelente desarrollo, mejor ganancia diaria del lote de terneros.' },
+        { caravana: '0177', nombre: 'Trueno', categoria: 'Toro', sexo: 'Macho', raza: 'Angus', edad: '3 años', peso: '680 kg', parcela: 'Parcela 4', estado: 'Activo', ingreso: '11/09/2023', notas: 'Reproductor de respaldo, sin observaciones sanitarias.' },
+        { caravana: '0263', nombre: 'Rocío', categoria: 'Vaca', sexo: 'Hembra', raza: 'Braford', edad: '5 años', peso: '495 kg', parcela: 'Parcela 2', estado: 'Activo', ingreso: '07/06/2021', notas: 'Pendiente de próximo control de peso.' },
+        { caravana: '0329', nombre: 'S/N', categoria: 'Novillo', sexo: 'Macho', raza: 'Hereford', edad: '2 años', peso: '410 kg', parcela: 'Parcela 1', estado: 'Vendido', ingreso: '02/02/2024', notas: 'Vendido por baja administrativa junto con el lote de novillos.' },
       ];
       ANIMALES.forEach((animal) => {
-        animal.parcela ??= animal.potrero ?? 'Sin asignar';
+        animal.parcela ??= animal.parcela ?? 'Sin asignar';
         animal.tipo_animal ??= 'Bovino';
       });
 
@@ -225,7 +225,7 @@
         document.getElementById('ficha-raza').textContent = a.raza;
         document.getElementById('ficha-edad').textContent = a.edad;
         document.getElementById('ficha-peso').textContent = a.peso;
-        document.getElementById('ficha-potrero').textContent = a.parcela;
+        document.getElementById('ficha-parcela').textContent = a.parcela;
         document.getElementById('ficha-establecimiento').textContent = a.establecimiento || '-';
         document.getElementById('ficha-categoria').closest('li').classList.toggle('d-none', a.tipo_animal !== 'Bovino');
         const fichaFoto = document.getElementById('ficha-foto');
@@ -459,6 +459,9 @@
         actualizarCampoDiametro();
         document.getElementById('animal-vivo').addEventListener('change', actualizarCampoFechaMuerte);
         actualizarCampoFechaMuerte();
+        document.getElementById('animal-caravana').addEventListener('input', (event) => {
+          event.target.value = event.target.value.replace(/[^A-Za-z0-9]/g, '');
+        });
 
         const fotoInput = document.getElementById('animal-foto');
         fotoInput.addEventListener('change', () => {

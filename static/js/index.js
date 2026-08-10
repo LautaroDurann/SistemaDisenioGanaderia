@@ -77,13 +77,6 @@ document.addEventListener('DOMContentLoaded', function () {
 // DATOS: provienen del servidor (Django) filtrados por establecimiento
 // ------------------------------------------------------------------
 const HUACAPP = window.HUACAPP_DATA || {};
-const KPIS = HUACAPP.kpis ?? {
-  total_animales: 0,
-  ventas_mes: 0,
-  gastos_mes: 0,
-  peso_promedio: 0,
-  ingresos_mes: 0,
-};
 
 const formatoMoneda = (valor) => {
   const numero = Number(valor || 0);
@@ -91,6 +84,7 @@ const formatoMoneda = (valor) => {
 };
 
 function renderKPIs() {
+  const KPIS = HUACAPP.kpis ?? {};
   const totalAnimales = document.getElementById('kpi-total-animales');
   const ventasMes = document.getElementById('kpi-ventas-mes');
   const gastosMes = document.getElementById('kpi-gastos-mes');
@@ -111,8 +105,6 @@ function renderReloj() {
   document.getElementById('hora-actual').textContent = hora;
 }
 
-const DISTRIBUCION = HUACAPP.distribucion ?? {};
-
 const COLORES_CATEGORIA = {
   Vaca: '#198754',
   Toro: '#0d6efd',
@@ -124,9 +116,14 @@ const COLORES_CATEGORIA = {
   Ovino: '#d63384',
 };
 
+let graficoGanancias = null;
+let graficoDistribucion = null;
+
 function renderGraficos() {
+  const distribucion = HUACAPP.distribucion ?? {};
   const chartGanancias = document.querySelector('#chart-ganancias-gastos');
   if (chartGanancias) {
+    if (graficoGanancias) graficoGanancias.destroy();
     const labels = JSON.parse(HUACAPP.chart?.labels_json ?? '[]');
     const ingresos = JSON.parse(HUACAPP.chart?.ingresos_json ?? '[]');
     const egresos = JSON.parse(HUACAPP.chart?.egresos_json ?? '[]');
@@ -141,7 +138,7 @@ function renderGraficos() {
           { name: 'Gastos', data: [0] },
         ];
 
-    new ApexCharts(chartGanancias, {
+    graficoGanancias = new ApexCharts(chartGanancias, {
       series,
       chart: { height: 300, type: 'bar', toolbar: { show: false } },
       colors: ['#198754', '#dc3545'],
@@ -154,24 +151,68 @@ function renderGraficos() {
       yaxis: {
         labels: { formatter: (val) => `$${Number(val).toLocaleString('es-AR', { maximumFractionDigits: 0 })}` },
       },
-    }).render();
+    });
+    graficoGanancias.render();
   }
 
   // Distribucion del rodeo (por categoria de animal)
   const chartDistribucion = document.querySelector('#chart-distribucion');
   if (chartDistribucion) {
-    const categorias = Object.keys(DISTRIBUCION);
-    const series = categorias.length ? categorias.map((categoria) => DISTRIBUCION[categoria]) : [0];
+    if (graficoDistribucion) graficoDistribucion.destroy();
+    const categorias = Object.keys(distribucion);
+    const series = categorias.length ? categorias.map((categoria) => distribucion[categoria]) : [0];
     const labels = categorias.length ? categorias : ['Sin datos'];
     const colors = categorias.length ? categorias.map((categoria) => COLORES_CATEGORIA[categoria] || '#6c757d') : ['#dee2e6'];
 
-    new ApexCharts(chartDistribucion, {
+    graficoDistribucion = new ApexCharts(chartDistribucion, {
       series,
       chart: { height: 300, type: 'donut' },
       labels,
       colors,
       legend: { position: 'bottom' },
-    }).render();
+    });
+    graficoDistribucion.render();
+  }
+}
+
+function renderAlertas() {
+  const contenedor = document.getElementById('alertas-contenedor');
+  if (!contenedor) return;
+  const alertas = HUACAPP.alertas ?? [];
+  contenedor.innerHTML = '';
+  if (!alertas.length) {
+    contenedor.innerHTML = '<div class="text-secondary small">Sin alertas pendientes.</div>';
+    return;
+  }
+  alertas.forEach((alerta, indice) => {
+    const item = document.createElement('div');
+    item.className = 'd-flex align-items-center gap-2';
+    item.innerHTML = `
+      <div class="vacapp-alert-icon ${alerta.color}"><i class="bi ${alerta.icono}"></i></div>
+      <div>
+        <div class="fw-semibold">${alerta.titulo}</div>
+        <small class="text-secondary">${alerta.detalle}</small>
+      </div>`;
+    contenedor.appendChild(item);
+    if (indice < alertas.length - 1) {
+      const separador = document.createElement('hr');
+      separador.className = 'my-1';
+      contenedor.appendChild(separador);
+    }
+  });
+}
+
+async function cargarDashboard() {
+  try {
+    const respuesta = await fetch('/api/dashboard/', { method: 'GET' });
+    if (!respuesta.ok) throw new Error();
+    const cuerpo = await respuesta.json();
+    Object.assign(HUACAPP, cuerpo);
+    renderKPIs();
+    renderGraficos();
+    renderAlertas();
+  } catch {
+    // Se conservan los datos actuales si falla la actualización.
   }
 }
 
@@ -180,11 +221,13 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(renderReloj, 30000);
   renderKPIs();
   renderGraficos();
+  renderAlertas();
 
-  document.getElementById('btn-actualizar').addEventListener('click', function () {
+  document.getElementById('btn-actualizar').addEventListener('click', async function () {
     const icon = this.querySelector('i');
     icon.classList.add('spin');
     renderReloj();
+    await cargarDashboard();
     setTimeout(() => icon.classList.remove('spin'), 500);
   });
 });

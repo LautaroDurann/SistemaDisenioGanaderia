@@ -44,7 +44,7 @@ class WebIntegrationTests(TestCase):
         session.save()
 
     def test_paginas_principales_responden(self):
-        for url_name in ('dashboard', 'stock', 'movimientos', 'potreros', 'vacunacion', 'sanidad', 'alimentacion', 'usuarios', 'configuracion', 'prenieces'):
+        for url_name in ('dashboard', 'stock', 'movimientos', 'parcelas', 'vacunacion', 'sanidad', 'alimentacion', 'usuarios', 'configuracion', 'prenieces'):
             with self.subTest(url_name=url_name):
                 self.assertEqual(self.client.get(reverse(url_name)).status_code, 200)
 
@@ -371,17 +371,17 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(self.animal.costo_adquisicion, Decimal('500000.00'))
         self.assertEqual(self.animal.precio_venta, Decimal('396000.00'))
 
-    def test_crear_potrero(self):
-        response = self.client.post(reverse('crear_potrero'), {
-            'ancho': '15', 'largo': '40', 'descripcion': 'Potrero nuevo', 'estado': 'En pastoreo',
+    def test_crear_parcela(self):
+        response = self.client.post(reverse('crear_parcela'), {
+            'ancho': '15', 'largo': '40', 'descripcion': 'Parcela nueva', 'estado': 'En pastoreo',
         })
         self.assertEqual(response.status_code, 201)
-        parcela = Parcela.objects.get(descripcion='Potrero nuevo')
+        parcela = Parcela.objects.get(descripcion='Parcela nueva')
         self.assertEqual(parcela.estado, 'En pastoreo')
 
-    def test_crear_potrero_sin_establecimiento_crea_uno_por_defecto(self):
+    def test_crear_parcela_sin_establecimiento_crea_uno_por_defecto(self):
         Establecimiento.objects.all().delete()
-        response = self.client.post(reverse('crear_potrero'), {
+        response = self.client.post(reverse('crear_parcela'), {
             'ancho': '10', 'largo': '20', 'descripcion': 'Parcela nueva', 'estado': 'En descanso',
         })
         self.assertEqual(response.status_code, 201)
@@ -389,8 +389,8 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(parcela.estado, 'En descanso')
         self.assertTrue(Establecimiento.objects.filter(nombre='Establecimiento principal').exists())
 
-    def test_actualizar_potrero(self):
-        response = self.client.post(reverse('crear_potrero'), {
+    def test_actualizar_parcela(self):
+        response = self.client.post(reverse('crear_parcela'), {
             'id': self.parcela.id, 'ancho': '25', 'largo': '50', 'descripcion': 'Parcela editada', 'estado': 'En descanso',
         })
         self.assertEqual(response.status_code, 200)
@@ -399,8 +399,8 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(self.parcela.ancho, Decimal('25'))
         self.assertEqual(self.parcela.largo, Decimal('50'))
 
-    def test_eliminar_potrero(self):
-        response = self.client.post(reverse('eliminar_potrero', args=[self.parcela.id]))
+    def test_eliminar_parcela(self):
+        response = self.client.post(reverse('eliminar_parcela', args=[self.parcela.id]))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Parcela.objects.filter(pk=self.parcela.id).exists())
 
@@ -1964,8 +1964,8 @@ class InseminacionModuleTests(TestCase):
         self.assertContains(response, 'tab-establecimiento')
         self.assertContains(response, 'est-logo-input')
         for seccion in ('tab-empresa', 'tab-categorias', 'tab-razas', 'tab-vacunas',
-                        'tab-potreros', 'tab-usuarios-roles', 'tabla-categorias',
-                        'tabla-vacunas', 'tabla-estados-potrero', 'modalListaSimple'):
+                        'tab-parcelas', 'tab-usuarios-roles', 'tabla-categorias',
+                        'tabla-vacunas', 'tabla-estados-parcela', 'modalListaSimple'):
             self.assertNotContains(response, seccion)
 
     def test_config_establecimiento_guarda_datos_y_logo(self):

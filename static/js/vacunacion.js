@@ -76,16 +76,16 @@
       // Los animales/caravanas coinciden con los de Stock y Movimientos.
       // ------------------------------------------------------------------
       const VACUNACIONES = window.HUACAPP_DATA?.vacunaciones ?? [
-        { fecha: '2026-07-14', caravana: '0231', animal: 'Luna', categoria: 'Vaca', edad: '4 años', potrero: 'Potrero 1', vacuna: 'Aftosa', proxima: '14/01/2027', veterinario: 'Dr. López', estado: 'Vacunado', obs: 'Sin reacciones' },
-        { fecha: '2026-07-14', caravana: '0412', animal: 'S/N', categoria: 'Ternero', edad: '3 meses', potrero: 'Potrero 1', vacuna: 'Clostridiosis', proxima: '14/09/2026', veterinario: 'Dra. Giménez', estado: 'Vacunado', obs: 'Primera dosis' },
-        { fecha: '2026-07-10', caravana: '0198', animal: 'Fierro', categoria: 'Toro', edad: '5 años', potrero: 'Potrero 2', vacuna: 'Brucelosis', proxima: '10/07/2027', veterinario: 'Dr. López', estado: 'Vacunado', obs: '-' },
-        { fecha: '2026-07-05', caravana: '0142', animal: 'Estrella', categoria: 'Vaca', edad: '6 años', potrero: 'Potrero 3', vacuna: 'Carbunclo', proxima: '05/01/2026', veterinario: 'Dra. Giménez', estado: 'Vencido', obs: 'Requiere refuerzo urgente' },
-        { fecha: '2026-07-20', caravana: '0087', animal: 'S/N', categoria: 'Novillo', edad: '2 años', potrero: 'Potrero 3', vacuna: 'Aftosa', proxima: '-', veterinario: 'Dr. López', estado: 'Programado', obs: 'Campaña Aftosa Julio' },
-        { fecha: '2026-07-22', caravana: '0056', animal: 'Paloma', categoria: 'Vaquillona', edad: '1 año', potrero: 'Potrero 4', vacuna: 'Rabia', proxima: '-', veterinario: 'Dra. Giménez', estado: 'Pendiente', obs: 'Coordinar con establecimiento' },
-        { fecha: '2026-06-28', caravana: '0177', animal: 'Trueno', categoria: 'Toro', edad: '3 años', potrero: 'Potrero 4', vacuna: 'Aftosa', proxima: '28/12/2026', veterinario: 'Dr. López', estado: 'Vacunado', obs: '-' },
-        { fecha: '2026-07-16', caravana: '0263', animal: 'Rocío', categoria: 'Vaca', edad: '5 años', potrero: 'Potrero 2', vacuna: 'Brucelosis', proxima: '-', veterinario: 'Dra. Giménez', estado: 'Pendiente', obs: 'Reprogramar' },
-        { fecha: '2026-06-15', caravana: '0329', animal: 'S/N', categoria: 'Novillo', edad: '2 años', potrero: 'Potrero 1', vacuna: 'Carbunclo', proxima: '15/12/2026', veterinario: 'Dr. López', estado: 'Vacunado', obs: '-' },
-        { fecha: '2026-07-08', caravana: '0305', animal: 'S/N', categoria: 'Ternero', edad: '2 meses', potrero: 'Potrero 2', vacuna: 'Otras', proxima: '08/10/2026', veterinario: 'Dra. Giménez', estado: 'Vacunado', obs: 'Vitaminas + antiparasitario' },
+        { fecha: '2026-07-14', caravana: '0231', animal: 'Luna', categoria: 'Vaca', edad: '4 años', parcela: 'Parcela 1', vacuna: 'Aftosa', proxima: '14/01/2027', veterinario: 'Dr. López', estado: 'Vacunado', obs: 'Sin reacciones' },
+        { fecha: '2026-07-14', caravana: '0412', animal: 'S/N', categoria: 'Ternero', edad: '3 meses', parcela: 'Parcela 1', vacuna: 'Clostridiosis', proxima: '14/09/2026', veterinario: 'Dra. Giménez', estado: 'Vacunado', obs: 'Primera dosis' },
+        { fecha: '2026-07-10', caravana: '0198', animal: 'Fierro', categoria: 'Toro', edad: '5 años', parcela: 'Parcela 2', vacuna: 'Brucelosis', proxima: '10/07/2027', veterinario: 'Dr. López', estado: 'Vacunado', obs: '-' },
+        { fecha: '2026-07-05', caravana: '0142', animal: 'Estrella', categoria: 'Vaca', edad: '6 años', parcela: 'Parcela 3', vacuna: 'Carbunclo', proxima: '05/01/2026', veterinario: 'Dra. Giménez', estado: 'Vencido', obs: 'Requiere refuerzo urgente' },
+        { fecha: '2026-07-20', caravana: '0087', animal: 'S/N', categoria: 'Novillo', edad: '2 años', parcela: 'Parcela 3', vacuna: 'Aftosa', proxima: '-', veterinario: 'Dr. López', estado: 'Programado', obs: 'Campaña Aftosa Julio' },
+        { fecha: '2026-07-22', caravana: '0056', animal: 'Paloma', categoria: 'Vaquillona', edad: '1 año', parcela: 'Parcela 4', vacuna: 'Rabia', proxima: '-', veterinario: 'Dra. Giménez', estado: 'Pendiente', obs: 'Coordinar con establecimiento' },
+        { fecha: '2026-06-28', caravana: '0177', animal: 'Trueno', categoria: 'Toro', edad: '3 años', parcela: 'Parcela 4', vacuna: 'Aftosa', proxima: '28/12/2026', veterinario: 'Dr. López', estado: 'Vacunado', obs: '-' },
+        { fecha: '2026-07-16', caravana: '0263', animal: 'Rocío', categoria: 'Vaca', edad: '5 años', parcela: 'Parcela 2', vacuna: 'Brucelosis', proxima: '-', veterinario: 'Dra. Giménez', estado: 'Pendiente', obs: 'Reprogramar' },
+        { fecha: '2026-06-15', caravana: '0329', animal: 'S/N', categoria: 'Novillo', edad: '2 años', parcela: 'Parcela 1', vacuna: 'Carbunclo', proxima: '15/12/2026', veterinario: 'Dr. López', estado: 'Vacunado', obs: '-' },
+        { fecha: '2026-07-08', caravana: '0305', animal: 'S/N', categoria: 'Ternero', edad: '2 meses', parcela: 'Parcela 2', vacuna: 'Otras', proxima: '08/10/2026', veterinario: 'Dra. Giménez', estado: 'Vacunado', obs: 'Vitaminas + antiparasitario' },
       ];
 
       const ESTADO_BADGE = {
@@ -114,7 +114,7 @@
         const fecha = document.getElementById('f-fecha').value;
         const vacuna = document.getElementById('f-vacuna').value;
         const categoria = document.getElementById('f-categoria').value;
-        const potrero = document.getElementById('f-potrero').value;
+        const parcela = document.getElementById('f-parcela').value;
         const estado = document.getElementById('f-estado').value;
         const veterinario = document.getElementById('f-veterinario').value;
 
@@ -126,7 +126,7 @@
             (!fecha || v.fecha === fecha) &&
             (!vacuna || v.vacuna === vacuna) &&
             (!categoria || v.categoria === categoria) &&
-            (!potrero || v.potrero === potrero) &&
+            (!parcela || v.parcela === parcela) &&
             (!estado || v.estado === estado) &&
             (!veterinario || v.veterinario === veterinario)
           );
@@ -187,7 +187,7 @@
         document.getElementById('detalle-animal-nombre').textContent = `${base.animal} (#${base.caravana})`;
         document.getElementById('detalle-caravana').textContent = `#${base.caravana}`;
         document.getElementById('detalle-edad').textContent = base.edad;
-        document.getElementById('detalle-potrero').textContent = base.potrero;
+        document.getElementById('detalle-parcela').textContent = base.parcela;
         document.getElementById('detalle-estado-sanitario').textContent = registros.some((r) => r.estado === 'Vencido')
           ? 'Con vacunas vencidas'
           : 'Al dia';
@@ -313,7 +313,7 @@
           if (btn) renderDetalleAnimal(btn.dataset.caravana);
         });
 
-        ['f-buscar', 'f-fecha', 'f-vacuna', 'f-categoria', 'f-potrero', 'f-estado', 'f-veterinario'].forEach((id) => {
+        ['f-buscar', 'f-fecha', 'f-vacuna', 'f-categoria', 'f-parcela', 'f-estado', 'f-veterinario'].forEach((id) => {
           document.getElementById(id).addEventListener('input', () => {
             paginaActual = 1;
             renderTabla();
@@ -321,7 +321,7 @@
         });
 
         document.getElementById('f-limpiar').addEventListener('click', () => {
-          ['f-buscar', 'f-fecha', 'f-vacuna', 'f-categoria', 'f-potrero', 'f-estado', 'f-veterinario'].forEach((id) => {
+          ['f-buscar', 'f-fecha', 'f-vacuna', 'f-categoria', 'f-parcela', 'f-estado', 'f-veterinario'].forEach((id) => {
             document.getElementById(id).value = '';
           });
           paginaActual = 1;

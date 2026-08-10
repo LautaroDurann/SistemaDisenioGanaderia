@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/potreros.css' %}?v=202608011900">
+  <link rel="stylesheet" href="{% static 'css/parcelas.css' %}?v=20260810">
 {% endblock %}
 
 {% block content %}
@@ -17,7 +17,7 @@
                 </p>
               </div>
               <div class="col-sm-5 text-sm-end mt-3 mt-sm-0">
-                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevoPotrero">
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevoParcela">
                   <i class="bi bi-plus-lg me-1"></i> Nueva Parcela
                 </button>
                 <button type="button" class="btn btn-outline-secondary">
@@ -103,7 +103,7 @@
                 </div>
               </div>
               <div class="card-body">
-                <div class="mapa-potreros" id="mapa-potreros"></div>
+                <div class="mapa-parcelas" id="mapa-parcelas"></div>
               </div>
             </div>
             <!--end::Mapa del establecimiento-->
@@ -144,7 +144,7 @@
                         <th class="text-end">Acciones</th>
                       </tr>
                     </thead>
-                    <tbody id="tabla-potreros-body"></tbody>
+                    <tbody id="tabla-parcelas-body"></tbody>
                   </table>
                 </div>
 
@@ -184,17 +184,17 @@
           </div>
         </div>
         <!--end::App Content-->
-    <!--begin::Modal Nuevo Potrero-->
-    <div class="modal fade" id="modalNuevoPotrero" tabindex="-1" aria-hidden="true">
+    <!--begin::Modal Nueva Parcela-->
+    <div class="modal fade" id="modalNuevoParcela" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="modalNuevoPotreroTitle">Nueva Parcela</h5>
+            <h5 class="modal-title" id="modalNuevoParcelaTitle">Nueva Parcela</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            <form id="form-nuevo-potrero">
-              <input type="hidden" name="id" id="form-potrero-id" value="">
+            <form id="form-nuevo-parcela">
+              <input type="hidden" name="id" id="form-parcela-id" value="">
               <input type="hidden" name="establecimiento_id" value="{{ establecimiento_actual_id|default:'' }}">
               <div class="row g-2">
                 <div class="col-md-6">
@@ -226,7 +226,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" id="btn-guardar-potrero" class="btn btn-success">Guardar</button>
+            <button type="button" id="btn-guardar-parcela" class="btn btn-success">Guardar</button>
           </div>
         </div>
       </div>
@@ -234,5 +234,5 @@
 {% endblock %}
 
 {% block page_js %}
-    <script src="{% static 'js/potreros.js' %}?v=202608070001"></script>
+    <script src="{% static 'js/parcelas.js' %}?v=20260810"></script>
 {% endblock %}

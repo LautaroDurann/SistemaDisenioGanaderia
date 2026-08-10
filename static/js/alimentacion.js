@@ -122,12 +122,12 @@
       const MOVIMIENTOS = {
         'balanceado-engorde': [
           { fecha: '05/07/2026', tipo: 'Compra', cantidad: '+1500 kg', responsable: 'Juan', obs: 'Reposición mensual' },
-          { fecha: '28/06/2026', tipo: 'Consumo', cantidad: '-420 kg', responsable: 'María', obs: 'Racion Potrero 1' },
-          { fecha: '15/06/2026', tipo: 'Consumo', cantidad: '-380 kg', responsable: 'Carlos', obs: 'Racion Potrero 2' },
+          { fecha: '28/06/2026', tipo: 'Consumo', cantidad: '-420 kg', responsable: 'María', obs: 'Racion Parcela 1' },
+          { fecha: '15/06/2026', tipo: 'Consumo', cantidad: '-380 kg', responsable: 'Carlos', obs: 'Racion Parcela 2' },
         ],
         'maiz-grano': [
           { fecha: '20/06/2026', tipo: 'Compra', cantidad: '+600 kg', responsable: 'Carlos', obs: 'Proveedor La Norteña' },
-          { fecha: '10/06/2026', tipo: 'Consumo', cantidad: '-300 kg', responsable: 'Juan', obs: 'Racion Potrero 3' },
+          { fecha: '10/06/2026', tipo: 'Consumo', cantidad: '-300 kg', responsable: 'Juan', obs: 'Racion Parcela 3' },
           { fecha: '01/06/2026', tipo: 'Ajuste', cantidad: '-20 kg', responsable: 'María', obs: 'Corrección de inventario' },
         ],
         'rollos-alfalfa': [
@@ -152,7 +152,7 @@
         ],
         'rollos-moha': [
           { fecha: '18/06/2026', tipo: 'Compra', cantidad: '+10 rollos', responsable: 'Carlos', obs: 'Compra parcial' },
-          { fecha: '05/07/2026', tipo: 'Consumo', cantidad: '-15 rollos', responsable: 'María', obs: 'Rodeo Potrero 4' },
+          { fecha: '05/07/2026', tipo: 'Consumo', cantidad: '-15 rollos', responsable: 'María', obs: 'Rodeo Parcela 4' },
         ],
         'balanceado-recria': [
           { fecha: '28/02/2026', tipo: 'Compra', cantidad: '+1200 kg', responsable: 'Juan', obs: 'Lote próximo a vencer' },
@@ -172,15 +172,15 @@
       };
 
       const PLAN_ALIMENTACION = [
-        { categoria: 'Vacas', potrero: 'Potrero 1', alimento: 'Balanceado Engorde', cantidad: '4 kg/animal', horario: '07:00', responsable: 'Juan' },
-        { categoria: 'Terneros', potrero: 'Potrero 2', alimento: 'Maíz grano', cantidad: '1.5 kg/animal', horario: '08:30', responsable: 'María' },
-        { categoria: 'Toros', potrero: 'Potrero 4', alimento: 'Suplemento mineral', cantidad: '0.3 kg/animal', horario: '09:00', responsable: 'Juan' },
-        { categoria: 'Novillos', potrero: 'Potrero 3', alimento: 'Silaje de maiz', cantidad: '8 kg/animal', horario: '16:00', responsable: 'Carlos' },
-        { categoria: 'Vaquillonas', potrero: 'Potrero 4', alimento: 'Expeller de soja', cantidad: '2 kg/animal', horario: '16:30', responsable: 'Carlos' },
-        { categoria: 'Vacas', potrero: 'Potrero 2', alimento: 'Rollos de alfalfa', cantidad: '6 kg/animal', horario: '17:00', responsable: 'María' },
-        { categoria: 'Terneros', potrero: 'Potrero 1', alimento: 'Balanceado Recría', cantidad: '1 kg/animal', horario: '08:00', responsable: 'Juan' },
-        { categoria: 'Novillos', potrero: 'Potrero 3', alimento: 'Pastura diferida P.4', cantidad: 'A campo', horario: 'Todo el dia', responsable: 'Carlos' },
-        { categoria: 'Toros', potrero: 'Potrero 2', alimento: 'Rollos de moha', cantidad: '5 kg/animal', horario: '17:30', responsable: 'Juan' },
+        { categoria: 'Vacas', parcela: 'Parcela 1', alimento: 'Balanceado Engorde', cantidad: '4 kg/animal', horario: '07:00', responsable: 'Juan' },
+        { categoria: 'Terneros', parcela: 'Parcela 2', alimento: 'Maíz grano', cantidad: '1.5 kg/animal', horario: '08:30', responsable: 'María' },
+        { categoria: 'Toros', parcela: 'Parcela 4', alimento: 'Suplemento mineral', cantidad: '0.3 kg/animal', horario: '09:00', responsable: 'Juan' },
+        { categoria: 'Novillos', parcela: 'Parcela 3', alimento: 'Silaje de maiz', cantidad: '8 kg/animal', horario: '16:00', responsable: 'Carlos' },
+        { categoria: 'Vaquillonas', parcela: 'Parcela 4', alimento: 'Expeller de soja', cantidad: '2 kg/animal', horario: '16:30', responsable: 'Carlos' },
+        { categoria: 'Vacas', parcela: 'Parcela 2', alimento: 'Rollos de alfalfa', cantidad: '6 kg/animal', horario: '17:00', responsable: 'María' },
+        { categoria: 'Terneros', parcela: 'Parcela 1', alimento: 'Balanceado Recría', cantidad: '1 kg/animal', horario: '08:00', responsable: 'Juan' },
+        { categoria: 'Novillos', parcela: 'Parcela 3', alimento: 'Pastura diferida P.4', cantidad: 'A campo', horario: 'Todo el dia', responsable: 'Carlos' },
+        { categoria: 'Toros', parcela: 'Parcela 2', alimento: 'Rollos de moha', cantidad: '5 kg/animal', horario: '17:30', responsable: 'Juan' },
       ];
 
       const FILAS_POR_PAGINA = 10;
@@ -262,7 +262,7 @@
           (p) => `
           <tr>
             <td>${p.categoria}</td>
-            <td>${p.potrero}</td>
+            <td>${p.parcela}</td>
             <td>${p.alimento}</td>
             <td>${p.cantidad}</td>
             <td>${p.horario}</td>

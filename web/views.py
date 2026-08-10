@@ -335,7 +335,99 @@ def config_establecimiento_api(request):
     })
 
 
-def dashboard(request):
+PESO_MINIMO_POR_TIPO = {'Bovino': Decimal('180'), 'Ovino': Decimal('25'), 'Porcino': Decimal('60')}
+
+
+def _es_bajo_peso(animal):
+    """Un animal está con bajo peso si perdió peso respecto del destete o si
+    no alcanza el peso mínimo de referencia para su especie."""
+    if animal.peso_actual is None:
+        return False
+    if animal.peso_al_destete is not None and animal.peso_actual < animal.peso_al_destete:
+        return True
+    minimo = PESO_MINIMO_POR_TIPO.get(animal.tipo_animal)
+    return minimo is not None and animal.peso_actual < minimo
+
+
+def _tiempo_estimado(faltan):
+    """Formatea un faltante en días como texto legible (ej: '2 semanas y 3 días')."""
+    if faltan >= 30:
+        return f'{faltan // 30} meses y {(faltan % 30) // 7} semanas'
+    semanas, dias = divmod(faltan, 7)
+    if semanas and dias:
+        return f'{semanas} semanas y {dias} días'
+    if semanas:
+        return f'{semanas} semanas'
+    return f'{dias} días'
+
+
+def _alertas_dashboard(request, animales=None):
+    """Alertas del módulo Dashboard, calculadas con datos reales del establecimiento."""
+    if animales is None:
+        animales = _animales_de(request)
+    establecimiento = _establecimiento_actual(request)
+    today = date.today()
+    alertas = []
+
+    # Vacunas vencidas: lotes de vacunas con vencimiento pasado y stock pendiente.
+    lotes_vacunas = Lote.objects.select_related('insumo').filter(
+        insumo__tipo='Vacuna', fechaVencimiento__lt=today, stockActual__gt=0,
+    )
+    if establecimiento is not None:
+        lotes_vacunas = lotes_vacunas.filter(establecimiento=establecimiento)
+    lotes_vacunas = list(lotes_vacunas.order_by('fechaVencimiento', 'id'))
+    if lotes_vacunas:
+        alertas.append({
+            'clave': 'vacunas_vencidas',
+            'icono': 'bi-shield-exclamation',
+            'color': 'text-bg-danger',
+            'titulo': f"{len(lotes_vacunas)} {'vacuna' if len(lotes_vacunas) == 1 else 'vacunas'} vencidas",
+            'detalle': ', '.join(l.nombre or f'Lote {l.id}' for l in lotes_vacunas[:5]),
+        })
+
+    # Próximos partos: preñadas sin parto con fecha estimada dentro de los próximos 30 días.
+    prenieces = Preniez.objects.filter(estado_actual='Preñada', parto__isnull=True).select_related('madre')
+    if establecimiento is not None:
+        prenieces = prenieces.filter(madre__establecimiento=establecimiento)
+    faltantes = [(_fecha_estimada_parto(p) - today).days for p in prenieces]
+    faltantes = [d for d in faltantes if 0 <= d <= 30]
+    if faltantes:
+        alertas.append({
+            'clave': 'proximos_partos',
+            'icono': 'bi-heart-pulse',
+            'color': 'text-bg-info',
+            'titulo': f"{len(faltantes)} {'parto próximo' if len(faltantes) == 1 else 'partos próximos'}",
+            'detalle': f'Estimado en {_tiempo_estimado(min(faltantes))}',
+        })
+
+    # Animales enfermos activos.
+    enfermos = list(animales.filter(vivo=True, vendido=False, enfermo=True).select_related('parcela'))
+    if enfermos:
+        parcelas = sorted({_nombre_parcela(a.parcela) for a in enfermos if a.parcela})
+        alertas.append({
+            'clave': 'animales_enfermos',
+            'icono': 'bi-thermometer-half',
+            'color': 'text-bg-secondary',
+            'titulo': f"{len(enfermos)} {'animal enfermo' if len(enfermos) == 1 else 'animales enfermos'}",
+            'detalle': ', '.join(parcelas) or 'Sin parcela asignada',
+        })
+
+    # Animales con bajo peso.
+    bajo_peso = [a for a in animales.filter(vivo=True, vendido=False).select_related('parcela') if _es_bajo_peso(a)]
+    if bajo_peso:
+        parcelas = sorted({_nombre_parcela(a.parcela) for a in bajo_peso if a.parcela})
+        alertas.append({
+            'clave': 'bajo_peso',
+            'icono': 'bi-graph-down',
+            'color': 'text-bg-dark',
+            'titulo': f"{len(bajo_peso)} {'animal con bajo peso' if len(bajo_peso) == 1 else 'animales con bajo peso'}",
+            'detalle': ', '.join(parcelas) or 'Revisar dieta',
+        })
+
+    return alertas
+
+
+def _dashboard_data(request):
     establecimiento = _establecimiento_actual(request)
     today = date.today()
 
@@ -366,7 +458,7 @@ def dashboard(request):
         categoria = _categoria(animal) or animal.tipo_animal
         distribucion[categoria] = distribucion.get(categoria, 0) + 1
 
-    data = {
+    return {
         'establecimiento_id': establecimiento.id if establecimiento else None,
         'kpis': {
             'total_animales': kpi_total_animales,
@@ -381,8 +473,20 @@ def dashboard(request):
             'egresos_json': json.dumps(egresos_series),
         },
         'distribucion': distribucion,
+        'alertas': _alertas_dashboard(request, animales),
     }
-    return _page(request, 'index.html', 'dashboard', data)
+
+
+def dashboard(request):
+    return _page(request, 'index.html', 'dashboard', _dashboard_data(request))
+
+
+def dashboard_api(request):
+    return JsonResponse(_dashboard_data(request))
+
+
+def notificaciones_api(request):
+    return JsonResponse({'notificaciones': _alertas_dashboard(request)})
 
 
 def stock(request):
@@ -824,7 +928,7 @@ def gastos(request):
     })
 
 
-def potreros(request):
+def parcelas(request):
     parcelas = _parcelas_de(request).select_related('establecimiento').prefetch_related('animal_set')
     datos, animales = [], {}
     for p in parcelas:
@@ -833,9 +937,9 @@ def potreros(request):
         animales[nombre] = residentes
         datos.append(_parcela_data(p, actual=len(residentes)))
     establecimiento = _establecimiento_actual(request)
-    return _page(request, 'potreros.html', 'potreros', {
-        'potreros': datos,
-        'animales_por_potrero': animales,
+    return _page(request, 'parcelas.html', 'parcelas', {
+        'parcelas': datos,
+        'animales_por_parcela': animales,
         'establecimiento_id': establecimiento.id if establecimiento else None,
     })
 
@@ -906,7 +1010,7 @@ def _evento_sanitario_data(evento):
             'caravana': str(animal.id_senasa) if animal.id_senasa is not None else 'S/N',
             'categoria': _categoria(animal),
             'edad': _edad(animal),
-            'potrero': str(animal.parcela) if animal.parcela else 'Sin asignar',
+            'parcela': str(animal.parcela) if animal.parcela else 'Sin asignar',
             'cantidad_dosis': str(detalle.cantidad_dosis or ''),
         })
 
@@ -928,7 +1032,7 @@ def _evento_sanitario_data(evento):
         'caravana': caravana,
         'categoria': categorias,
         'edad': detalles[0]['edad'] if detalles else '-',
-        'potrero': detalles[0]['potrero'] if detalles else 'Sin asignar',
+        'parcela': detalles[0]['parcela'] if detalles else 'Sin asignar',
         'veterinario_id': evento.veterinario_id,
         'veterinario': str(evento.veterinario) if evento.veterinario else '-',
         'diagnostico_id': evento.diagnostico_id,
@@ -1154,7 +1258,7 @@ def sanidad(request):
             'sexo': a.sexo,
             'tipo_animal': a.tipo_animal,
             'categoria': _categoria(a),
-            'potrero': str(a.parcela) if a.parcela else 'Sin asignar',
+            'parcela': str(a.parcela) if a.parcela else 'Sin asignar',
             'enfermo': a.enfermo,
         } for a in animales],
     }
@@ -1428,7 +1532,7 @@ def eliminar_animal(request, animal_id):
 
 
 @require_POST
-def crear_potrero(request):
+def crear_parcela(request):
     es_edicion = bool(request.POST.get('id'))
     parcela = None
     try:
@@ -1461,12 +1565,12 @@ def crear_potrero(request):
         parcela.full_clean()
         parcela.save()
     except (KeyError, ValueError, ValidationError):
-        return JsonResponse({'error': 'Completá correctamente el ancho y largo del potrero.'}, status=400)
+        return JsonResponse({'error': 'Completá correctamente el ancho y largo de la parcela.'}, status=400)
     return JsonResponse({'id': parcela.id, 'parcela': _parcela_data(parcela)}, status=200 if es_edicion else 201)
 
 
 @require_POST
-def eliminar_potrero(request, parcela_id):
+def eliminar_parcela(request, parcela_id):
     parcela = get_object_or_404(Parcela, pk=parcela_id)
     parcela.delete()
     return JsonResponse({'ok': True})
