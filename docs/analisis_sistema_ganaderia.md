@@ -8,7 +8,7 @@ Este proyecto está planteado como una aplicación web de gestión para un estab
 - seguimiento sanitario y vacunación
 - registro de ventas y compras
 - gestión financiera con ingresos y egresos
-- control de potreros, pesajes y alimentación
+- control de parcelas, pesajes y alimentación
 - usuarios y roles del establecimiento
 
 ## 2. Arquitectura actual
@@ -33,16 +33,15 @@ Contiene entidades clave como:
 - Animal: información principal del bovino, incluyendo caravana SENASA, datos de nacimiento, sexo, raza, peso, estado de venta, estado vivo/enfermo, y relaciones con parcela, dieta, madre y padre.
 - Preniez: registro de gestaciones.
 - Pesaje: historial de pesos.
-- MovimientoAnimal: trazabilidad de eventos como altas, ventas, transferencias y bajas.
 
 Este módulo permite considerar al animal como un activo con historia y estado dinámico.
 
 ### 3.2 Módulo de establecimientos
 En [establecimientos/models.py](../establecimientos/models.py) se gestiona:
 - Establecimiento: unidad administrativa del campo.
-- Parcela: potreros o áreas del establecimiento.
+- Parcela: unidades de superficie o áreas del establecimiento.
 
-Esto permite asignar animales a potreros y modelar el movimiento físico entre zonas.
+Esto permite asignar animales a parcelas y modelar el movimiento físico entre zonas.
 
 ### 3.3 Módulo sanitario
 En [sanidad/models.py](../sanidad/models.py) se manejan:
@@ -87,7 +86,7 @@ Permite modelar distintos actores del sistema y los roles dentro del establecimi
 flowchart TD
     A[Usuario ingresa al sistema] --> B[Gestión de animales]
     B --> C[Registro de pesajes y salud]
-    B --> D[Asignación a potreros]
+    B --> D[Asignación a parcelas]
     B --> E[Registro de ventas o compras]
     C --> F[Finanzas y movimientos]
     D --> F
@@ -98,7 +97,7 @@ flowchart TD
 ## 5. Estado actual del proyecto
 El proyecto ya cuenta con una base funcional bastante completa:
 - modelos bien estructurados para cada dominio
-- vistas y rutas principales para stock, finanzas, ventas, compras, vacunación, pesajes, potreros, usuarios y configuración
+- vistas y rutas principales para stock, finanzas, ventas, compras, vacunación, pesajes, parcelas, usuarios y configuración
 - lógica para registrar ventas y afectar el estado del animal
 - integración de movimientos financieros y animales
 

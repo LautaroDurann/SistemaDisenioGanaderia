@@ -47,6 +47,7 @@ class EventoSanitario(models.Model):
         ('Suplemento', 'Suplemento'),
         ('Castración', 'Castración'),
         ('Inseminación', 'Inseminación'),
+        ('Otro', 'Otro'),
     ]
 
     detalle = models.TextField(blank=True, null=True)

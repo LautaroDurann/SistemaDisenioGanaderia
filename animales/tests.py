@@ -5,6 +5,7 @@ from django.contrib.auth.hashers import make_password
 from django.test import TestCase
 
 from animales.models import Animal
+from sanidad.models import DetalleEvento, EventoSanitario
 from establecimientos.models import Establecimiento
 from sanidad.models import DetalleEvento, EventoSanitario
 from usuarios.models import Persona, RolEstablecimiento, Usuario

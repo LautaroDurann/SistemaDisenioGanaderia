@@ -23,9 +23,6 @@
                 <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevoAnimal">
                   <i class="bi bi-plus-lg me-1"></i> Nuevo Animal
                 </button>
-                <button type="button" class="btn btn-outline-danger">
-                  <i class="bi bi-box-arrow-up me-1"></i> Registrar Salida
-                </button>
               </div>
             </div>
           </div>
@@ -134,19 +131,33 @@
                           <option>Hembra</option>
                         </select>
                       </div>
-                      <div class="col-md-2">
+                      <div class="col-md-3">
                         <label class="form-label small mb-1">Estado</label>
                         <select id="f-estado" class="form-select form-select-sm">
                           <option value="">Todos</option>
-                          <option>Activo</option>
+                          <option value="Activo" selected>Activo</option>
                           <option>Vendido</option>
                           <option>Muerto</option>
                         </select>
                       </div>
-                      <div class="col-md-2">
+                      <div class="col-md-3">
                         <label class="form-label small mb-1">Parcela</label>
                         <select id="f-parcela" class="form-select form-select-sm">
                           <option value="">Todos</option>
+                        </select>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label small mb-1">Madre</label>
+                        <select id="f-madre" class="form-select form-select-sm">
+                          <option value="">Todas</option>
+                        </select>
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label small mb-1">Condición</label>
+                        <select id="f-enfermo" class="form-select form-select-sm">
+                          <option value="">Todos</option>
+                          <option value="enfermos">Enfermos</option>
+                          <option value="sanos">Sanos</option>
                         </select>
                       </div>
                       <div class="col-md-1">
@@ -230,13 +241,19 @@
                           <span class="text-secondary">Peso</span><span id="ficha-peso">-</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
-                          <span class="text-secondary">Parcela</span><span id="ficha-potrero">-</span>
+                          <span class="text-secondary">Parcela</span><span id="ficha-parcela">-</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                          <span class="text-secondary">Establecimiento</span><span id="ficha-establecimiento">-</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
                           <span class="text-secondary">Estado</span><span id="ficha-estado">-</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
                           <span class="text-secondary">Fecha de ingreso</span><span id="ficha-ingreso">-</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between d-none" id="fila-ficha-muerte">
+                          <span class="text-secondary">Fecha de muerte</span><span id="ficha-muerte">-</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between"><span class="text-secondary">Tipo</span><span id="ficha-tipo">-</span></li>
                         <li class="list-group-item d-flex justify-content-between"><span class="text-secondary">Peso al nacer / destete</span><span id="ficha-pesos-iniciales">-</span></li>
@@ -278,7 +295,7 @@
               <div class="row g-3">
                 <div class="col-md-6">
                   <label for="animal-caravana" class="form-label">Caravana SENASA</label>
-                  <input id="animal-caravana" name="id_senasa" type="number" min="1" class="form-control" />
+                  <input id="animal-caravana" name="id_senasa" type="text" maxlength="50" pattern="[A-Za-z0-9]+" class="form-control" title="Solo letras y números, sin símbolos." placeholder="Solo letras y números" />
                 </div>
                 <div class="col-md-6">
                   <label for="animal-nombre" class="form-label">Nombre o identificación</label>
@@ -293,8 +310,8 @@
                   <select id="animal-tipo" name="tipo_animal" class="form-select" required><option value="Bovino">Bovino</option><option value="Porcino">Porcino</option><option value="Ovino">Ovino</option></select>
                 </div>
                 <div class="col-md-4">
-                  <label for="animal-raza" class="form-label">Raza</label>
-                  <input id="animal-raza" name="raza" type="text" maxlength="100" class="form-control" placeholder="Ej.: Angus" />
+                  <label for="animal-raza" class="form-label">Raza <span class="text-secondary small fw-normal">(debe comenzar con una letra)</span></label>
+                  <input id="animal-raza" name="raza" type="text" maxlength="100" class="form-control" placeholder="Ej.: Angus" pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ].*" title="La raza debe comenzar con una letra." />
                 </div>
                 <div class="col-md-4">
                   <label for="animal-peso" class="form-label">Peso actual (kg)</label>
@@ -305,8 +322,11 @@
                   <input id="animal-fecha-nacimiento" name="fecha_nacimiento" type="date" class="form-control" />
                 </div>
                 <div class="col-md-6">
+                  <label for="animal-establecimiento" class="form-label">Establecimiento</label>
+                  <select id="animal-establecimiento" name="establecimiento_id" class="form-select"><option value="">Sin asignar</option></select>
+                </div>
+                <div class="col-md-6">
                   <label for="animal-parcela" class="form-label">Parcela inicial</label>
-                  <input type="hidden" name="establecimiento_id" value="{{ establecimiento_actual_id|default:'' }}">
                   <select id="animal-parcela" name="parcela_id" class="form-select"><option value="">Sin asignar</option></select>
                 </div>
                 <div class="col-md-4">
@@ -337,21 +357,21 @@
                   <label for="animal-padre" class="form-label">Padre</label>
                   <select id="animal-padre" name="padre_id" class="form-select"><option value="">No registrado</option></select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-4 d-none" id="grupo-compra">
                   <label for="animal-compra" class="form-label">Compra asociada</label>
-                  <select id="animal-compra" name="compra_id" class="form-select"><option value="">Sin compra asociada</option></select>
+                  <input id="animal-compra" type="text" class="form-control" readonly />
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-4 d-none" id="grupo-costo">
                   <label for="animal-costo" class="form-label">Costo de adquisición ($)</label>
-                  <input id="animal-costo" name="costo_adquisicion" type="number" min="0" step="0.01" class="form-control" />
+                  <input id="animal-costo" type="text" class="form-control" readonly />
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-4 d-none" id="grupo-venta">
                   <label for="animal-venta" class="form-label">Venta asociada</label>
-                  <select id="animal-venta" name="venta_id" class="form-select"><option value="">Sin venta asociada</option></select>
+                  <input id="animal-venta" type="text" class="form-control" readonly />
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-4 d-none" id="grupo-precio-venta">
                   <label for="animal-precio-venta" class="form-label">Precio de venta ($)</label>
-                  <input id="animal-precio-venta" name="precio_venta" type="number" min="0" step="0.01" class="form-control" />
+                  <input id="animal-precio-venta" type="text" class="form-control" readonly />
                 </div>
                 <div class="col-12">
                   <div class="d-flex flex-wrap gap-4 p-2 border rounded bg-body-tertiary">
@@ -361,10 +381,18 @@
                     <div class="form-check"><input id="animal-castrado" name="castrado" class="form-check-input" type="checkbox"><label class="form-check-label" for="animal-castrado">Animal castrado</label></div>
                   </div>
                 </div>
+                <div class="col-md-4 d-none" id="grupo-fecha-muerte">
+                  <label for="animal-fecha-muerte" class="form-label">Fecha de muerte</label>
+                  <input id="animal-fecha-muerte" name="fecha_muerte" type="date" class="form-control" />
+                </div>
                 <div class="col-12">
                   <label for="animal-foto" class="form-label">Foto del animal</label>
                   <input id="animal-foto" name="foto" type="file" accept="image/*" class="form-control" />
                   <div id="foto-preview" class="mt-2 border rounded p-2 bg-body-tertiary d-none text-center"></div>
+                  <div id="foto-acciones" class="d-none mt-2">
+                    <button type="button" class="btn btn-outline-danger btn-sm" id="btn-eliminar-foto"><i class="bi bi-trash me-1"></i>Eliminar foto</button>
+                  </div>
+                  <input type="hidden" id="animal-eliminar-foto" name="eliminar_foto" value="" />
                 </div>
                 <div class="col-12">
                   <label for="animal-descripcion" class="form-label">Observaciones</label>
@@ -384,5 +412,5 @@
       {% endblock %}
 
  {% block page_js %}
-<script src="{% static 'js/stock.js' %}"></script>
+<script src="{% static 'js/stock.js' %}?v=1"></script>
 {% endblock %}

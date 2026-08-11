@@ -26,7 +26,8 @@ class Animal(models.Model):
     # ni las relaciones existentes.
     idAnimal = models.BigAutoField(db_column='id', primary_key=True, serialize=False, verbose_name='ID')
 
-    id_senasa = models.IntegerField(unique=True, null=True, blank=True) # Clave Única (CU)
+    # Caravana SENASA (Clave Única). Admite letras y números, sin símbolos.
+    id_senasa = models.CharField(max_length=50, unique=True, null=True, blank=True)
     nombre = models.CharField(max_length=100, blank=True, default='')
     descripcion = models.TextField(blank=True, null=True)
     foto = models.ImageField(upload_to='animales/', blank=True, null=True)
@@ -42,6 +43,8 @@ class Animal(models.Model):
     enfermo = models.BooleanField(default=False)
     # Se actualiza automáticamente al registrar un evento sanitario de castración.
     castrado = models.BooleanField(default=False)
+    # Fecha en la que el animal murió (solo cuando vivo = False).
+    fecha_muerte = models.DateField(null=True, blank=True)
     
     # Enums de Estrategia 3
     tipo_animal = models.CharField(max_length=10, choices=TIPO_CHOICES)
@@ -108,38 +111,3 @@ class Preniez(models.Model):
     def __str__(self):
         caravana = self.madre.id_senasa if self.madre and self.madre.id_senasa is not None else 'Sin caravana'
         return f"Preñez {self.id} - Madre SENASA: {caravana}"
-
-
-class Pesaje(models.Model):
-    """Registro histórico: el peso_actual del animal es solo una referencia rápida."""
-    animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='pesajes')
-    fecha = models.DateField()
-    peso = models.DecimalField(max_digits=8, decimal_places=2)
-    observaciones = models.TextField(blank=True, null=True)
-
-    class Meta:
-        ordering = ['fecha', 'id']
-
-    def __str__(self):
-        caravana = self.animal.id_senasa if self.animal and self.animal.id_senasa is not None else 'Sin caravana'
-        return f"Pesaje {caravana}: {self.peso} kg"
-
-
-class MovimientoAnimal(models.Model):
-    TIPO_CHOICES = [
-        ('Alta', 'Alta'), ('Traslado', 'Traslado'), ('Venta', 'Venta'),
-        ('Baja', 'Baja'), ('Nacimiento', 'Nacimiento'), ('Compra', 'Compra'),
-    ]
-    animal = models.ForeignKey(Animal, on_delete=models.CASCADE, related_name='movimientos')
-    fecha = models.DateField()
-    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
-    origen = models.ForeignKey('establecimientos.Parcela', on_delete=models.SET_NULL, null=True, blank=True, related_name='movimientos_origen')
-    destino = models.ForeignKey('establecimientos.Parcela', on_delete=models.SET_NULL, null=True, blank=True, related_name='movimientos_destino')
-    observaciones = models.TextField(blank=True, null=True)
-
-    class Meta:
-        ordering = ['-fecha', '-id']
-
-    def __str__(self):
-        caravana = self.animal.id_senasa if self.animal and self.animal.id_senasa is not None else 'Sin caravana'
-        return f"{self.tipo} - {caravana} ({self.fecha})"

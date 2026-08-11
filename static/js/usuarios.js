@@ -82,8 +82,9 @@ const ESTADO_BADGE = {
   Inactivo: 'text-bg-secondary',
 };
 
-let USUARIOS = window.GANASTOCK_DATA?.usuarios ?? [];
-const ESTABLECIMIENTOS = window.GANASTOCK_DATA?.establecimientos ?? [];
+let USUARIOS = window.HUACAPP_DATA?.usuarios ?? [];
+const ESTABLECIMIENTOS = window.HUACAPP_DATA?.establecimientos ?? [];
+const USUARIO_ACTUAL_ID = window.HUACAPP_DATA?.usuario_actual_id ?? null;
 
 const FILAS_POR_PAGINA = 6;
 let paginaActual = 1;
@@ -169,6 +170,21 @@ function badgesRoles(u) {
     .join('');
 }
 
+function avatarHtml(u) {
+  if (u.foto_url) {
+    return `<span class="vacapp-avatar-wrap">
+      <span class="vacapp-avatar" style="background:#fff; overflow:hidden;">
+        <img src="${u.foto_url}" alt="Foto de ${nombreCompleto(u) || 'usuario'}" class="w-100 h-100" style="object-fit:cover;">
+      </span>
+      ${u.conectado ? '<span class="vacapp-online-dot" title="Conectado ahora"></span>' : ''}
+    </span>`;
+  }
+  return `<span class="vacapp-avatar-wrap">
+    <span class="vacapp-avatar" style="background:${COLOR_ROL[u.rol] || '#6c757d'}">${iniciales(u)}</span>
+    ${u.conectado ? '<span class="vacapp-online-dot" title="Conectado ahora"></span>' : ''}
+  </span>`;
+}
+
 function renderTabla() {
   const filtrados = aplicarFiltros();
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / FILAS_POR_PAGINA));
@@ -181,10 +197,7 @@ function renderTabla() {
       (u) => `
     <tr>
       <td>
-        <span class="vacapp-avatar-wrap">
-          <span class="vacapp-avatar" style="background:${COLOR_ROL[u.rol] || '#6c757d'}">${iniciales(u)}</span>
-          ${u.conectado ? '<span class="vacapp-online-dot" title="Conectado ahora"></span>' : ''}
-        </span>
+        ${avatarHtml(u)}
       </td>
       <td>
         <div class="fw-semibold">${nombreCompleto(u) || 'Sin nombre'}</div>
@@ -298,6 +311,49 @@ function renderTabla() {
   });
 }
 
+function sincronizarNavbarCon(u) {
+  if (!u || USUARIO_ACTUAL_ID == null || u.id !== Number(USUARIO_ACTUAL_ID)) return;
+  const color = COLOR_ROL[u.rol] || '#6c757d';
+  const texto = iniciales(u);
+  const src = u.foto_url
+    ? `${u.foto_url}${u.foto_url.includes('?') ? '&' : '?'}t=${Date.now()}`
+    : '';
+  const armarSpan = (grande) => {
+    const span = document.createElement('span');
+    span.className = `vacapp-navbar-iniciales rounded-circle shadow${grande ? ' vacapp-navbar-iniciales-lg d-flex align-items-center justify-content-center' : ''}`;
+    span.style.background = color;
+    span.title = 'User Image';
+    span.textContent = texto;
+    return span;
+  };
+  const sincronizar = (contenedor, claseImg, grande) => {
+    if (!contenedor) return;
+    const span = contenedor.querySelector('.vacapp-navbar-iniciales');
+    const img = contenedor.querySelector(`img.${claseImg}`);
+    if (src) {
+      if (span) span.remove();
+      if (!img) {
+        const nuevo = document.createElement('img');
+        nuevo.className = `${claseImg} shadow`;
+        nuevo.alt = 'User Image';
+        nuevo.src = src;
+        contenedor.insertBefore(nuevo, contenedor.firstChild);
+      } else {
+        img.src = src;
+      }
+    } else {
+      if (span) {
+        span.style.background = color;
+        span.textContent = texto;
+      } else if (img) {
+        img.replaceWith(armarSpan(grande));
+      }
+    }
+  };
+  sincronizar(document.querySelector('.user-menu .nav-link'), 'user-image', false);
+  sincronizar(document.querySelector('.user-menu .user-header'), 'rounded-circle', true);
+}
+
 function renderPerfil() {
   const u = USUARIOS.find((x) => x.id === usuarioSeleccionado) || USUARIOS[0];
   if (!u) {
@@ -313,8 +369,15 @@ function renderPerfil() {
     return;
   }
 
-  document.getElementById('perfil-avatar').textContent = iniciales(u);
-  document.getElementById('perfil-avatar').style.background = COLOR_ROL[u.rol] || '#6c757d';
+  const avatar = document.getElementById('perfil-avatar');
+  if (u.foto_url) {
+    avatar.style.background = '#fff';
+    avatar.innerHTML = `<img src="${u.foto_url}" alt="Foto de ${nombreCompleto(u) || 'usuario'}" class="w-100 h-100 rounded-circle" style="object-fit:cover;">`;
+  } else {
+    avatar.textContent = iniciales(u);
+    avatar.style.background = COLOR_ROL[u.rol] || '#6c757d';
+  }
+  document.getElementById('btn-eliminar-foto').classList.toggle('d-none', !u.foto_url);
 
   document.getElementById('perfil-nombre').textContent = nombreCompleto(u) || u.usuario;
   document.getElementById('perfil-cargo').textContent = u.rol;
@@ -532,6 +595,51 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAsignarRol')).hide();
       await cargarUsuarios();
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+
+  // Foto de perfil: cambiar y eliminar
+  const fotoInput = document.getElementById('perfil-foto-input');
+  document.getElementById('btn-cambiar-foto').addEventListener('click', () => fotoInput.click());
+
+  fotoInput.addEventListener('change', async () => {
+    const archivo = fotoInput.files[0];
+    if (!archivo) return;
+    const u = USUARIOS.find((x) => x.id === usuarioSeleccionado) || USUARIOS[0];
+    if (!u) return;
+    const formData = new FormData();
+    formData.append('foto', archivo);
+    try {
+      const respuesta = await fetch(`/api/usuarios/${u.id}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        body: formData,
+      });
+      const cuerpo = await respuesta.json().catch(() => ({}));
+      if (!respuesta.ok) throw new Error(cuerpo.error || 'No se pudo actualizar la foto.');
+      fotoInput.value = '';
+      const actualizado = cuerpo.usuario;
+      if (actualizado) {
+        const idx = USUARIOS.findIndex((x) => x.id === Number(u.id));
+        if (idx >= 0) USUARIOS[idx] = actualizado;
+        sincronizarNavbarCon(actualizado);
+      }
+      await cargarUsuarios();
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+
+  document.getElementById('btn-eliminar-foto').addEventListener('click', async () => {
+    const u = USUARIOS.find((x) => x.id === usuarioSeleccionado) || USUARIOS[0];
+    if (!u || !u.foto_url) return;
+    if (!confirm(`¿Eliminar la foto de perfil de ${nombreCompleto(u) || u.usuario}?`)) return;
+    try {
+      await apiFetch(`/api/usuarios/${u.id}/`, { eliminar_foto: '1' });
+      await cargarUsuarios();
+      sincronizarNavbarCon(USUARIOS.find((x) => x.id === Number(u.id)));
     } catch (error) {
       alert(error.message);
     }

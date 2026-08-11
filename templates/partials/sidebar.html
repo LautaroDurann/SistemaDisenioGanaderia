@@ -17,11 +17,11 @@
   <div class="sidebar-brand">
     <a href="{% url 'dashboard' %}" class="brand-link">
       <img
-        src="{% static 'assets/img/AdminLTELogo.png' %}"
-        alt="GanaStock Logo"
+        src="{% static 'assets/img/logo_ganaderia.png' %}"
+        alt="HuacApp Logo"
         class="brand-image opacity-75 shadow"
       />
-      <span class="brand-text fw-light">GanaStock</span>
+      <span class="brand-text fw-light">HuacApp</span>
     </a>
   </div>
   <!--end::Sidebar Brand-->
@@ -49,12 +49,12 @@
           </a>
         </li>
         {% if es_propietario %}
-        <li class="nav-item{% if request.resolver_match.url_name == 'ventas' or request.resolver_match.url_name == 'compras' or request.resolver_match.url_name == 'movimientos' %} finanzas-branch-active{% endif %}" data-treeview="finanzas">
+        <li class="nav-item{% if request.resolver_match.url_name == 'ventas' or request.resolver_match.url_name == 'gastos' or request.resolver_match.url_name == 'movimientos' %} finanzas-branch-active{% endif %}" data-treeview="finanzas">
           <a href="{% url 'finanzas' %}" id="nav-finanzas" class="nav-link{% if request.resolver_match.url_name == 'finanzas' or request.resolver_match.url_name == 'movimientos' %} active{% endif %}" data-lte-toggle="treeview">
             <i class="nav-icon bi bi-cash-stack"></i>
             <p>Finanzas <i id="finanzas-toggle" class="nav-arrow bi bi-chevron-right" style="cursor: pointer;"></i></p>
           </a>
-          <ul id="submenu-finanzas" class="nav nav-treeview" style="display: {% if request.resolver_match.url_name == 'ventas' or request.resolver_match.url_name == 'compras' or request.resolver_match.url_name == 'movimientos' %}block{% else %}none{% endif %};">
+          <ul id="submenu-finanzas" class="nav nav-treeview" style="display: {% if request.resolver_match.url_name == 'finanzas' or request.resolver_match.url_name == 'ventas' or request.resolver_match.url_name == 'gastos' or request.resolver_match.url_name == 'movimientos' %}block{% else %}none{% endif %};">
             <li class="nav-item">
               <a href="{% url 'ventas' %}" class="nav-link{% if request.resolver_match.url_name == 'ventas' %} active finanzas-child-active{% endif %}">
                 <i class="nav-icon bi bi-receipt"></i>
@@ -62,16 +62,16 @@
               </a>
             </li>
             <li class="nav-item">
-              <a href="{% url 'compras' %}" class="nav-link{% if request.resolver_match.url_name == 'compras' %} active finanzas-child-active{% endif %}">
+              <a href="{% url 'gastos' %}" class="nav-link{% if request.resolver_match.url_name == 'gastos' or request.resolver_match.url_name == 'compras' or request.resolver_match.url_name == 'sueldos' %} active finanzas-child-active{% endif %}">
                 <i class="nav-icon bi bi-cart"></i>
-                <p>Compras</p>
+                <p>Gastos</p>
               </a>
             </li>
           </ul>
         </li>
         {% endif %}
         <li class="nav-item">
-          <a href="{% url 'potreros' %}" class="nav-link{% if request.resolver_match.url_name == 'potreros' %} active{% endif %}" data-page="potreros.html">
+          <a href="{% url 'parcelas' %}" class="nav-link{% if request.resolver_match.url_name == 'parcelas' %} active{% endif %}" data-page="parcelas.html">
             <i class="nav-icon bi bi-signpost-split"></i>
             <p>Parcelas</p>
           </a>
@@ -86,12 +86,6 @@
           <a href="{% url 'sanidad' %}" class="nav-link{% if request.resolver_match.url_name == 'sanidad' or request.resolver_match.url_name == 'vacunacion' %} active{% endif %}" data-page="sanidad.html">
             <i class="nav-icon bi bi-shield-plus"></i>
             <p>Sanidad</p>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="{% url 'pesajes' %}" class="nav-link{% if request.resolver_match.url_name == 'pesajes' %} active{% endif %}" data-page="pesajes.html">
-            <i class="nav-icon bi bi-speedometer2"></i>
-            <p>Pesajes</p>
           </a>
         </li>
         <li class="nav-item">
@@ -116,7 +110,7 @@
         <li class="nav-item">
           <a href="{% url 'configuracion' %}" class="nav-link{% if request.resolver_match.url_name == 'configuracion' %} active{% endif %}" data-page="configuracion.html">
             <i class="nav-icon bi bi-gear-fill"></i>
-            <p>Configuracion</p>
+            <p>Configuración</p>
           </a>
         </li>
         {% endif %}

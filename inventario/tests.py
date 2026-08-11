@@ -18,6 +18,7 @@ class InsumoCrudTests(TestCase):
         establecimiento = Establecimiento.objects.create(
             nombre='Campo insumos', fecha_inicio=date.today(), ubicacion='Córdoba'
         )
+        self.establecimiento = establecimiento
         persona = Persona.objects.create(
             nombre='Juan', apellido='Fernandez', correo_electronico='juan-insumos@test.com',
         )
@@ -121,8 +122,10 @@ class InsumoCrudTests(TestCase):
 
     def test_api_insumo_detail_returns_lotes(self):
         insumo = Insumo.objects.create(nombre='Alimento B', tipo='Alimento', unidadDeMedida='kg')
-        Lote.objects.create(insumo=insumo, nombre='Lote 1', fechaVencimiento=date(2026, 12, 1), stockActual=Decimal('50.00'))
-        Lote.objects.create(insumo=insumo, nombre='Lote 2', fechaVencimiento=date(2026, 12, 15), stockActual=Decimal('100.00'))
+        Lote.objects.create(insumo=insumo, nombre='Lote 1', fechaVencimiento=date(2026, 12, 1),
+                            stockActual=Decimal('50.00'), establecimiento=self.establecimiento)
+        Lote.objects.create(insumo=insumo, nombre='Lote 2', fechaVencimiento=date(2026, 12, 15),
+                            stockActual=Decimal('100.00'), establecimiento=self.establecimiento)
 
         response = self.client.get(reverse('insumo_detalle', args=[insumo.id]))
         self.assertEqual(response.status_code, 200)

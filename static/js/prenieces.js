@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const data = window.GANASTOCK_DATA || {};
+  const data = window.HUACAPP_DATA || {};
 
   let PRENIECES = data.prenieces || [];
   let PARTOS = data.partos || [];
@@ -665,8 +665,6 @@
     formData.append('madre_id', $('c-madre').value || '');
     formData.append('padre_id', $('c-padre').value || '');
     formData.append('parto_id', $('c-parto-id').value || '');
-    formData.append('movimiento_tipo', 'Nacimiento');
-    formData.append('movimiento_fecha', $('c-fecha-nacimiento').value || '');
     const response = await fetch('/api/animales/', {
       method: 'POST', headers: { 'X-CSRFToken': csrf() }, body: formData,
     });

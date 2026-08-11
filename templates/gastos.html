@@ -1,0 +1,156 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+{% block title %}Gastos | HuacApp{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/gastos.css' %}?v=4">{% endblock %}
+{% block content %}
+<div class="app-content-header">
+  <div class="container-fluid">
+    <h3 class="mb-0">Gastos del establecimiento</h3>
+    <p class="text-secondary mb-0">Registrá compras y liquidaciones de sueldos, y controlá los egresos del establecimiento.</p>
+  </div>
+</div>
+<div class="app-content">
+  <div class="container-fluid">
+    <div id="mensaje-gastos"></div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-secondary small">Total de gastos</div><div class="h4 mb-0" id="kpi-total-gastos">0</div></div></div></div>
+      <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-secondary small">Egresos acumulados</div><div class="h4 mb-0" id="kpi-egresos-total">$ 0,00</div></div></div></div>
+      <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-secondary small">Gastos este año</div><div class="h4 mb-0" id="kpi-egresos-anio">$ 0,00</div></div></div></div>
+      <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-secondary small">Proveedores</div><div class="h4 mb-0" id="kpi-proveedores">0</div></div></div></div>
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-lg-8"><div class="card shadow-sm h-100"><div class="card-header"><h3 class="card-title mb-0">Gastos por año (compras + sueldos)</h3></div><div class="card-body"><div id="chart-gastos" style="height: 320px;"></div></div></div></div>
+      <div class="col-lg-4"><div class="card shadow-sm h-100"><div class="card-header"><h3 class="card-title mb-0">Sueldos por año</h3></div><div class="card-body"><div id="chart-sueldos" style="height: 320px;"></div></div></div></div>
+    </div>
+
+    <ul class="nav nav-tabs mb-3" id="gastos-tabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-compras" data-bs-toggle="tab" data-bs-target="#pane-compras" type="button" role="tab" aria-controls="pane-compras" aria-selected="true"><i class="bi bi-cart me-1"></i>Compras</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-sueldos" data-bs-toggle="tab" data-bs-target="#pane-sueldos" type="button" role="tab" aria-controls="pane-sueldos" aria-selected="false"><i class="bi bi-people me-1"></i>Sueldos</button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="pane-compras" role="tabpanel" aria-labelledby="tab-compras">
+        <div class="row g-3 mb-4">
+          <div class="col-lg-4">
+            <div class="card shadow-sm h-100"><div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title mb-0">Proveedores</h3><button class="btn btn-sm btn-outline-primary" id="nuevo-proveedor"><i class="bi bi-person-plus"></i> Nuevo</button></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Nombre</th><th>Correo</th><th>Teléfono</th><th></th></tr></thead><tbody id="proveedores-body"></tbody></table></div></div></div>
+            <div class="card shadow-sm mt-3"><div class="card-header"><h3 class="card-title mb-0">Montos por tipo (año)</h3></div><div class="card-body p-0"><table class="table align-middle mb-0"><tbody id="montos-tipo-body"></tbody></table></div></div>
+          </div>
+          <div class="col-lg-8">
+            <div class="card shadow-sm h-100"><div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title mb-0">Últimas compras</h3><button class="btn btn-success btn-sm" id="nueva-compra-tabla"><i class="bi bi-plus-lg me-1"></i>Registrar compra</button></div><div class="card-body"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Fecha</th><th>Tipo</th><th>Proveedor</th><th>Detalle</th><th>Establecimiento</th><th class="text-end">Monto total</th><th>Pago</th><th>Estado</th><th></th></tr></thead><tbody id="compras-body"></tbody></table></div></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="tab-pane fade" id="pane-sueldos" role="tabpanel" aria-labelledby="tab-sueldos">
+        <div class="row g-3">
+          <div class="col-lg-4">
+            <div class="card shadow-sm h-100"><div class="card-header"><h3 class="card-title mb-0">Empleados liquidables</h3></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Nombre</th><th>Usuario</th></tr></thead><tbody id="empleados-body"></tbody></table></div></div></div>
+          </div>
+          <div class="col-lg-8">
+            <div class="card shadow-sm h-100"><div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title mb-0">Últimas liquidaciones</h3><button class="btn btn-success btn-sm" id="nueva-liquidacion-tabla"><i class="bi bi-plus-lg me-1"></i>Registrar liquidación</button></div><div class="card-body"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Fecha</th><th>Empleado</th><th>Usuario</th><th>Establecimiento</th><th>Descripción</th><th class="text-end">Sueldo</th><th class="text-end"></th></tr></thead><tbody id="liquidaciones-body"></tbody></table></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalCompra" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
+  <form id="form-compra" novalidate>
+    <div class="modal-header"><h5 class="modal-title" id="titulo-compra">Registrar compra</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="compra-id">
+      <div class="row g-3 mb-3">
+        <div class="col-md-4"><label class="form-label">Fecha</label><input class="form-control" type="date" name="fecha" id="compra-fecha" required></div>
+        <div class="col-md-4"><label class="form-label">Tipo de compra</label><select class="form-select" name="tipo" id="compra-tipo"><option value="Insumos">Insumos</option><option value="Maquinaria">Maquinaria</option><option value="Animales">Animales</option><option value="Otros">Otros</option></select></div>
+        <div class="col-md-4"><label class="form-label">Proveedor</label><select class="form-select" name="proveedor_id" id="compra-proveedor"><option value="">Sin proveedor</option>{% for proveedor in page_data.proveedores %}<option value="{{ proveedor.id }}">{{ proveedor.nombre }}</option>{% endfor %}</select></div>
+      </div>
+
+      <div class="border rounded p-3 mb-3 d-none" id="panel-insumos">
+        <h6 class="text-secondary text-uppercase small mb-2">Detalle de insumos</h6>
+        <div class="row g-3">
+          <div class="col-md-3"><label class="form-label">Tipo de insumo</label><select class="form-select" id="compra-tipo-insumo"><option value="">Todos</option><option>Vacuna</option><option>Medicamento</option><option>Alimento</option><option>Otros</option></select></div>
+          <div class="col-md-3"><label class="form-label">Insumo</label><select class="form-select" id="compra-insumo"><option value="">— Elegí un insumo —</option>{% for insumo in page_data.insumos %}<option value="{{ insumo.id }}" data-tipo="{{ insumo.tipo }}">{{ insumo.nombre }}</option>{% endfor %}</select></div>
+          <div class="col-md-3"><div class="form-check mt-4"><input class="form-check-input" type="checkbox" id="compra-nuevo-insumo"><label class="form-check-label" for="compra-nuevo-insumo">Crear insumo nuevo</label></div></div>
+          <div class="col-md-3 d-none" id="grupo-nuevo-insumo"><label class="form-label">Nombre del nuevo insumo</label><input class="form-control" id="compra-nuevo-insumo-nombre" placeholder="Ej: Vacuna aftosa"></div>
+        </div>
+        <div class="row g-3 mt-0">
+          <div class="col-md-3"><label class="form-label">Nombre del lote</label><input class="form-control" id="compra-lote-nombre" placeholder="Ej: Lote Aftosa 2026"></div>
+          <div class="col-md-3"><label class="form-label">Fecha de vencimiento</label><input class="form-control" type="date" id="compra-fecha-vencimiento"></div>
+          <div class="col-md-2"><label class="form-label">Cantidad</label><input class="form-control" type="number" min="0.01" step="0.01" id="compra-cantidad"></div>
+          <div class="col-md-2"><label class="form-label">Precio unitario ($)</label><input class="form-control" type="number" min="0.01" step="0.01" id="compra-precio-unitario"></div>
+          <div class="col-md-2"><label class="form-label">Monto total</label><input class="form-control" id="compra-monto-insumos" readonly></div>
+        </div>
+      </div>
+
+      <div class="border rounded p-3 mb-3 d-none" id="panel-animales">
+        <h6 class="text-secondary text-uppercase small mb-2">Detalle del animal comprado</h6>
+        <div class="row g-3">
+          <div class="col-md-3"><label class="form-label">Caravana (SENASA)</label><input class="form-control" type="text" maxlength="50" pattern="[A-Za-z0-9]+" name="id_senasa" id="compra-caravana" title="Solo letras y números, sin símbolos." placeholder="Solo letras y números"></div>
+          <div class="col-md-3"><label class="form-label">Nombre</label><input class="form-control" name="nombre" id="compra-animal-nombre" placeholder="Opcional"></div>
+          <div class="col-md-2"><label class="form-label">Especie</label><select class="form-select" name="tipo_animal" id="compra-tipo-animal"><option>Bovino</option><option>Ovino</option><option>Porcino</option></select></div>
+          <div class="col-md-2"><label class="form-label">Sexo</label><select class="form-select" name="sexo" id="compra-sexo"><option value="Hembra">Hembra</option><option value="Macho">Macho</option></select></div>
+          <div class="col-md-2"><label class="form-label">Raza</label><input class="form-control" name="raza" id="compra-raza" placeholder="Ej: Angus"></div>
+        </div>
+        <div class="row g-3 mt-0">
+          <div class="col-md-2"><label class="form-label">Color</label><input class="form-control" name="color" id="compra-color"></div>
+          <div class="col-md-2"><label class="form-label">Fecha de nacimiento</label><input class="form-control" type="date" name="fecha_nacimiento" id="compra-fecha-nacimiento"></div>
+          <div class="col-md-2"><label class="form-label">Peso al nacer (kg)</label><input class="form-control" type="number" step="0.01" name="peso_al_nacer" id="compra-peso-nacer"></div>
+          <div class="col-md-2"><label class="form-label">Peso actual (kg)</label><input class="form-control" type="number" step="0.01" name="peso_actual" id="compra-peso-actual"></div>
+          <div class="col-md-4"><label class="form-label">Costo / monto ($)</label><input class="form-control" type="number" min="0.01" step="0.01" name="monto_total" id="compra-monto-animal" required></div>
+        </div>
+        <div class="row g-3 mt-0">
+          <div class="col-md-12"><label class="form-label">Detalles del animal</label><textarea class="form-control" name="descripcion" id="compra-detalle-animal" rows="2" placeholder="Opcional"></textarea></div>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-3"><label class="form-label">Método de pago</label><select class="form-select" name="metodoDePago" id="compra-metodo"><option value="Efectivo">Efectivo</option><option value="Transferencia">Transferencia</option><option value="Cheque">Cheque</option></select></div>
+        <div class="col-md-3"><label class="form-label">Estado de pago</label><select class="form-select" name="estadoDePago" id="compra-estado"><option value="Pendiente">Pendiente</option><option value="Pagada">Pagada</option></select></div>
+        <div class="col-md-3 d-none" id="grupo-monto-generico"><label class="form-label">Monto total</label><input class="form-control" type="number" min="0.01" step="0.01" name="monto_total" id="compra-monto-total" required></div>
+        <div class="col-md-3"><label class="form-label">Detalle de la compra</label><input class="form-control" name="detalle" id="compra-detalle" placeholder="Opcional"></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-success">Guardar compra</button></div>
+  </form>
+</div></div></div>
+
+<div class="modal fade" id="modalProveedor" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <form id="form-proveedor">
+    <div class="modal-header"><h5 class="modal-title" id="titulo-proveedor">Nuevo proveedor</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="proveedor-id" name="proveedor_id">
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">DNI</label><input class="form-control" name="dni" placeholder="Opcional"></div>
+        <div class="col-md-6"><label class="form-label">Fecha de nacimiento</label><input class="form-control" type="date" name="fecha_nacimiento"></div>
+        <div class="col-md-6"><label class="form-label">Nombre</label><input class="form-control" name="nombre" required></div>
+        <div class="col-md-6"><label class="form-label">Apellido</label><input class="form-control" name="apellido"></div>
+        <div class="col-md-6"><label class="form-label">Correo</label><input class="form-control" type="email" name="correo_electronico"></div>
+        <div class="col-md-6"><label class="form-label">Teléfono</label><input class="form-control" name="telefono" placeholder="3515551234"></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Guardar proveedor</button></div>
+  </form>
+</div></div></div>
+
+<div class="modal fade" id="modalLiquidacion" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+  <form id="form-liquidacion" novalidate>
+    <div class="modal-header"><h5 class="modal-title" id="titulo-liquidacion">Registrar liquidación</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="liquidacion-id">
+      <div class="row g-3">
+        <div class="col-md-4"><label class="form-label">Fecha de liquidación</label><input class="form-control" type="date" name="fecha" id="liquidacion-fecha"></div>
+        <div class="col-md-8"><label class="form-label">Empleado</label><select class="form-select" name="empleado_id" id="liquidacion-empleado"><option value="">— Elegí un empleado —</option>{% for empleado in page_data.empleados %}<option value="{{ empleado.id }}">{{ empleado.nombre }} (@{{ empleado.usuario }})</option>{% endfor %}</select></div>
+        <div class="col-md-4"><label class="form-label">Sueldo ($)</label><input class="form-control" type="number" min="0.01" step="0.01" name="sueldo" id="liquidacion-sueldo"></div>
+        <div class="col-md-8"><label class="form-label">Descripción / Detalle</label><input class="form-control" name="descripcion" id="liquidacion-descripcion" placeholder="Opcional. Ej: Sueldo de agosto"></div>
+      </div>
+      <div class="form-text mt-2">Cada liquidación se registra automáticamente como un egreso y suma a los gráficos de este módulo.</div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-success">Guardar liquidación</button></div>
+  </form>
+</div></div></div>
+{% endblock %}
+{% block page_js %}<script src="{% static 'js/gastos.js' %}"></script>{% endblock %}

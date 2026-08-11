@@ -1,4 +1,5 @@
 import logging
+import socket
 from datetime import date, datetime
 from urllib.parse import urlparse
 
@@ -117,7 +118,7 @@ def recuperar_view(request):
             url = _url_absoluta(request, 'restablecer', token)
             try:
                 send_mail(
-                    'Restablecer contraseña - GanaStock',
+                    'Restablecer contraseña - HuacApp',
                     'Recibimos una solicitud para restablecer tu contraseña.\n\n'
                     f'Hacé clic en el siguiente enlace (válido por 1 hora):\n{url}\n\n'
                     'Si no la pediste, podés ignorar este correo.',
@@ -161,18 +162,43 @@ def _token_para_usuario(usuario):
     return TimestampSigner().sign(str(usuario.pk)).replace(':', '.')
 
 
+def _lan_ip_servidor():
+    """IP de la red local de la PC que corre el sistema.
+
+    Se detecta consultando la interfaz de salida predeterminada sin enviar
+    tráfico real. Así el enlace del correo siempre apunta a la IP actual del
+    servidor aunque cambie (DHCP) y el celular pueda abrirlo."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(('8.8.8.8', 80))
+            return s.getsockname()[0]
+        finally:
+            s.close()
+    except OSError:
+        return None
+
+
 def _url_absoluta(request, nombre_url, token):
     """URL completa del enlace para el correo.
 
-    Usa el host de la petición (así funciona aunque cambie la IP de la PC:
-    si pedís la recuperación desde el celular, el enlace apunta a la IP que
-    tu celular ya está usando). Solo cuando la petición viene de localhost o
-    127.0.0.1 (que el celular no puede abrir) se usa SITE_URL como respaldo."""
+    - Si la solicitud llegó desde el celular (host que no es local), el enlace
+      usa esa misma dirección, que el celular ya sabe abrir.
+    - Si llegó desde la propia PC (localhost/127.0.0.1), el celular no puede
+      abrir esa dirección, así que el enlace se arma con la IP de red local del
+      servidor, detectada automáticamente. Si no se puede detectar, se usa
+      SITE_URL como respaldo (en producción debe apuntar al dominio público)."""
     path = reverse(nombre_url, args=[token])
     host = request.get_host()
     host_local = host.split(':')[0].lower() in ('localhost', '127.0.0.1', '::1', '0.0.0.0')
+    if not host_local:
+        return request.build_absolute_uri(path)
+    if settings.DEBUG:
+        lan_ip = _lan_ip_servidor()
+        if lan_ip:
+            return f'http://{lan_ip}:{request.get_port()}{path}'
     sitio = getattr(settings, 'SITE_URL', '').rstrip('/')
-    if host_local and sitio:
+    if sitio:
         return f'{sitio}{path}'
     return request.build_absolute_uri(path)
 
@@ -193,9 +219,10 @@ def _usuario_puede_acceder(usuario):
 
 
 def _establecimiento_por_defecto(request, usuario):
+    """Al ingresar siempre queda activo un establecimiento (el primero disponible)."""
     ids = list(RolEstablecimiento.objects.filter(usuario=usuario).values_list('establecimiento_id', flat=True))
     ids = list(dict.fromkeys(ids))
-    if len(ids) == 1:
+    if ids:
         request.session['establecimiento_id'] = ids[0]
     else:
         request.session.pop('establecimiento_id', None)
@@ -256,6 +283,7 @@ def _usuario_data(usuario):
         'creado': usuario.fecha_creacion.isoformat() if usuario.fecha_creacion else None,
         'acceso': usuario.fecha_ultimo_acceso.isoformat() if usuario.fecha_ultimo_acceso else None,
         'conectado': False,
+        'foto_url': usuario.foto.url if usuario.foto else '',
         'roles': [{
             'id': r.id,
             'establecimiento_id': r.establecimiento_id,
@@ -370,6 +398,14 @@ def actualizar_usuario_api(request, usuario_id):
             persona.telefono = telefono.strip()
         if any(k in request.POST for k in ('nombre', 'apellido', 'email', 'correo_electronico', 'telefono')):
             persona.save(update_fields=['nombre', 'apellido', 'correo_electronico', 'telefono'])
+
+        if request.POST.get('eliminar_foto') == '1' and usuario.foto:
+            usuario.foto.delete(save=False)
+            usuario.foto = None
+        if 'foto' in request.FILES and request.FILES['foto']:
+            usuario.foto = request.FILES['foto']
+        if request.POST.get('eliminar_foto') == '1' or ('foto' in request.FILES and request.FILES['foto']):
+            usuario.save(update_fields=['foto'])
 
         nueva_clave = request.POST.get('clave', '')
         if nueva_clave:

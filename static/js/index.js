@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const setTheme = (theme) => {
     const resolved = theme === 'auto' ? (prefersDark() ? 'dark' : 'light') : theme;
     document.documentElement.setAttribute('data-bs-theme', resolved);
+    document.dispatchEvent(new CustomEvent('temaCambiado', { detail: { theme: resolved } }));
   };
   setTheme(getPreferredTheme());
   const showActiveTheme = (theme) => {
@@ -76,27 +77,7 @@ document.addEventListener('DOMContentLoaded', function () {
 // ------------------------------------------------------------------
 // DATOS: provienen del servidor (Django) filtrados por establecimiento
 // ------------------------------------------------------------------
-const GANASTOCK = window.GANASTOCK_DATA || {};
-const ULTIMOS_MOVIMIENTOS = GANASTOCK.movimientos ?? [
-  { fecha: '14/07/2026', animal: '#0231 Luna', tipo: 'Ingreso', usuario: 'Juan', obs: 'Compra a La Esperanza' },
-  { fecha: '13/07/2026', animal: '#0198 Fierro', tipo: 'Venta', usuario: 'Carlos', obs: 'Remate feria local' },
-  { fecha: '12/07/2026', animal: '#0305 S/N', tipo: 'Nacimiento', usuario: 'María', obs: 'Nacimiento en Potrero 2' },
-  { fecha: '10/07/2026', animal: '#0142 Estrella', tipo: 'Muerte', usuario: 'Carlos', obs: 'Causas naturales' },
-  { fecha: '10/07/2026', animal: '#0087 S/N', tipo: 'Traslado', usuario: 'María', obs: 'Traslado por pastura' },
-  { fecha: '09/07/2026', animal: '#0056 Paloma', tipo: 'Compra', usuario: 'Juan', obs: 'Reposición de rodeo' },
-  { fecha: '08/07/2026', animal: '#0412 S/N', tipo: 'Alta', usuario: 'María', obs: 'Alta por nacimiento tardío' },
-  { fecha: '06/07/2026', animal: '#0329 S/N', tipo: 'Baja', usuario: 'Carlos', obs: 'Baja administrativa' },
-  { fecha: '05/07/2026', animal: '#0263 Rocío', tipo: 'Traslado', usuario: 'Juan', obs: 'Rotación de pastoreo' },
-  { fecha: '03/07/2026', animal: '#0177 Trueno', tipo: 'Ingreso', usuario: 'María', obs: 'Ingreso por servicio' },
-];
-
-const KPIS = GANASTOCK.kpis ?? {
-  total_animales: 0,
-  ventas_mes: 0,
-  gastos_mes: 0,
-  peso_promedio: 0,
-  ingresos_mes: 0,
-};
+const HUACAPP = window.HUACAPP_DATA || {};
 
 const formatoMoneda = (valor) => {
   const numero = Number(valor || 0);
@@ -104,6 +85,7 @@ const formatoMoneda = (valor) => {
 };
 
 function renderKPIs() {
+  const KPIS = HUACAPP.kpis ?? {};
   const totalAnimales = document.getElementById('kpi-total-animales');
   const ventasMes = document.getElementById('kpi-ventas-mes');
   const gastosMes = document.getElementById('kpi-gastos-mes');
@@ -116,17 +98,6 @@ function renderKPIs() {
   if (ingresosMes) ingresosMes.textContent = formatoMoneda(KPIS.ingresos_mes);
 }
 
-const TIPO_BADGE = {
-  Ingreso: 'text-bg-success',
-  Venta: 'text-bg-danger',
-  Muerte: 'text-bg-warning',
-  Traslado: 'text-bg-primary',
-  Nacimiento: 'text-bg-info',
-  Compra: 'text-bg-warning',
-  Baja: 'text-bg-dark',
-  Alta: 'text-bg-success',
-};
-
 function renderReloj() {
   const ahora = new Date();
   const fecha = ahora.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -134,23 +105,6 @@ function renderReloj() {
   document.getElementById('fecha-actual').textContent = fecha.charAt(0).toUpperCase() + fecha.slice(1);
   document.getElementById('hora-actual').textContent = hora;
 }
-
-function renderTablaMovimientos() {
-  document.getElementById('tabla-ultimos-mov').innerHTML = ULTIMOS_MOVIMIENTOS.slice(0, 10)
-    .map(
-      (m) => `
-    <tr>
-      <td>${m.fecha}</td>
-      <td>${m.animal}</td>
-      <td><span class="badge ${TIPO_BADGE[m.tipo] || 'text-bg-secondary'}">${m.tipo}</span></td>
-      <td>${m.usuario}</td>
-      <td>${m.obs}</td>
-    </tr>`,
-    )
-    .join('');
-}
-
-const DISTRIBUCION = GANASTOCK.distribucion ?? {};
 
 const COLORES_CATEGORIA = {
   Vaca: '#198754',
@@ -163,12 +117,30 @@ const COLORES_CATEGORIA = {
   Ovino: '#d63384',
 };
 
+let graficoGanancias = null;
+let graficoDistribucion = null;
+
+// Actualiza los gráficos en caliente cuando cambia el tema, sin recargar
+document.addEventListener('temaCambiado', (e) => {
+  const temaApex = e.detail.theme === 'dark' ? 'dark' : 'light';
+  if (typeof graficoGanancias !== 'undefined' && graficoGanancias) {
+    graficoGanancias.updateOptions({ theme: { mode: temaApex }, tooltip: { theme: temaApex } });
+  }
+  if (typeof graficoDistribucion !== 'undefined' && graficoDistribucion) {
+    graficoDistribucion.updateOptions({ theme: { mode: temaApex }, tooltip: { theme: temaApex } });
+  }
+});
+
 function renderGraficos() {
+  const temaOscuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+  const temaApex = temaOscuro ? 'dark' : 'light';
+  const distribucion = HUACAPP.distribucion ?? {};
   const chartGanancias = document.querySelector('#chart-ganancias-gastos');
   if (chartGanancias) {
-    const labels = JSON.parse(GANASTOCK.chart?.labels_json ?? '[]');
-    const ingresos = JSON.parse(GANASTOCK.chart?.ingresos_json ?? '[]');
-    const egresos = JSON.parse(GANASTOCK.chart?.egresos_json ?? '[]');
+    if (graficoGanancias) graficoGanancias.destroy();
+    const labels = JSON.parse(HUACAPP.chart?.labels_json ?? '[]');
+    const ingresos = JSON.parse(HUACAPP.chart?.ingresos_json ?? '[]');
+    const egresos = JSON.parse(HUACAPP.chart?.egresos_json ?? '[]');
 
     const series = labels.length
       ? [
@@ -180,9 +152,11 @@ function renderGraficos() {
           { name: 'Gastos', data: [0] },
         ];
 
-    new ApexCharts(chartGanancias, {
+    graficoGanancias = new ApexCharts(chartGanancias, {
       series,
       chart: { height: 300, type: 'bar', toolbar: { show: false } },
+      theme: { mode: temaApex },
+      tooltip: { theme: temaApex },
       colors: ['#198754', '#dc3545'],
       plotOptions: { bar: { columnWidth: '55%', borderRadius: 4 } },
       dataLabels: { enabled: false },
@@ -193,24 +167,72 @@ function renderGraficos() {
       yaxis: {
         labels: { formatter: (val) => `$${Number(val).toLocaleString('es-AR', { maximumFractionDigits: 0 })}` },
       },
-    }).render();
+    });
+    graficoGanancias.render();
   }
 
   // Distribucion del rodeo (por categoria de animal)
   const chartDistribucion = document.querySelector('#chart-distribucion');
   if (chartDistribucion) {
-    const categorias = Object.keys(DISTRIBUCION);
-    const series = categorias.length ? categorias.map((categoria) => DISTRIBUCION[categoria]) : [0];
+    if (graficoDistribucion) graficoDistribucion.destroy();
+    const categorias = Object.keys(distribucion);
+    const series = categorias.length ? categorias.map((categoria) => distribucion[categoria]) : [0];
     const labels = categorias.length ? categorias : ['Sin datos'];
     const colors = categorias.length ? categorias.map((categoria) => COLORES_CATEGORIA[categoria] || '#6c757d') : ['#dee2e6'];
 
-    new ApexCharts(chartDistribucion, {
+    graficoDistribucion = new ApexCharts(chartDistribucion, {
       series,
       chart: { height: 300, type: 'donut' },
+      theme: { mode: temaApex },
+      tooltip: { theme: temaApex },
       labels,
       colors,
       legend: { position: 'bottom' },
-    }).render();
+    });
+    graficoDistribucion.render();
+  }
+}
+
+function renderAlertas() {
+  const contenedor = document.getElementById('alertas-contenedor');
+  if (!contenedor) return;
+  const alertas = HUACAPP.alertas ?? [];
+  contenedor.innerHTML = '';
+  if (!alertas.length) {
+    contenedor.innerHTML = '<div class="text-secondary small">Sin alertas pendientes.</div>';
+    return;
+  }
+  alertas.forEach((alerta, indice) => {
+    const item = document.createElement('a');
+    item.className = 'vacapp-alert-item d-flex align-items-center gap-2 text-decoration-none text-body';
+    item.href = alerta.url || '#';
+    item.title = 'Ir al módulo correspondiente';
+    item.innerHTML = `
+      <div class="vacapp-alert-icon ${alerta.color}"><i class="bi ${alerta.icono}"></i></div>
+      <div>
+        <div class="fw-semibold">${alerta.titulo}</div>
+        <small class="text-secondary">${alerta.detalle}</small>
+      </div>`;
+    contenedor.appendChild(item);
+    if (indice < alertas.length - 1) {
+      const separador = document.createElement('hr');
+      separador.className = 'my-1';
+      contenedor.appendChild(separador);
+    }
+  });
+}
+
+async function cargarDashboard() {
+  try {
+    const respuesta = await fetch('/api/dashboard/', { method: 'GET' });
+    if (!respuesta.ok) throw new Error();
+    const cuerpo = await respuesta.json();
+    Object.assign(HUACAPP, cuerpo);
+    renderKPIs();
+    renderGraficos();
+    renderAlertas();
+  } catch {
+    // Se conservan los datos actuales si falla la actualización.
   }
 }
 
@@ -218,13 +240,14 @@ document.addEventListener('DOMContentLoaded', () => {
   renderReloj();
   setInterval(renderReloj, 30000);
   renderKPIs();
-  renderTablaMovimientos();
   renderGraficos();
+  renderAlertas();
 
-  document.getElementById('btn-actualizar').addEventListener('click', function () {
+  document.getElementById('btn-actualizar').addEventListener('click', async function () {
     const icon = this.querySelector('i');
     icon.classList.add('spin');
     renderReloj();
+    await cargarDashboard();
     setTimeout(() => icon.classList.remove('spin'), 500);
   });
 });

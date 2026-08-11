@@ -78,20 +78,20 @@
       // ------------------------------------------------------------------
       // MOCK DATA: reemplazar por datos reales cuando se conecte con Django
       // ------------------------------------------------------------------
-      const ANIMALES = window.GANASTOCK_DATA?.animales ?? [
-        { caravana: '0231', nombre: 'Luna', categoria: 'Vaca', sexo: 'Hembra', raza: 'Angus', edad: '4 años', peso: '480 kg', potrero: 'Potrero 1', estado: 'Activo', ingreso: '10/07/2026', notas: 'Buena productora, sin antecedentes de pérdida de peso. Apta para servicio.' },
-        { caravana: '0198', nombre: 'Fierro', categoria: 'Toro', sexo: 'Macho', raza: 'Braford', edad: '5 años', peso: '720 kg', potrero: 'Potrero 2', estado: 'Vendido', ingreso: '02/02/2024', notas: 'Reproductor principal del establecimiento hasta su venta en el remate local.' },
-        { caravana: '0305', nombre: 'S/N', categoria: 'Ternero', sexo: 'Macho', raza: 'Angus', edad: '2 meses', peso: '85 kg', potrero: 'Potrero 2', estado: 'Activo', ingreso: '05/07/2026', notas: 'Nacido en el potrero, todavía sin identificación definitiva de nombre.' },
-        { caravana: '0142', nombre: 'Estrella', categoria: 'Vaca', sexo: 'Hembra', raza: 'Hereford', edad: '6 años', peso: '510 kg', potrero: 'Potrero 3', estado: 'Muerto', ingreso: '15/03/2021', notas: 'Baja por causas naturales. Se mantiene el registro histórico completo.' },
-        { caravana: '0087', nombre: 'S/N', categoria: 'Novillo', sexo: 'Macho', raza: 'Braford', edad: '2 años', peso: '390 kg', potrero: 'Potrero 3', estado: 'Activo', ingreso: '29/06/2026', notas: 'Ganancia de peso por debajo de lo esperado para la categoría, en seguimiento.' },
-        { caravana: '0056', nombre: 'Paloma', categoria: 'Vaquillona', sexo: 'Hembra', raza: 'Angus', edad: '1 año', peso: '280 kg', potrero: 'Potrero 4', estado: 'Activo', ingreso: '18/01/2026', notas: 'Buena candidata a servicio en la próxima temporada.' },
-        { caravana: '0412', nombre: 'S/N', categoria: 'Ternero', sexo: 'Hembra', raza: 'Hereford', edad: '3 meses', peso: '95 kg', potrero: 'Potrero 1', estado: 'Activo', ingreso: '20/04/2026', notas: 'Excelente desarrollo, mejor ganancia diaria del lote de terneros.' },
-        { caravana: '0177', nombre: 'Trueno', categoria: 'Toro', sexo: 'Macho', raza: 'Angus', edad: '3 años', peso: '680 kg', potrero: 'Potrero 4', estado: 'Activo', ingreso: '11/09/2023', notas: 'Reproductor de respaldo, sin observaciones sanitarias.' },
-        { caravana: '0263', nombre: 'Rocío', categoria: 'Vaca', sexo: 'Hembra', raza: 'Braford', edad: '5 años', peso: '495 kg', potrero: 'Potrero 2', estado: 'Activo', ingreso: '07/06/2021', notas: 'Pendiente de próximo control de peso, sin pesaje reciente.' },
-        { caravana: '0329', nombre: 'S/N', categoria: 'Novillo', sexo: 'Macho', raza: 'Hereford', edad: '2 años', peso: '410 kg', potrero: 'Potrero 1', estado: 'Vendido', ingreso: '02/02/2024', notas: 'Vendido por baja administrativa junto con el lote de novillos.' },
+      const ANIMALES = window.HUACAPP_DATA?.animales ?? [
+        { caravana: '0231', nombre: 'Luna', categoria: 'Vaca', sexo: 'Hembra', raza: 'Angus', edad: '4 años', peso: '480 kg', parcela: 'Parcela 1', estado: 'Activo', ingreso: '10/07/2026', notas: 'Buena productora, sin antecedentes de pérdida de peso. Apta para servicio.' },
+        { caravana: '0198', nombre: 'Fierro', categoria: 'Toro', sexo: 'Macho', raza: 'Braford', edad: '5 años', peso: '720 kg', parcela: 'Parcela 2', estado: 'Vendido', ingreso: '02/02/2024', notas: 'Reproductor principal del establecimiento hasta su venta en el remate local.' },
+        { caravana: '0305', nombre: 'S/N', categoria: 'Ternero', sexo: 'Macho', raza: 'Angus', edad: '2 meses', peso: '85 kg', parcela: 'Parcela 2', estado: 'Activo', ingreso: '05/07/2026', notas: 'Nacido en la parcela, todavía sin identificación definitiva de nombre.' },
+        { caravana: '0142', nombre: 'Estrella', categoria: 'Vaca', sexo: 'Hembra', raza: 'Hereford', edad: '6 años', peso: '510 kg', parcela: 'Parcela 3', estado: 'Muerto', ingreso: '15/03/2021', notas: 'Baja por causas naturales. Se mantiene el registro histórico completo.' },
+        { caravana: '0087', nombre: 'S/N', categoria: 'Novillo', sexo: 'Macho', raza: 'Braford', edad: '2 años', peso: '390 kg', parcela: 'Parcela 3', estado: 'Activo', ingreso: '29/06/2026', notas: 'Ganancia de peso por debajo de lo esperado para la categoría, en seguimiento.' },
+        { caravana: '0056', nombre: 'Paloma', categoria: 'Vaquillona', sexo: 'Hembra', raza: 'Angus', edad: '1 año', peso: '280 kg', parcela: 'Parcela 4', estado: 'Activo', ingreso: '18/01/2026', notas: 'Buena candidata a servicio en la próxima temporada.' },
+        { caravana: '0412', nombre: 'S/N', categoria: 'Ternero', sexo: 'Hembra', raza: 'Hereford', edad: '3 meses', peso: '95 kg', parcela: 'Parcela 1', estado: 'Activo', ingreso: '20/04/2026', notas: 'Excelente desarrollo, mejor ganancia diaria del lote de terneros.' },
+        { caravana: '0177', nombre: 'Trueno', categoria: 'Toro', sexo: 'Macho', raza: 'Angus', edad: '3 años', peso: '680 kg', parcela: 'Parcela 4', estado: 'Activo', ingreso: '11/09/2023', notas: 'Reproductor de respaldo, sin observaciones sanitarias.' },
+        { caravana: '0263', nombre: 'Rocío', categoria: 'Vaca', sexo: 'Hembra', raza: 'Braford', edad: '5 años', peso: '495 kg', parcela: 'Parcela 2', estado: 'Activo', ingreso: '07/06/2021', notas: 'Pendiente de próximo control de peso.' },
+        { caravana: '0329', nombre: 'S/N', categoria: 'Novillo', sexo: 'Macho', raza: 'Hereford', edad: '2 años', peso: '410 kg', parcela: 'Parcela 1', estado: 'Vendido', ingreso: '02/02/2024', notas: 'Vendido por baja administrativa junto con el lote de novillos.' },
       ];
       ANIMALES.forEach((animal) => {
-        animal.parcela ??= animal.potrero ?? 'Sin asignar';
+        animal.parcela ??= animal.parcela ?? 'Sin asignar';
         animal.tipo_animal ??= 'Bovino';
       });
 
@@ -113,6 +113,8 @@
         const sexo = document.getElementById('f-sexo').value;
         const estado = document.getElementById('f-estado').value;
         const parcela = document.getElementById('f-parcela').value;
+        const madre = document.getElementById('f-madre').value;
+        const enfermo = document.getElementById('f-enfermo').value;
 
         return ANIMALES.filter((a) => {
           const matchBuscar =
@@ -125,7 +127,9 @@
             (!categoria || a.categoria === categoria) &&
             (!sexo || a.sexo === sexo) &&
             (!estado || a.estado === estado) &&
-            (!parcela || a.parcela === parcela)
+            (!parcela || a.parcela === parcela) &&
+            (!madre || String(a.madre_id) === madre) &&
+            (!enfermo || (enfermo === 'enfermos' ? a.enfermo : !a.enfermo))
           );
         });
       }
@@ -221,7 +225,8 @@
         document.getElementById('ficha-raza').textContent = a.raza;
         document.getElementById('ficha-edad').textContent = a.edad;
         document.getElementById('ficha-peso').textContent = a.peso;
-        document.getElementById('ficha-potrero').textContent = a.parcela;
+        document.getElementById('ficha-parcela').textContent = a.parcela;
+        document.getElementById('ficha-establecimiento').textContent = a.establecimiento || '-';
         document.getElementById('ficha-categoria').closest('li').classList.toggle('d-none', a.tipo_animal !== 'Bovino');
         const fichaFoto = document.getElementById('ficha-foto');
         if (a.foto_url) {
@@ -235,6 +240,8 @@
         }
         document.getElementById('ficha-estado').innerHTML = `<span class="badge ${ESTADO_BADGE[a.estado] || 'text-bg-secondary'}">${a.estado}</span>`;
         document.getElementById('ficha-ingreso').textContent = a.ingreso;
+        document.getElementById('ficha-muerte').textContent = a.fecha_muerte || '-';
+        document.getElementById('fila-ficha-muerte').classList.toggle('d-none', a.estado !== 'Muerto');
         document.getElementById('ficha-notas').textContent = a.notas || 'Sin notas cargadas.';
         document.getElementById('ficha-tipo').textContent = a.tipo_animal;
         document.getElementById('ficha-pesos-iniciales').textContent = `${a.peso_al_nacer || '-'} / ${a.peso_al_destete || '-'} kg`;
@@ -259,6 +266,9 @@
         document.getElementById('animal-raza').value = animal.raza === '-' ? '' : animal.raza;
         document.getElementById('animal-peso').value = animal.peso_actual_valor;
         document.getElementById('animal-fecha-nacimiento').value = animal.ingreso === '-' ? '' : animal.ingreso;
+        const selectEstablecimiento = document.getElementById('animal-establecimiento');
+        selectEstablecimiento.value = animal.establecimiento_id || '';
+        cargarParcelasDeEstablecimiento(selectEstablecimiento.value);
         document.getElementById('animal-parcela').value = animal.parcela_id || '';
         document.getElementById('animal-peso-nacer').value = animal.peso_al_nacer;
         document.getElementById('animal-peso-destete').value = animal.peso_al_destete;
@@ -267,17 +277,32 @@
         document.getElementById('animal-dieta').value = animal.dieta_id || '';
         document.getElementById('animal-madre').value = animal.madre_id || '';
         document.getElementById('animal-padre').value = animal.padre_id || '';
-        document.getElementById('animal-compra').value = animal.compra_id || '';
-        document.getElementById('animal-venta').value = animal.venta_id || '';
-        document.getElementById('animal-costo').value = animal.costo_adquisicion;
-        document.getElementById('animal-precio-venta').value = animal.precio_venta;
+        const tieneCompra = Boolean(animal.compra_id) && animal.compra && animal.compra !== 'Sin compra asociada';
+        document.getElementById('grupo-compra').classList.toggle('d-none', !tieneCompra);
+        document.getElementById('grupo-costo').classList.toggle('d-none', !tieneCompra);
+        if (tieneCompra) {
+          document.getElementById('animal-compra').value = animal.compra;
+          document.getElementById('animal-costo').value = animal.costo_adquisicion || '-';
+        }
+        const tieneVenta = Boolean(animal.venta_id) && animal.venta && animal.venta !== 'Sin venta asociada';
+        document.getElementById('grupo-venta').classList.toggle('d-none', !tieneVenta);
+        document.getElementById('grupo-precio-venta').classList.toggle('d-none', !tieneVenta);
+        if (tieneVenta) {
+          document.getElementById('animal-venta').value = animal.venta;
+          document.getElementById('animal-precio-venta').value = animal.precio_venta || '-';
+        }
         document.getElementById('animal-vendido').checked = animal.vendido;
         document.getElementById('animal-vivo').checked = animal.vivo;
         document.getElementById('animal-enfermo').checked = animal.enfermo;
         document.getElementById('animal-castrado').checked = animal.castrado;
+        document.getElementById('animal-fecha-muerte').value = animal.fecha_muerte || '';
+        actualizarCampoFechaMuerte();
         actualizarCampoDiametro();
         document.getElementById('animal-descripcion').value = animal.notas === '-' ? '' : animal.notas;
         const preview = document.getElementById('foto-preview');
+        document.getElementById('animal-foto').value = '';
+        document.getElementById('animal-eliminar-foto').value = '';
+        document.getElementById('foto-acciones').classList.toggle('d-none', !animal.foto_url);
         if (animal.foto_url) {
           preview.innerHTML = `<img src="${animal.foto_url}" alt="Foto actual" class="img-fluid rounded" style="max-height: 180px; width: 100%; object-fit: contain;">`;
           preview.classList.remove('d-none');
@@ -310,9 +335,24 @@
         if (!esMacho) document.getElementById('animal-diametro').value = '';
       }
 
+      function actualizarCampoFechaMuerte() {
+        const vivo = document.getElementById('animal-vivo').checked;
+        document.getElementById('grupo-fecha-muerte').classList.toggle('d-none', vivo);
+        if (vivo) document.getElementById('animal-fecha-muerte').value = '';
+      }
+
       function agregarOpciones(selectId, datos, texto, filtro = () => true) {
         const select = document.getElementById(selectId);
         datos.filter(filtro).forEach((dato) => select.add(new Option(texto(dato), dato.id)));
+      }
+
+      function cargarParcelasDeEstablecimiento(establecimientoId) {
+        const selectParcela = document.getElementById('animal-parcela');
+        selectParcela.innerHTML = '<option value="">Sin asignar</option>';
+        if (!establecimientoId) return;
+        (window.HUACAPP_DATA?.parcelas || [])
+          .filter((parcela) => String(parcela.establecimiento_id) === String(establecimientoId))
+          .forEach((parcela) => selectParcela.add(new Option(parcela.nombre, parcela.id)));
       }
 
       document.addEventListener('DOMContentLoaded', () => {
@@ -361,7 +401,7 @@
           }
         });
 
-        ['f-buscar', 'f-tipo-animal', 'f-categoria', 'f-sexo', 'f-estado', 'f-parcela'].forEach((id) => {
+        ['f-buscar', 'f-tipo-animal', 'f-categoria', 'f-sexo', 'f-estado', 'f-parcela', 'f-madre', 'f-enfermo'].forEach((id) => {
           document.getElementById(id).addEventListener('input', () => {
             paginaActual = 1;
             renderTabla();
@@ -373,8 +413,10 @@
           document.getElementById('f-tipo-animal').value = '';
           document.getElementById('f-categoria').value = '';
           document.getElementById('f-sexo').value = '';
-          document.getElementById('f-estado').value = '';
+          document.getElementById('f-estado').value = 'Activo';
           document.getElementById('f-parcela').value = '';
+          document.getElementById('f-madre').value = '';
+          document.getElementById('f-enfermo').value = '';
           document.getElementById('grupo-f-categoria').classList.add('d-none');
           paginaActual = 1;
           renderTabla();
@@ -388,28 +430,77 @@
           renderTabla();
         });
 
-        const selectParcela = document.getElementById('animal-parcela');
-        (window.GANASTOCK_DATA?.parcelas || []).forEach((parcela) => {
-          const option = new Option(parcela.nombre, parcela.id);
-          selectParcela.add(option);
+        const selectEstablecimiento = document.getElementById('animal-establecimiento');
+        const establecimientoActualId = window.HUACAPP_DATA?.establecimiento_id || '';
+        (window.HUACAPP_DATA?.establecimientos || []).forEach((establecimiento) => {
+          selectEstablecimiento.add(new Option(establecimiento.nombre, establecimiento.id));
+        });
+        selectEstablecimiento.value = establecimientoActualId;
+        cargarParcelasDeEstablecimiento(selectEstablecimiento.value);
+        selectEstablecimiento.addEventListener('change', () => {
+          cargarParcelasDeEstablecimiento(selectEstablecimiento.value);
+          const parcela = document.getElementById('animal-parcela');
+          if (parcela.value && ![...parcela.options].some((o) => o.value === parcela.value)) {
+            parcela.value = '';
+          }
         });
         const filtroParcela = document.getElementById('f-parcela');
-        (window.GANASTOCK_DATA?.parcelas || []).forEach((parcela) => {
-          filtroParcela.add(new Option(parcela.nombre, parcela.nombre));
-        });
-        agregarOpciones('animal-dieta', window.GANASTOCK_DATA?.dietas || [], (dieta) => dieta.nombre);
-        agregarOpciones('animal-compra', window.GANASTOCK_DATA?.compras || [], (compra) => compra.nombre);
-        agregarOpciones('animal-venta', window.GANASTOCK_DATA?.ventas || [], (venta) => venta.nombre);
-        const progenitores = window.GANASTOCK_DATA?.progenitores || [];
+        (window.HUACAPP_DATA?.parcelas || [])
+          .filter((parcela) => !establecimientoActualId || String(parcela.establecimiento_id) === String(establecimientoActualId))
+          .forEach((parcela) => {
+            filtroParcela.add(new Option(parcela.nombre, parcela.nombre));
+          });
+        agregarOpciones('animal-dieta', window.HUACAPP_DATA?.dietas || [], (dieta) => dieta.nombre);
+        const progenitores = window.HUACAPP_DATA?.progenitores || [];
         agregarOpciones('animal-madre', progenitores, (animal) => animal.nombre, (animal) => animal.sexo === 'Hembra');
         agregarOpciones('animal-padre', progenitores, (animal) => animal.nombre, (animal) => animal.sexo === 'Macho');
+        agregarOpciones('f-madre', window.HUACAPP_DATA?.madres || [], (animal) => animal.nombre);
         document.getElementById('animal-sexo').addEventListener('change', actualizarCampoDiametro);
         actualizarCampoDiametro();
+        document.getElementById('animal-vivo').addEventListener('change', actualizarCampoFechaMuerte);
+        actualizarCampoFechaMuerte();
+        document.getElementById('animal-caravana').addEventListener('input', (event) => {
+          event.target.value = event.target.value.replace(/[^A-Za-z0-9]/g, '');
+        });
+
+        const fotoInput = document.getElementById('animal-foto');
+        fotoInput.addEventListener('change', () => {
+          const archivo = fotoInput.files[0];
+          const preview = document.getElementById('foto-preview');
+          if (!archivo) return;
+          const lector = new FileReader();
+          lector.onload = () => {
+            preview.innerHTML = `<img src="${lector.result}" alt="Nueva foto" class="img-fluid rounded" style="max-height: 180px; width: 100%; object-fit: contain;">`;
+            preview.classList.remove('d-none');
+          };
+          lector.readAsDataURL(archivo);
+          document.getElementById('foto-acciones').classList.add('d-none');
+          document.getElementById('animal-eliminar-foto').value = '';
+        });
+
+        document.getElementById('btn-eliminar-foto').addEventListener('click', () => {
+          const preview = document.getElementById('foto-preview');
+          preview.innerHTML = '<div class="text-muted small">Sin imagen cargada</div>';
+          preview.classList.remove('d-none');
+          fotoInput.value = '';
+          document.getElementById('foto-acciones').classList.add('d-none');
+          document.getElementById('animal-eliminar-foto').value = '1';
+        });
 
         document.getElementById('modalNuevoAnimal').addEventListener('hidden.bs.modal', () => {
           animalEnEdicion = null;
           document.getElementById('modalNuevoAnimalTitulo').innerHTML = '<i class="bi bi-cow me-2"></i>Nuevo animal';
           document.getElementById('form-nuevo-animal').reset();
+          selectEstablecimiento.value = establecimientoActualId;
+          cargarParcelasDeEstablecimiento(selectEstablecimiento.value);
+          actualizarCampoFechaMuerte();
+          document.getElementById('foto-acciones').classList.add('d-none');
+          document.getElementById('foto-preview').classList.add('d-none');
+          document.getElementById('animal-eliminar-foto').value = '';
+          document.getElementById('grupo-compra').classList.add('d-none');
+          document.getElementById('grupo-costo').classList.add('d-none');
+          document.getElementById('grupo-venta').classList.add('d-none');
+          document.getElementById('grupo-precio-venta').classList.add('d-none');
           document.getElementById('animal-form-error').classList.add('d-none');
         });
 
@@ -418,6 +509,12 @@
           const form = event.currentTarget;
           const error = document.getElementById('animal-form-error');
           error.classList.add('d-none');
+          const raza = document.getElementById('animal-raza').value.trim();
+          if (raza && !/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(raza)) {
+            error.textContent = 'La raza debe comenzar con una letra.';
+            error.classList.remove('d-none');
+            return;
+          }
           try {
             const csrf = document.cookie.split('; ').find((row) => row.startsWith('csrftoken='))?.split('=')[1];
             const url = animalEnEdicion ? `/api/animales/${animalEnEdicion.id}/` : '/api/animales/';

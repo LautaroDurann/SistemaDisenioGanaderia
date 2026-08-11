@@ -1,6 +1,6 @@
 # Base de datos local
 db.sqlite3
-
+media/ 
 # Credenciales locales (SMTP, etc.)
 .env
 

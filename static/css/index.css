@@ -116,6 +116,40 @@
         gap: 0.5rem;
       }
 
+      /* Avatar con iniciales del usuario en la barra superior
+         (mismo estilo que el módulo de Usuarios). */
+      .vacapp-navbar-iniciales {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        font-size: 0.62rem;
+        font-weight: 600;
+        line-height: 1;
+        letter-spacing: 0.01em;
+        color: #fff;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        flex-shrink: 0;
+        margin-right: 0.4rem;
+      }
+      .vacapp-navbar-iniciales-lg {
+        width: 90px;
+        height: 90px;
+        font-size: 1.7rem;
+        border: 3px solid var(--bs-border-color-translucent);
+        margin: 0 auto;
+      }
+
+      /* Header del menú de usuario: verde institucional en lugar del azul de Bootstrap. */
+      .user-header.text-bg-primary {
+        background-color: #1d4e43 !important;
+        color: #fff !important;
+      }
+
       .spin {
         animation: vacapp-spin 0.5s linear;
       }
@@ -127,4 +161,70 @@
           transform: rotate(360deg);
         }
       }
+
+      /* Notificaciones */
+      .notif-fila {
+        transition: background-color 0.15s ease;
+      }
+      .notif-no-leida {
+        background-color: rgba(255, 193, 7, 0.1);
+      }
+      .notif-no-leida .fw-semibold {
+        font-weight: 700;
+      }
+      .notif-punto {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 0.65rem;
+        height: 0.65rem;
+        border-radius: 50%;
+        padding: 0;
+      }
+      .vacapp-alert-item {
+        display: block;
+        border-radius: 0.5rem;
+        padding: 0.4rem 0.5rem;
+        transition: background-color 0.15s ease;
+      }
+      .vacapp-alert-item:hover {
+        background-color: var(--bs-tertiary-bg);
+      }
+
+        /* Logo del sidebar (HuacApp): el archivo ya es circular con fondo
+    transparente, pero el <img> en sí sigue siendo un cuadrado invisible.
+    La clase "shadow" de Bootstrap dibuja el box-shadow siguiendo ese
+    cuadrado, no el círculo visible, por eso se veía un recuadro tenue
+    alrededor. Con border-radius: 50% la sombra (y cualquier recorte)
+    sigue la forma circular en vez de la cuadrada. No recorta nada del
+    logo porque el contenido visible ya está todo dentro del círculo. */
+  .sidebar-brand .brand-image {
+    border-radius: 50%;
+  }
+
+      /* ApexCharts: en modo oscuro el tooltip "light" hereda el texto claro del
+         tema oscuro y queda blanco sobre blanco (ilegible). Se fuerza un fondo
+         oscuro con texto claro para que la información siempre se lea. */
+      [data-bs-theme="dark"] .apexcharts-tooltip,
+      [data-bs-theme="dark"] .apexcharts-tooltip.apexcharts-theme-light {
+        background: rgba(30, 30, 30, 0.92) !important;
+        border-color: #333 !important;
+        color: #fff !important;
+      }
+      [data-bs-theme="dark"] .apexcharts-tooltip .apexcharts-tooltip-title,
+      [data-bs-theme="dark"] .apexcharts-tooltip.apexcharts-theme-light .apexcharts-tooltip-title {
+        background: rgba(0, 0, 0, 0.7) !important;
+        border-bottom-color: #333 !important;
+        color: #fff !important;
+      }
+      [data-bs-theme="dark"] .apexcharts-tooltip .apexcharts-tooltip-text-y-label,
+      [data-bs-theme="dark"] .apexcharts-tooltip .apexcharts-tooltip-text-y-value,
+      [data-bs-theme="dark"] .apexcharts-tooltip .apexcharts-tooltip-text-z-label,
+      [data-bs-theme="dark"] .apexcharts-tooltip .apexcharts-tooltip-text-z-value {
+        color: #fff !important;
+      }
+
+
+
+
     

@@ -171,13 +171,13 @@
                     </select>
                   </div>
                   <div class="col-md-2">
-                    <label class="form-label small mb-1">Potrero</label>
-                    <select id="f-potrero" class="form-select form-select-sm">
+                    <label class="form-label small mb-1">Parcela</label>
+                    <select id="f-parcela" class="form-select form-select-sm">
                       <option value="">Todos</option>
-                      <option>Potrero 1</option>
-                      <option>Potrero 2</option>
-                      <option>Potrero 3</option>
-                      <option>Potrero 4</option>
+                      <option>Parcela 1</option>
+                      <option>Parcela 2</option>
+                      <option>Parcela 3</option>
+                      <option>Parcela 4</option>
                     </select>
                   </div>
                   <div class="col-md-2">
@@ -353,7 +353,7 @@
             <div class="row g-3 mb-3">
               <div class="col-md-2"><small class="text-secondary d-block">Caravana</small><strong id="detalle-caravana">-</strong></div>
               <div class="col-md-2"><small class="text-secondary d-block">Edad</small><strong id="detalle-edad">-</strong></div>
-              <div class="col-md-2"><small class="text-secondary d-block">Potrero</small><strong id="detalle-potrero">-</strong></div>
+              <div class="col-md-2"><small class="text-secondary d-block">Parcela</small><strong id="detalle-parcela">-</strong></div>
               <div class="col-md-3"><small class="text-secondary d-block">Estado sanitario</small><strong id="detalle-estado-sanitario">-</strong></div>
             </div>
             <div class="table-responsive">
@@ -381,6 +381,6 @@
     {% endblock%}
 
     {% block page_js %}
-    <script src="{% static 'js/vacunacion.js' %}"></script>
+    <script src="{% static 'js/vacunacion.js' %}?v=1"></script>
     {% endblock %}
     

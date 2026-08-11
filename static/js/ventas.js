@@ -1,5 +1,5 @@
 (() => {
-  const data = window.GANASTOCK_DATA || {};
+  const data = window.HUACAPP_DATA || {};
   const baseAnimales = data.animales || [];
   let disponibles = [...baseAnimales];
   let ventas = data.ventas || [];
@@ -10,6 +10,19 @@
   let chartLabels = [];
   let chartSeries = [];
   const $ = (id) => document.getElementById(id);
+  const temaApex = () =>
+    typeof window.huacappTemaApex === 'function'
+      ? window.huacappTemaApex()
+      : document.documentElement.getAttribute('data-bs-theme') === 'dark'
+        ? 'dark'
+        : 'light';
+  const esOscuro = () => temaApex() === 'dark';
+  const temaChart = () => (esOscuro() ? { theme: { mode: 'dark' }, tooltip: { theme: 'dark' } } : {});
+  const temaTooltip = () => (esOscuro() ? { theme: 'dark' } : {});
+  document.addEventListener('temaCambiado', (e) => {
+    const tema = e.detail.theme === 'dark' ? 'dark' : 'light';
+    if (chartInstance) chartInstance.updateOptions({ theme: { mode: tema }, tooltip: { theme: tema } });
+  });
   const dinero = (valor) => `$ ${Number(valor || 0).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
   const categoria = (a) => a.categoria || '-';
   const fechaHoy = () => new Date().toISOString().slice(0, 10);
@@ -26,8 +39,10 @@
     const pesoSeleccionado = disponibles.filter(a => seleccionados.has(a.id)).reduce((s, a) => s + Number(a.peso_actual_valor || 0), 0);
     const pesoManual = $('venta-peso-manual').checked;
     const pesoInput = $('venta-peso-total');
+    const pesoDesbastadoInput = $('venta-peso-desbastado');
     const montoInput = $('venta-monto-total');
     const precio = Number($('venta-precio').value || 0);
+    const desbaste = Math.min(100, Math.max(0, Number($('venta-desbaste').value || 0)));
 
     if (pesoManual) {
       pesoInput.removeAttribute('readonly');
@@ -37,7 +52,9 @@
     }
 
     const pesoFinal = pesoManual ? Number(pesoInput.value || 0) : pesoSeleccionado;
-    montoInput.value = dinero(pesoFinal * precio);
+    const pesoDesbastado = pesoFinal * (1 - desbaste / 100);
+    pesoDesbastadoInput.value = pesoDesbastado.toFixed(2);
+    montoInput.value = dinero(pesoDesbastado * precio);
   }
 
   function renderAnimales() {
@@ -69,17 +86,34 @@
         <td>${escapeHtml(v.fecha)}</td>
         <td>${escapeHtml(v.comprador)}</td>
         <td>${escapeHtml((v.animales || []).map(a => `#${a.caravana} ${a.nombre}`).join(', '))}</td>
+        <td>${escapeHtml(v.establecimiento || '—')}</td>
         <td>${escapeHtml(v.peso_total)} kg</td>
+        <td>${escapeHtml(v.peso_desbastado)} kg</td>
         <td>${dinero(v.precio_por_kg)}</td>
         <td class="text-end">${dinero(v.monto_total)}</td>
+        <td><span class="badge ${v.estado_de_cobro === 'Pagada' ? 'text-bg-success' : 'text-bg-warning'}">${escapeHtml(v.estado_de_cobro)}</span></td>
+        <td>${escapeHtml(v.metodo_de_pago)}</td>
         <td class="text-end">
-          <button class="btn btn-sm btn-outline-primary editar" data-id="${v.id}"><i class="bi bi-pencil"></i></button>
-          <button class="btn btn-sm btn-outline-danger eliminar" data-id="${v.id}"><i class="bi bi-trash"></i></button>
+          <button class="btn btn-sm btn-outline-primary editar" data-id="${v.id}" title="Editar"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-sm btn-outline-danger eliminar" data-id="${v.id}" title="Eliminar"><i class="bi bi-trash"></i></button>
         </td>
-      </tr>`).join('') || '<tr><td colspan="7" class="text-center text-secondary py-4">Todavía no hay ventas registradas.</td></tr>';
+      </tr>`).join('') || '<tr><td colspan="11" class="text-center text-secondary py-4">Todavía no hay ventas registradas.</td></tr>';
 
     document.querySelectorAll('.editar').forEach(b => b.onclick = () => abrirEdicion(Number(b.dataset.id)));
     document.querySelectorAll('.eliminar').forEach(b => b.onclick = () => eliminarVenta(Number(b.dataset.id)));
+  }
+
+  function renderResumenMes() {
+    const mesActual = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+    const delMes = ventas.filter(v => String(v.fecha || '').startsWith(mesActual));
+    const ingresos = delMes.reduce((s, v) => s + Number(v.monto_total || 0), 0);
+    const cobrado = delMes.filter(v => v.estado_de_cobro === 'Pagada').reduce((s, v) => s + Number(v.monto_total || 0), 0);
+    const kilos = delMes.reduce((s, v) => s + Number(v.peso_desbastado || 0), 0);
+    const el = (id) => document.getElementById(id);
+    if (el('resumen-mes-cantidad')) el('resumen-mes-cantidad').textContent = delMes.length;
+    if (el('resumen-mes-ingresos')) el('resumen-mes-ingresos').textContent = dinero(ingresos);
+    if (el('resumen-mes-cobrado')) el('resumen-mes-cobrado').textContent = dinero(cobrado);
+    if (el('resumen-mes-kilos')) el('resumen-mes-kilos').textContent = `${kilos.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} kg`;
   }
 
   function renderCompradores() {
@@ -117,11 +151,12 @@
     chartInstance?.destroy();
     chartInstance = new ApexCharts(chartEl, {
       chart: { type: 'bar', height: 320, toolbar: { show: false } },
+      ...temaChart(),
       series: [{ name: 'Ganancia', data: chartSeries }],
       xaxis: { categories: chartLabels },
       colors: ['#198754'],
       dataLabels: { enabled: false },
-      tooltip: { y: { formatter: value => dinero(value) } },
+      tooltip: { ...temaTooltip(), y: { formatter: value => dinero(value) } },
     });
     chartInstance.render();
   }
@@ -154,6 +189,9 @@
     $('venta-detalle').value = v.detalle;
     $('venta-peso-manual').checked = true;
     $('venta-peso-total').value = v.peso_total;
+    $('venta-desbaste').value = v.porcentaje_desbaste || 0;
+    $('venta-estado').value = v.estado_de_cobro || 'Pendiente';
+    $('venta-metodo').value = v.metodo_de_pago || 'Efectivo';
     $('titulo-venta').textContent = `Editar venta #${id}`;
     const ids = new Set(v.animales.map(a => a.id));
     seleccionados = ids;
@@ -212,6 +250,7 @@
     renderSummary();
     renderChart();
     renderAnimales();
+    renderResumenMes();
     mostrar('Venta eliminada. Los animales volvieron al stock.', 'success');
   }
 
@@ -251,6 +290,7 @@
     renderCompradores();
     renderChart();
     renderVentas();
+    renderResumenMes();
     renderAnimales();
     actualizarFiltroCategoria();
 
@@ -268,6 +308,7 @@
     $('venta-precio').addEventListener('input', actualizarTotales);
     $('venta-peso-manual').addEventListener('change', actualizarTotales);
     $('venta-peso-total').addEventListener('input', actualizarTotales);
+    $('venta-desbaste').addEventListener('input', actualizarTotales);
 
     $('form-venta').addEventListener('submit', async e => {
       e.preventDefault();
@@ -320,6 +361,7 @@
       renderSummary();
       renderChart();
       renderAnimales();
+      renderResumenMes();
       modal.hide();
       mostrar('Venta guardada.', 'success');
     });

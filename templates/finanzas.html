@@ -1,7 +1,7 @@
 {% extends 'dashboard/base.html' %}
 {% load static %}
 
-{% block title %}Finanzas | GanaStock{% endblock %}
+{% block title %}Finanzas | HuacApp{% endblock %}
 {% block extra_css %}
 	<link rel="stylesheet" href="{% static 'css/finanzas.css' %}">
 {% endblock %}
@@ -35,7 +35,7 @@
 					<div class="card vacapp-card h-100">
 						<div class="card-body">
 							<small class="text-secondary">Ingresos (mes)</small>
-							<h4 class="mb-0" id="kpi-ingresos">$ {{ page_data.kpis.ingresos_mes }}</h4>
+							<h4 class="mb-0" id="kpi-ingresos">$ {{ page_data.kpis.ingresos_mes|floatformat:2 }}</h4>
 						</div>
 					</div>
 				</div>
@@ -43,7 +43,7 @@
 					<div class="card vacapp-card h-100">
 						<div class="card-body">
 							<small class="text-secondary">Egresos (mes)</small>
-							<h4 class="mb-0" id="kpi-egresos">$ {{ page_data.kpis.egresos_mes }}</h4>
+							<h4 class="mb-0" id="kpi-egresos">$ {{ page_data.kpis.egresos_mes|floatformat:2 }}</h4>
 						</div>
 					</div>
 				</div>
@@ -51,7 +51,7 @@
 					<div class="card vacapp-card h-100">
 						<div class="card-body">
 							<small class="text-secondary">Balance (mes)</small>
-							<h4 class="mb-0" id="kpi-balance">$ {{ page_data.kpis.balance_mes }}</h4>
+							<h4 class="mb-0" id="kpi-balance">$ {{ page_data.kpis.balance_mes|floatformat:2 }}</h4>
 						</div>
 					</div>
 				</div>
@@ -61,6 +61,26 @@
 				<div class="card-body">
 					<div id="chart-finanzas" style="height:320px"></div>
 				</div>
+			</div>
+
+			<div class="row g-3 mb-3">
+				<div class="col-lg-6">
+					<div class="card h-100">
+						<div class="card-header"><h3 class="card-title mb-0">Flujo de caja acumulado (año)</h3></div>
+						<div class="card-body"><div id="chart-flujo" style="height:280px"></div></div>
+					</div>
+				</div>
+				<div class="col-lg-6">
+					<div class="card h-100">
+						<div class="card-header"><h3 class="card-title mb-0">Egresos por categoría</h3></div>
+						<div class="card-body"><div id="chart-categorias" style="height:280px"></div></div>
+					</div>
+				</div>
+			</div>
+
+			<div class="card mb-3">
+				<div class="card-header"><h3 class="card-title mb-0">Comparativa entre establecimientos</h3></div>
+				<div class="card-body"><div id="chart-establecimientos" style="height:300px"></div></div>
 			</div>
 
 			<div class="card mb-3">
@@ -89,6 +109,7 @@
 									<th>Fecha</th>
 									<th>Tipo</th>
 									<th>Concepto</th>
+									<th>Establecimiento</th>
 									<th>Detalle</th>
 									<th class="text-end">Monto</th>
 									<th class="text-end">Acciones</th>
@@ -96,10 +117,11 @@
 							</thead>
 							<tbody id="tabla-finanzas-body">
 								{% for movimiento in page_data.movimientos %}
-									<tr data-id="{{ movimiento.id }}" data-tipo="{{ movimiento.tipo }}" data-monto="{{ movimiento.monto_total }}" data-fecha="{{ movimiento.fecha }}" data-nombre="{{ movimiento.nombre }}">
+									<tr data-id="{{ movimiento.id }}" data-tipo="{{ movimiento.tipo }}" data-monto="{{ movimiento.monto_total }}" data-fecha="{{ movimiento.fecha }}" data-nombre="{{ movimiento.nombre }}" data-detalle="{{ movimiento.detalle }}">
 										<td>{{ movimiento.fecha }}</td>
 										<td><span class="badge {% if movimiento.tipo == 'Ingreso' %}text-bg-success{% else %}text-bg-danger{% endif %}">{{ movimiento.tipo }}</span></td>
 										<td>{{ movimiento.nombre }}</td>
+										<td>{{ movimiento.establecimiento|default:'—' }}</td>
 										<td>{{ movimiento.detalle|default:'-' }}</td>
 										<td class="text-end">$ {{ movimiento.monto_total }}</td>
 										<td class="text-end">
@@ -111,7 +133,7 @@
 										</td>
 									</tr>
 								{% empty %}
-									<tr id="fila-vacia-movimientos"><td colspan="6" class="text-center text-secondary py-4">No hay movimientos financieros registrados.</td></tr>
+									<tr id="fila-vacia-movimientos"><td colspan="7" class="text-center text-secondary py-4">No hay movimientos financieros registrados.</td></tr>
 								{% endfor %}
 							</tbody>
 						</table>
@@ -206,9 +228,16 @@
 		const CHART_INGRESOS = JSON.parse('{{ page_data.chart.ingresos_json|escapejs }}');
 		const CHART_EGRESOS = JSON.parse('{{ page_data.chart.egresos_json|escapejs }}');
 		const KPI_TOTAL = {{ page_data.kpis.total_movimientos_mes }};
-		const KPI_INGRESOS = {{ page_data.kpis.ingresos_mes }};
-		const KPI_EGRESOS = {{ page_data.kpis.egresos_mes }};
-		const KPI_BALANCE = {{ page_data.kpis.balance_mes }};
+		const KPI_INGRESOS = {{ page_data.kpis.ingresos_mes|stringformat:".2f" }};
+		const KPI_EGRESOS = {{ page_data.kpis.egresos_mes|stringformat:".2f" }};
+		const KPI_BALANCE = {{ page_data.kpis.balance_mes|stringformat:".2f" }};
+		const FLUJO_ETIQUETAS = JSON.parse('{{ page_data.flujo.etiquetas_json|escapejs }}');
+		const FLUJO_VALORES = JSON.parse('{{ page_data.flujo.valores_json|escapejs }}');
+		const CATEGORIAS_ETIQUETAS = JSON.parse('{{ page_data.categorias.etiquetas_json|escapejs }}');
+		const CATEGORIAS_VALORES = JSON.parse('{{ page_data.categorias.valores_json|escapejs }}');
+		const ESTABLECIMIENTOS_ETIQUETAS = JSON.parse('{{ page_data.establecimientos.etiquetas_json|escapejs }}');
+		const ESTABLECIMIENTOS_INGRESOS = JSON.parse('{{ page_data.establecimientos.ingresos_json|escapejs }}');
+		const ESTABLECIMIENTOS_EGRESOS = JSON.parse('{{ page_data.establecimientos.egresos_json|escapejs }}');
 	</script>
 	<script src="{% static 'js/finanzas.js' %}"></script>
 {% endblock %}

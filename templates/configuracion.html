@@ -21,7 +21,7 @@
         <!--begin::App Content Header-->
         <div class="app-content-header">
           <div class="container-fluid">
-            <h3 class="mb-0">Configuracion</h3>
+            <h3 class="mb-0">Configuración</h3>
             <p class="text-secondary mb-0">Personaliza el funcionamiento general del sistema.</p>
           </div>
         </div>
@@ -76,9 +76,19 @@
                                 <i class="bi bi-image"></i>
                               {% endif %}
                             </div>
-                            <div>
+                            <div class="flex-grow-1">
                               <label class="form-label mb-1">Logo o foto</label>
-                              <input type="file" class="form-control form-control-sm" accept="image/*" id="est-logo-input" />
+                              <div class="d-flex flex-wrap align-items-center gap-2">
+                                <input type="file" class="form-control form-control-sm" accept="image/*" id="est-logo-input" style="max-width:280px" />
+                                <button
+                                  type="button"
+                                  class="btn btn-sm btn-outline-danger {% if not establecimiento_actual.logo %}d-none{% endif %}"
+                                  id="est-logo-eliminar-btn"
+                                  title="Eliminar el logo actual"
+                                >
+                                  <i class="bi bi-trash me-1"></i> Eliminar logo
+                                </button>
+                              </div>
                               <small class="text-secondary">PNG o JPG. Es la imagen que se muestra junto al nombre del establecimiento.</small>
                             </div>
                           </div>
@@ -147,8 +157,8 @@
                           </div>
                           <div class="list-group-item d-flex justify-content-between align-items-center px-0">
                             <div>
-                              <div class="fw-semibold">Recordatorio de pesajes</div>
-                              <small class="text-secondary">Avisar sobre animales sin pesaje reciente.</small>
+                              <div class="fw-semibold">Recordatorio de partos</div>
+                              <small class="text-secondary">Avisar sobre partos próximos a suceder.</small>
                             </div>
                             <div class="form-check form-switch">
                               <input class="form-check-input" type="checkbox" role="switch" checked />
@@ -402,5 +412,5 @@
 {% endblock %}
  
 {% block page_js %}
-    <script src="{% static 'js/configuracion.js' %}?v=4"></script>
+    <script src="{% static 'js/configuracion.js' %}?v=5"></script>
 {% endblock %}

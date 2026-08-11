@@ -20,7 +20,7 @@
         <a class="nav-link dropdown-toggle d-flex align-items-center gap-1" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">
           <i class="bi bi-buildings"></i>
           <span class="d-none d-lg-inline text-truncate" style="max-width: 16rem;" id="establecimiento-actual-nombre">
-            {{ establecimiento_actual.nombre|default:'Todos los establecimientos' }}
+            {{ establecimiento_actual.nombre|default:'Seleccionar establecimiento' }}
           </span>
         </a>
         <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end" id="menu-establecimientos">
@@ -35,12 +35,8 @@
             </h6>
           </li>
           <li>
-            <button type="button" class="dropdown-item{% if not establecimiento_actual_id %} active{% endif %}" data-establecimiento-id="">
-              <i class="bi bi-grid-fill me-2"></i> Todos los establecimientos
-            </button>
-          </li>
-          <li><hr class="dropdown-divider" /></li>
-          {% for establecimiento in establecimientos %}
+            {% if establecimientos %}<hr class="dropdown-divider" />{% endif %}
+            {% for establecimiento in establecimientos %}
             <li>
               <button type="button" class="dropdown-item d-flex justify-content-between align-items-center gap-2{% if establecimiento_actual_id == establecimiento.id %} active{% endif %}" data-establecimiento-id="{{ establecimiento.id }}">
                 <span class="text-truncate"><i class="bi bi-buildings me-2"></i> {{ establecimiento.nombre }}</span>
@@ -66,24 +62,18 @@
       </li>
       <!--end::Establecimiento selector-->
 
-      <!--begin::Navbar Search-->
-      <li class="nav-item">
-        <a class="nav-link" data-widget="navbar-search" href="#" role="button">
-          <i class="bi bi-search"></i>
-        </a>
-      </li>
-      <!--end::Navbar Search-->
-
       <!--begin::Notifications Dropdown Menu-->
       <li class="nav-item dropdown">
-        <a class="nav-link" data-bs-toggle="dropdown" href="#">
+        <a class="nav-link" data-bs-toggle="dropdown" href="#" id="notificaciones-toggle">
           <i class="bi bi-bell-fill"></i>
-          <span class="navbar-badge badge text-bg-warning">0</span>
+          <span class="navbar-badge badge text-bg-warning d-none" id="notificaciones-badge">0</span>
         </a>
-        <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
+        <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end" aria-labelledby="notificaciones-toggle">
           <span class="dropdown-item dropdown-header">Notificaciones</span>
           <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item dropdown-footer">Ver todas</a>
+          <div id="notificaciones-menu" style="max-height: 22rem; overflow-y: auto;"></div>
+          <div class="dropdown-divider"></div>
+          <a href="{% url 'dashboard' %}#notificaciones" class="dropdown-item dropdown-footer">Ver todas</a>
         </div>
       </li>
       <!--end::Notifications Dropdown Menu-->
@@ -159,26 +149,34 @@
       <!--begin::User Menu Dropdown-->
       <li class="nav-item dropdown user-menu">
         <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
-          <img
-            src="{% static 'assets/img/user2-160x160.jpg' %}"
-            class="user-image rounded-circle shadow"
-            alt="User Image"
-          />
+          {% if usuario_actual.foto %}
+            <img
+              src="{{ usuario_actual.foto.url }}"
+              class="user-image rounded-circle shadow"
+              alt="User Image"
+            />
+          {% else %}
+            <span class="vacapp-navbar-iniciales rounded-circle shadow" style="background:{% if es_propietario %}#1d4e43{% else %}#6c757d{% endif %}" title="User Image">{{ usuario_actual.persona.nombre|default:usuario_actual.nombre_usuario|default:'Usuario'|slice:":1"|upper }}{{ usuario_actual.persona.apellido|slice:":1"|upper }}</span>
+          {% endif %}
           <span class="d-none d-md-inline">
             {{ usuario_actual.persona.nombre|default:usuario_actual.nombre_usuario|default:'Usuario' }}
           </span>
         </a>
         <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
           <li class="user-header text-bg-primary">
-            <img
-              src="{% static 'assets/img/user2-160x160.jpg' %}"
-              class="rounded-circle shadow"
-              alt="User Image"
-            />
+            {% if usuario_actual.foto %}
+              <img
+                src="{{ usuario_actual.foto.url }}"
+                class="rounded-circle shadow"
+                alt="User Image"
+              />
+            {% else %}
+              <span class="vacapp-navbar-iniciales vacapp-navbar-iniciales-lg rounded-circle shadow d-flex align-items-center justify-content-center" style="background:{% if es_propietario %}#1d4e43{% else %}#6c757d{% endif %}" title="User Image">{{ usuario_actual.persona.nombre|default:usuario_actual.nombre_usuario|default:'Usuario'|slice:":1"|upper }}{{ usuario_actual.persona.apellido|slice:":1"|upper }}</span>
+            {% endif %}
             <p>
               {{ usuario_actual.persona.nombre|default:usuario_actual.nombre_usuario|default:'Usuario' }}
               {% if usuario_actual.persona.apellido %} {{ usuario_actual.persona.apellido }}{% endif %}
-              <small>{% if es_propietario %}Propietario{% else %}Operario{% endif %} · GanaStock</small>
+              <small>{% if es_propietario %}Propietario{% else %}Operario{% endif %} · HuacApp</small>
             </p>
           </li>
           <li class="user-footer">

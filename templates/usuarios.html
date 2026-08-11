@@ -123,6 +123,15 @@
                   </div>
                   <div class="card-body text-center py-4">
                     <div class="vacapp-avatar vacapp-avatar-xl mx-auto mb-3" id="perfil-avatar">--</div>
+                    <div class="d-flex justify-content-center gap-2 mb-3" id="perfil-foto-acciones">
+                      <button type="button" class="btn btn-sm btn-outline-primary" id="btn-cambiar-foto" title="Cambiar foto de perfil">
+                        <i class="bi bi-camera me-1"></i>Cambiar foto
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-danger d-none" id="btn-eliminar-foto" title="Eliminar foto de perfil">
+                        <i class="bi bi-trash me-1"></i>Eliminar
+                      </button>
+                      <input type="file" id="perfil-foto-input" accept="image/*" class="d-none" />
+                    </div>
                     <h5 class="mb-0" id="perfil-nombre">-</h5>
                     <p class="text-secondary small mb-4" id="perfil-cargo">-</p>
                     <ul class="list-group list-group-flush text-start vacapp-perfil-lista">
@@ -185,7 +194,7 @@
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Email</label>
-                  <input type="email" class="form-control" id="nu-email" placeholder="usuario@ganastock.com" />
+                  <input type="email" class="form-control" id="nu-email" placeholder="usuario@huacapp.com" />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Teléfono</label>
@@ -252,7 +261,7 @@
               </div>
               <div class="col-md-6">
                 <label class="form-label">Email</label>
-                <input type="email" class="form-control" id="ar-email" placeholder="usuario@ganastock.com" />
+                <input type="email" class="form-control" id="ar-email" placeholder="usuario@huacapp.com" />
               </div>
               <div class="col-md-6">
                 <label class="form-label">Teléfono</label>
@@ -296,15 +305,17 @@
 {% endblock %}
 
 {% block page_js%}
-    {{ page_data.usuarios|json_script:"ganastock-data-usuarios" }}
-    {{ page_data.establecimientos_data|json_script:"ganastock-data-establecimientos" }}
+    {{ page_data.usuarios|json_script:"huacapp-data-usuarios" }}
+    {{ page_data.establecimientos_data|json_script:"huacapp-data-establecimientos" }}
+    {{ page_data.usuario_actual_id|json_script:"huacapp-data-usuario-actual" }}
     <script>
-      window.GANASTOCK_DATA = {
-        usuarios: JSON.parse(document.getElementById('ganastock-data-usuarios').textContent),
-        establecimientos: JSON.parse(document.getElementById('ganastock-data-establecimientos').textContent),
+      window.HUACAPP_DATA = {
+        usuarios: JSON.parse(document.getElementById('huacapp-data-usuarios').textContent),
+        establecimientos: JSON.parse(document.getElementById('huacapp-data-establecimientos').textContent),
+        usuario_actual_id: JSON.parse(document.getElementById('huacapp-data-usuario-actual').textContent),
       };
     </script>
-    <script src="{% static 'js/usuarios.js' %}?v=10"></script>
+    <script src="{% static 'js/usuarios.js' %}?v=12"></script>
 {% endblock %}
 
          

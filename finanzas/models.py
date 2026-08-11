@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 
 # 1. Movimiento Financiero (Centraliza todos los ingresos y egresos)
@@ -13,6 +15,12 @@ class MovimientoFinanciero(models.Model):
     detalle = models.TextField(blank=True, null=True)
     fecha = models.DateField()
 
+    # Establecimiento al que pertenece el movimiento (ventas, compras y gastos propios).
+    establecimiento = models.ForeignKey(
+        'establecimientos.Establecimiento', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='movimientos_financieros',
+    )
+
     def __str__(self):
         return f"{self.tipo}: {self.nombre} (${self.monto_total})"
 
@@ -24,14 +32,25 @@ class Compra(models.Model):
         ('Maquinaria', 'Maquinaria'),
         ('Otros', 'Otros'),
     ]
+    ESTADO_PAGO_CHOICES = [
+        ('Pendiente', 'Pendiente'),
+        ('Pagada', 'Pagada'),
+    ]
+    METODO_PAGO_CHOICES = [
+        ('Efectivo', 'Efectivo'),
+        ('Transferencia', 'Transferencia'),
+        ('Cheque', 'Cheque'),
+    ]
     
     tipo = models.CharField(max_length=50, choices=TIPO_CHOICES)
     fecha = models.DateField()
     monto_total = models.DecimalField(max_digits=12, decimal_places=2)
     detalle = models.TextField(blank=True, null=True)
+    estadoDePago = models.CharField(max_length=20, choices=ESTADO_PAGO_CHOICES, default='Pendiente')
+    metodoDePago = models.CharField(max_length=20, choices=METODO_PAGO_CHOICES, default='Efectivo')
     
     # Claves Foráneas
-    proveedor = models.ForeignKey('usuarios.Proveedor', on_delete=models.SET_NULL, null=True)
+    proveedor = models.ForeignKey('usuarios.Proveedor', on_delete=models.SET_NULL, null=True, blank=True)
     # Usamos OneToOneField porque una compra genera un único movimiento financiero
     mov_financiero = models.OneToOneField(MovimientoFinanciero, on_delete=models.CASCADE, null=True, blank=True)
 
@@ -40,18 +59,91 @@ class Compra(models.Model):
 
 # 3. Venta
 class Venta(models.Model):
+    ESTADO_COBRO_CHOICES = [
+        ('Pendiente', 'Pendiente'),
+        ('Pagada', 'Pagada'),
+    ]
+    METODO_PAGO_CHOICES = [
+        ('Efectivo', 'Efectivo'),
+        ('Transferencia', 'Transferencia'),
+        ('Cheque', 'Cheque'),
+    ]
+
     tipo = models.CharField(max_length=100)
     fecha = models.DateField()
-    # El peso se conserva en la venta para que el comprobante no cambie si el
-    # animal recibe nuevos pesajes luego de haber sido vendido.
+    # El peso se conserva en la venta para que el comprobante no cambie.
     peso_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    # Porcentaje que se descuenta del peso total (bosta, barro, etc.) antes de facturar.
+    porcentajeDesbaste = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     precio_por_kg = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     monto_total = models.DecimalField(max_digits=12, decimal_places=2)
     detalle = models.TextField(blank=True, null=True)
+    estadoDeCobro = models.CharField(max_length=20, choices=ESTADO_COBRO_CHOICES, default='Pendiente')
+    metodoDePago = models.CharField(max_length=20, choices=METODO_PAGO_CHOICES, default='Efectivo')
     
     # Claves Foráneas
     comprador = models.ForeignKey('usuarios.Comprador', on_delete=models.SET_NULL, null=True, blank=True)
     mov_financiero = models.OneToOneField(MovimientoFinanciero, on_delete=models.CASCADE, null=True, blank=True)
 
+    @property
+    def peso_desbastado(self):
+        """Peso total descontado el porcentaje de desbaste."""
+        descuento = (self.porcentajeDesbaste or Decimal('0')) / Decimal('100')
+        return (self.peso_total * (1 - descuento)).quantize(Decimal('0.01'))
+
     def __str__(self):
         return f"Venta {self.id} - {self.fecha}"
+
+# 4. Liquidacion de sueldo
+class LiquidacionSueldo(models.Model):
+    # Clave Primaria (CP)
+    idLiquidacion = models.AutoField(primary_key=True)
+    
+    # Atributos básicos
+    fecha = models.DateField(
+        verbose_name="Fecha de Liquidación"
+    )
+    sueldo = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2, 
+        verbose_name="Sueldo (Monto)"
+    )
+    descripcion = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True, 
+        verbose_name="Descripción / Detalle"
+    )
+    
+    # Claves Foráneas (CF)
+    # PROTECT: si un empleado ya tiene liquidaciones no se puede borrar su usuario
+    # (se conserva el historial de sueldos).
+    empleado = models.ForeignKey(
+        'usuarios.Usuario',
+        on_delete=models.PROTECT, 
+        related_name='liquidaciones',
+        verbose_name="Empleado"
+    )
+    # CASCADE + nullable: se crea junto con la liquidación en la misma transacción,
+    # igual que Compra/Venta. Si se elimina la liquidación, se elimina el movimiento.
+    movimiento_financiero = models.OneToOneField(
+        'finanzas.MovimientoFinanciero',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='liquidacion_origen',
+        verbose_name="Movimiento Financiero Asociado"
+    )
+    establecimiento = models.ForeignKey(
+        'establecimientos.Establecimiento',
+        on_delete=models.CASCADE,
+        related_name='liquidaciones_sueldos',
+        verbose_name="Establecimiento"
+    )
+
+    class Meta:
+        verbose_name = "Liquidación de Sueldo"
+        verbose_name_plural = "Liquidaciones de Sueldos"
+        ordering = ['-fecha'] # Ordena de la más reciente a la más antigua
+
+    def __str__(self):
+        return f"Liquidación #{self.idLiquidacion} - Empleado ID: {self.empleado_id} - {self.fecha.strftime('%d/%m/%Y')}"

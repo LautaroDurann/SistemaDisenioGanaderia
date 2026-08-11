@@ -248,7 +248,7 @@
             <div class="card vacapp-card mb-3">
               <div class="card-header bg-transparent border-0 pb-0">
                 <h3 class="card-title">Plan de alimentación</h3>
-                <p class="text-secondary small mb-0">Raciones asignadas por categoría de animales y potrero.</p>
+                <p class="text-secondary small mb-0">Raciones asignadas por categoría de animales y parcela.</p>
               </div>
               <div class="card-body py-4">
                 <div class="table-responsive">
@@ -256,7 +256,7 @@
                     <thead>
                       <tr>
                         <th>Categoría de animales</th>
-                        <th>Potrero</th>
+                        <th>Parcela</th>
                         <th>Alimento</th>
                         <th>Cantidad diaria</th>
                         <th>Horario</th>
@@ -314,12 +314,12 @@
               <h6 class="text-secondary text-uppercase small mb-2">Destino</h6>
               <div class="row g-2 mb-3">
                 <div class="col-md-6">
-                  <label class="form-label small mb-1">Potrero</label>
-                  <select id="consumo-potrero" class="form-select form-select-sm">
-                    <option>Potrero 1</option>
-                    <option>Potrero 2</option>
-                    <option>Potrero 3</option>
-                    <option>Potrero 4</option>
+                  <label class="form-label small mb-1">Parcela</label>
+                  <select id="consumo-parcela" class="form-select form-select-sm">
+                    <option>Parcela 1</option>
+                    <option>Parcela 2</option>
+                    <option>Parcela 3</option>
+                    <option>Parcela 4</option>
                   </select>
                 </div>
                 <div class="col-md-6">
@@ -531,7 +531,7 @@
 
 {% block page_js%}  
 
-    <script src="{% static 'js/alimentacion.js' %} "></script>
+    <script src="{% static 'js/alimentacion.js' %}?v=1"></script>
 
 {% endblock%}
     

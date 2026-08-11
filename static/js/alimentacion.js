@@ -78,7 +78,7 @@
       // ------------------------------------------------------------------
       // MOCK DATA: reemplazar por datos reales cuando se conecte con Django
       // ------------------------------------------------------------------
-      const ALIMENTOS = window.GANASTOCK_DATA?.alimentos ?? [
+      const ALIMENTOS = window.HUACAPP_DATA?.alimentos ?? [
         { id: 'balanceado-engorde', nombre: 'Balanceado Engorde', categoria: 'Balanceado', stock: 3200, unidad: 'kg', consumoMensual: 1800, stockMinimo: 1000, ultimaCompra: '05/07/2026', precioUnitario: 450 },
         { id: 'maiz-grano', nombre: 'Maíz grano', categoria: 'Maíz', stock: 850, unidad: 'kg', consumoMensual: 1200, stockMinimo: 1000, ultimaCompra: '20/06/2026', precioUnitario: 320 },
         { id: 'rollos-alfalfa', nombre: 'Rollos de alfalfa', categoria: 'Rollos', stock: 45, unidad: 'rollos', consumoMensual: 60, stockMinimo: 30, ultimaCompra: '01/07/2026', precioUnitario: 18000 },
@@ -122,12 +122,12 @@
       const MOVIMIENTOS = {
         'balanceado-engorde': [
           { fecha: '05/07/2026', tipo: 'Compra', cantidad: '+1500 kg', responsable: 'Juan', obs: 'Reposición mensual' },
-          { fecha: '28/06/2026', tipo: 'Consumo', cantidad: '-420 kg', responsable: 'María', obs: 'Racion Potrero 1' },
-          { fecha: '15/06/2026', tipo: 'Consumo', cantidad: '-380 kg', responsable: 'Carlos', obs: 'Racion Potrero 2' },
+          { fecha: '28/06/2026', tipo: 'Consumo', cantidad: '-420 kg', responsable: 'María', obs: 'Racion Parcela 1' },
+          { fecha: '15/06/2026', tipo: 'Consumo', cantidad: '-380 kg', responsable: 'Carlos', obs: 'Racion Parcela 2' },
         ],
         'maiz-grano': [
           { fecha: '20/06/2026', tipo: 'Compra', cantidad: '+600 kg', responsable: 'Carlos', obs: 'Proveedor La Norteña' },
-          { fecha: '10/06/2026', tipo: 'Consumo', cantidad: '-300 kg', responsable: 'Juan', obs: 'Racion Potrero 3' },
+          { fecha: '10/06/2026', tipo: 'Consumo', cantidad: '-300 kg', responsable: 'Juan', obs: 'Racion Parcela 3' },
           { fecha: '01/06/2026', tipo: 'Ajuste', cantidad: '-20 kg', responsable: 'María', obs: 'Corrección de inventario' },
         ],
         'rollos-alfalfa': [
@@ -152,7 +152,7 @@
         ],
         'rollos-moha': [
           { fecha: '18/06/2026', tipo: 'Compra', cantidad: '+10 rollos', responsable: 'Carlos', obs: 'Compra parcial' },
-          { fecha: '05/07/2026', tipo: 'Consumo', cantidad: '-15 rollos', responsable: 'María', obs: 'Rodeo Potrero 4' },
+          { fecha: '05/07/2026', tipo: 'Consumo', cantidad: '-15 rollos', responsable: 'María', obs: 'Rodeo Parcela 4' },
         ],
         'balanceado-recria': [
           { fecha: '28/02/2026', tipo: 'Compra', cantidad: '+1200 kg', responsable: 'Juan', obs: 'Lote próximo a vencer' },
@@ -172,15 +172,15 @@
       };
 
       const PLAN_ALIMENTACION = [
-        { categoria: 'Vacas', potrero: 'Potrero 1', alimento: 'Balanceado Engorde', cantidad: '4 kg/animal', horario: '07:00', responsable: 'Juan' },
-        { categoria: 'Terneros', potrero: 'Potrero 2', alimento: 'Maíz grano', cantidad: '1.5 kg/animal', horario: '08:30', responsable: 'María' },
-        { categoria: 'Toros', potrero: 'Potrero 4', alimento: 'Suplemento mineral', cantidad: '0.3 kg/animal', horario: '09:00', responsable: 'Juan' },
-        { categoria: 'Novillos', potrero: 'Potrero 3', alimento: 'Silaje de maiz', cantidad: '8 kg/animal', horario: '16:00', responsable: 'Carlos' },
-        { categoria: 'Vaquillonas', potrero: 'Potrero 4', alimento: 'Expeller de soja', cantidad: '2 kg/animal', horario: '16:30', responsable: 'Carlos' },
-        { categoria: 'Vacas', potrero: 'Potrero 2', alimento: 'Rollos de alfalfa', cantidad: '6 kg/animal', horario: '17:00', responsable: 'María' },
-        { categoria: 'Terneros', potrero: 'Potrero 1', alimento: 'Balanceado Recría', cantidad: '1 kg/animal', horario: '08:00', responsable: 'Juan' },
-        { categoria: 'Novillos', potrero: 'Potrero 3', alimento: 'Pastura diferida P.4', cantidad: 'A campo', horario: 'Todo el dia', responsable: 'Carlos' },
-        { categoria: 'Toros', potrero: 'Potrero 2', alimento: 'Rollos de moha', cantidad: '5 kg/animal', horario: '17:30', responsable: 'Juan' },
+        { categoria: 'Vacas', parcela: 'Parcela 1', alimento: 'Balanceado Engorde', cantidad: '4 kg/animal', horario: '07:00', responsable: 'Juan' },
+        { categoria: 'Terneros', parcela: 'Parcela 2', alimento: 'Maíz grano', cantidad: '1.5 kg/animal', horario: '08:30', responsable: 'María' },
+        { categoria: 'Toros', parcela: 'Parcela 4', alimento: 'Suplemento mineral', cantidad: '0.3 kg/animal', horario: '09:00', responsable: 'Juan' },
+        { categoria: 'Novillos', parcela: 'Parcela 3', alimento: 'Silaje de maiz', cantidad: '8 kg/animal', horario: '16:00', responsable: 'Carlos' },
+        { categoria: 'Vaquillonas', parcela: 'Parcela 4', alimento: 'Expeller de soja', cantidad: '2 kg/animal', horario: '16:30', responsable: 'Carlos' },
+        { categoria: 'Vacas', parcela: 'Parcela 2', alimento: 'Rollos de alfalfa', cantidad: '6 kg/animal', horario: '17:00', responsable: 'María' },
+        { categoria: 'Terneros', parcela: 'Parcela 1', alimento: 'Balanceado Recría', cantidad: '1 kg/animal', horario: '08:00', responsable: 'Juan' },
+        { categoria: 'Novillos', parcela: 'Parcela 3', alimento: 'Pastura diferida P.4', cantidad: 'A campo', horario: 'Todo el dia', responsable: 'Carlos' },
+        { categoria: 'Toros', parcela: 'Parcela 2', alimento: 'Rollos de moha', cantidad: '5 kg/animal', horario: '17:30', responsable: 'Juan' },
       ];
 
       const FILAS_POR_PAGINA = 10;
@@ -262,7 +262,7 @@
           (p) => `
           <tr>
             <td>${p.categoria}</td>
-            <td>${p.potrero}</td>
+            <td>${p.parcela}</td>
             <td>${p.alimento}</td>
             <td>${p.cantidad}</td>
             <td>${p.horario}</td>
@@ -301,7 +301,25 @@
         document.getElementById('compra-precio-total').value = (cantidad * precioUnitario).toLocaleString('es-AR');
       }
 
+      const temaApex = () =>
+        typeof window.huacappTemaApex === 'function'
+          ? window.huacappTemaApex()
+          : document.documentElement.getAttribute('data-bs-theme') === 'dark'
+            ? 'dark'
+            : 'light';
+      const esOscuro = () => temaApex() === 'dark';
+      const temaChart = () => (esOscuro() ? { theme: { mode: 'dark' }, tooltip: { theme: 'dark' } } : {});
+
       let chartDetalle = null;
+      let chartConsumoMensual = null;
+      let chartDistribucionConsumo = null;
+      document.addEventListener('temaCambiado', (e) => {
+        const tema = e.detail.theme === 'dark' ? 'dark' : 'light';
+        [chartDetalle, chartConsumoMensual, chartDistribucionConsumo].forEach((c) => {
+          if (c) c.updateOptions({ theme: { mode: tema }, tooltip: { theme: tema } });
+        });
+      });
+
       function abrirDetalle(id) {
         const a = ALIMENTOS.find((x) => x.id === id);
         const estado = estadoAlimento(a);
@@ -321,6 +339,7 @@
         chartDetalle = new ApexCharts(el, {
           series: [{ name: `Stock (${a.unidad})`, data: serie }],
           chart: { height: 200, type: 'line', toolbar: { show: false } },
+          ...temaChart(),
           colors: ['#0d6efd'],
           stroke: { curve: 'smooth', width: 3 },
           markers: { size: 4 },
@@ -352,23 +371,27 @@
         renderSelectsAlimento();
 
         // Grafico consumo mensual (barras) - mock 12 meses
-        new ApexCharts(document.querySelector('#chart-consumo-mensual'), {
+        chartConsumoMensual = new ApexCharts(document.querySelector('#chart-consumo-mensual'), {
           series: [{ name: 'Consumo (kg)', data: [9800, 10200, 11000, 9500, 10800, 11500, 12000, 11800, 12600, 12300, 12100, 12600] }],
           chart: { height: 300, type: 'bar', toolbar: { show: false } },
+          ...temaChart(),
           colors: ['#198754'],
           plotOptions: { bar: { borderRadius: 5, columnWidth: '55%' } },
           dataLabels: { enabled: false },
           xaxis: { categories: ['Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul'] },
-        }).render();
+        });
+        chartConsumoMensual.render();
 
         // Grafico distribucion del consumo (doughnut) - mock
-        new ApexCharts(document.querySelector('#chart-distribucion-consumo'), {
+        chartDistribucionConsumo = new ApexCharts(document.querySelector('#chart-distribucion-consumo'), {
           series: [32, 18, 14, 20, 6, 8, 2],
           chart: { height: 300, type: 'donut' },
+          ...temaChart(),
           labels: ['Balanceado', 'Maíz', 'Rollos', 'Silaje', 'Pastura', 'Suplementos', 'Otros'],
           colors: ['#198754', '#0d6efd', '#ffc107', '#6c757d', '#20c997', '#6610f2', '#adb5bd'],
           legend: { position: 'bottom' },
-        }).render();
+        });
+        chartDistribucionConsumo.render();
 
         document.getElementById('tabla-alimentos-body').addEventListener('click', (ev) => {
           const btnDetalle = ev.target.closest('.btn-ver-detalle');
