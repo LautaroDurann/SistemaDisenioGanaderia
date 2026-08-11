@@ -129,7 +129,7 @@
     tbody.innerHTML = (data.compradores || []).map(c => `
       <tr>
         <td>${escapeHtml(c.nombre)}</td>
-        <td>${escapeHtml(c.correo || c.dni || '-')}</td>
+        <td>${escapeHtml(c.correo || '-')}</td>
         <td>${escapeHtml(c.telefono || '-')}</td>
         <td class="text-end">
           <button class="btn btn-sm btn-outline-primary editar-comprador" data-id="${c.id}"><i class="bi bi-pencil"></i></button>

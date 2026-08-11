@@ -89,7 +89,7 @@
     tbody.innerHTML = proveedores.map(p => `
       <tr>
         <td>${escapeHtml(p.nombre)}</td>
-        <td>${escapeHtml(p.correo || p.dni || '-')}</td>
+        <td>${escapeHtml(p.correo || '-')}</td>
         <td>${escapeHtml(p.telefono || '-')}</td>
         <td class="text-end">
           <button class="btn btn-sm btn-outline-primary editar-proveedor" data-id="${p.id}"><i class="bi bi-pencil"></i></button>
