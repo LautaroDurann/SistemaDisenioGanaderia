@@ -224,6 +224,27 @@
         color: #fff !important;
       }
 
+      /* ApexCharts: al cambiar el modo claro/oscuro en caliente, las líneas de
+         grilla y los bordes del área del gráfico se quedan con el color claro
+         (ApexCharts no los repinta al actualizar theme.mode). Estas reglas los
+         repintan al instante según el atributo data-bs-theme, igual que el
+         resto de la página, sin necesidad de recargar. */
+      [data-bs-theme="dark"] .apexcharts-gridlines-horizontal line,
+      [data-bs-theme="dark"] .apexcharts-gridlines-vertical line,
+      [data-bs-theme="dark"] .apexcharts-grid-borders line,
+      [data-bs-theme="dark"] .apexcharts-xaxis line,
+      [data-bs-theme="dark"] .apexcharts-yaxis line,
+      [data-bs-theme="dark"] .apexcharts-xaxis-ticks line,
+      [data-bs-theme="dark"] .apexcharts-yaxis-ticks line {
+        stroke: rgba(255, 255, 255, 0.15) !important;
+      }
+      /* El fondo gris (#424242) que ApexCharts asigna al crear el gráfico en
+         modo oscuro no coincide con la tarjeta; se fuerza transparente para
+         que se vea el fondo de la card tanto al cargar como al cambiar el tema. */
+      [data-bs-theme="dark"] .apexcharts-canvas svg {
+        background: transparent !important;
+      }
+
 
 
 

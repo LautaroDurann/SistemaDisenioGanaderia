@@ -1832,6 +1832,16 @@ class InseminacionModuleTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('tipo', response.json()['error'].lower())
 
+    def test_inseminacion_sin_padre_es_opcional(self):
+        response = self.client.post(reverse('crear_evento_inseminacion'), {
+            'fecha_aplicacion': '2026-08-06', 'estado': 'true', 'tipo_animal': 'Bovino',
+            'animales': [self.vaca1.idAnimal],
+        })
+        self.assertEqual(response.status_code, 201)
+        evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
+        self.assertIsNone(evento.padre_id)
+        self.assertEqual(response.json()['evento']['padre'], '-')
+
     def test_registrar_preniadas_desde_el_evento(self):
         evento_id = self.crear_evento(estado='true', costo='1500.00').json()['evento']['id']
         response = self.client.post(reverse('registrar_preniadas', args=[evento_id]), {
@@ -2322,7 +2332,7 @@ class AuthTests(TestCase):
 
         self.assertEqual(self.client.get(reverse('stock')).status_code, 200)
         self.assertEqual(self.client.get(reverse('finanzas')).status_code, 302)
-        self.assertEqual(self.client.get(reverse('usuarios')).status_code, 302)
+        self.assertEqual(self.client.get(reverse('usuarios')).status_code, 200)
         self.assertEqual(self.client.get(reverse('ventas')).status_code, 302)
         response = self.client.post(reverse('crear_venta'), {'precio_por_kg': '100', 'animales': []})
         self.assertEqual(response.status_code, 403)
@@ -2339,6 +2349,140 @@ class AuthTests(TestCase):
             'nombre': 'Nuevo', 'fecha_inicio': '2026-08-01', 'ubicacion': 'X',
         })
         self.assertEqual(response.status_code, 403)
+
+    def test_operario_ve_solo_su_propia_informacion_en_usuarios(self):
+        persona = Persona.objects.create(nombre='Pedro', correo_electronico='pedro-self@auth.com')
+        usuario = Usuario.objects.create(nombre_usuario='pedro', clave=make_password('clave123'), persona=persona)
+        RolEstablecimiento.objects.create(
+            usuario=usuario, establecimiento=Establecimiento.objects.get(),
+            nombre='Operario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        otro = Persona.objects.create(nombre='Ana', correo_electronico='ana-self@auth.com')
+        Usuario.objects.create(nombre_usuario='ana', clave=make_password('clave123'), persona=otro)
+        self.login_usuario(usuario)
+
+        response = self.client.get(reverse('usuarios'))
+        self.assertEqual(response.status_code, 200)
+        contenido = response.content.decode()
+        # El operario solo recibe su propia información en el listado.
+        inicio = contenido.index('id="huacapp-data-usuarios"')
+        inicio = contenido.index('>', inicio) + 1
+        fin = contenido.index('</script>', inicio)
+        usuarios = json.loads(contenido[inicio:fin])
+        self.assertEqual([u['usuario'] for u in usuarios], ['pedro'])
+        # No se le ofrece alta de usuarios ni el listado con filtros.
+        self.assertNotContains(response, 'modalNuevoUsuario')
+        self.assertNotContains(response, 'btn-limpiar-filtros')
+
+    def test_operario_edita_sus_datos_pero_no_los_roles(self):
+        persona = Persona.objects.create(nombre='Pedro', correo_electronico='pedro-self2@auth.com')
+        usuario = Usuario.objects.create(nombre_usuario='pedro', clave=make_password('clave123'), persona=persona)
+        rol = RolEstablecimiento.objects.create(
+            usuario=usuario, establecimiento=Establecimiento.objects.get(),
+            nombre='Operario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        otro = Persona.objects.create(nombre='Ana', correo_electronico='ana-self2@auth.com')
+        usuario_otro = Usuario.objects.create(nombre_usuario='ana', clave=make_password('clave123'), persona=otro)
+        self.login_usuario(usuario)
+
+        # Puede editar sus propios datos personales y su clave (con la clave actual).
+        response = self.client.post(reverse('actualizar_usuario_api', args=[usuario.id]), {
+            'nombre': 'Pedro Pablo',
+            'email': 'pedro.self2@auth.com',
+            'telefono': '3515559999',
+            'clave_actual': 'clave123',
+            'clave': 'nuevaclave1',
+            'rol': 'Propietario',
+            'estado_acceso': 'Inactivo',
+            'establecimiento_ids': ['999'],
+        })
+        self.assertEqual(response.status_code, 200)
+        persona.refresh_from_db()
+        rol.refresh_from_db()
+        self.assertEqual(persona.nombre, 'Pedro Pablo')
+        self.assertEqual(persona.telefono, '3515559999')
+        self.assertTrue(rol.estado_acceso)
+        self.assertEqual(rol.nombre, 'Operario')
+        usuario.refresh_from_db()
+        self.assertTrue(usuario.clave.startswith('pbkdf2'))
+        self.assertFalse(usuario.debe_cambiar_clave)
+
+        # Sin la clave actual no puede cambiar su propia contraseña.
+        response = self.client.post(reverse('actualizar_usuario_api', args=[usuario.id]), {
+            'clave': 'otraclave1',
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('contraseña actual', response.json()['error'].lower())
+        # Con una clave actual incorrecta tampoco.
+        response = self.client.post(reverse('actualizar_usuario_api', args=[usuario.id]), {
+            'clave_actual': 'incorrecta',
+            'clave': 'otraclave1',
+        })
+        self.assertEqual(response.status_code, 400)
+        # La nueva contraseña no puede ser igual a la actual.
+        response = self.client.post(reverse('actualizar_usuario_api', args=[usuario.id]), {
+            'clave_actual': 'nuevaclave1',
+            'clave': 'nuevaclave1',
+        })
+        self.assertEqual(response.status_code, 400)
+
+        # No puede editar los datos de otro usuario.
+        response = self.client.post(reverse('actualizar_usuario_api', args=[usuario_otro.id]), {
+            'nombre': 'Ana María',
+        })
+        self.assertEqual(response.status_code, 403)
+        usuario_otro.persona.refresh_from_db()
+        self.assertEqual(usuario_otro.persona.nombre, 'Ana')
+
+    def test_operario_no_crea_ni_elimina_usuarios(self):
+        persona = Persona.objects.create(nombre='Pedro', correo_electronico='pedro-self3@auth.com')
+        usuario = Usuario.objects.create(nombre_usuario='pedro', clave=make_password('clave123'), persona=persona)
+        RolEstablecimiento.objects.create(
+            usuario=usuario, establecimiento=Establecimiento.objects.get(),
+            nombre='Operario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        self.login_usuario(usuario)
+        response = self.client.post(reverse('crear_usuario_api'), {
+            'nombre': 'Otro', 'usuario': 'otro', 'clave': 'clave123',
+        })
+        self.assertEqual(response.status_code, 403)
+        response = self.client.post(reverse('eliminar_usuario_api', args=[usuario.id]))
+        self.assertEqual(response.status_code, 403)
+
+    def test_propietario_restablece_clave_de_otro_sin_clave_actual(self):
+        persona_prop = Persona.objects.create(nombre='Dueño', correo_electronico='dueno-reset@auth.com')
+        propietario = Usuario.objects.create(
+            nombre_usuario='dueno', clave=make_password('clave123'), persona=persona_prop,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=propietario, establecimiento=Establecimiento.objects.get(),
+            nombre='Propietario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        persona = Persona.objects.create(nombre='Pedro', correo_electronico='pedro-reset@auth.com')
+        operario = Usuario.objects.create(
+            nombre_usuario='pedro', clave=make_password('clave123'), persona=persona,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=operario, establecimiento=Establecimiento.objects.get(),
+            nombre='Operario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        self.login_usuario(propietario)
+
+        # El propietario restablece la clave de otro usuario sin conocer la actual,
+        # y esa clave pasa a ser temporal (se debe cambiar en el próximo ingreso).
+        response = self.client.post(reverse('actualizar_usuario_api', args=[operario.id]), {
+            'clave': 'temporal123',
+        })
+        self.assertEqual(response.status_code, 200)
+        operario.refresh_from_db()
+        self.assertTrue(operario.clave.startswith('pbkdf2'))
+        self.assertTrue(operario.debe_cambiar_clave)
+
+        # El propietario que cambia su propia clave sí debe indicar la actual.
+        response = self.client.post(reverse('actualizar_usuario_api', args=[propietario.id]), {
+            'clave': 'miclavenueva1',
+        })
+        self.assertEqual(response.status_code, 400)
 
     def test_recuperar_contrasena_envia_correo(self):
         persona = Persona.objects.create(nombre='Juan', correo_electronico='juan@recuperar.com')

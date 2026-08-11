@@ -21,6 +21,7 @@ from usuarios.models import Persona, RolEstablecimiento, Usuario
 from .auth import (
     ROL_OPERARIO,
     ROL_PROPIETARIO,
+    es_propietario,
     rol_requerido,
     usuario_actual,
     verificar_clave,
@@ -362,17 +363,20 @@ def crear_usuario_api(request):
     return JsonResponse({'usuario': _usuario_data(usuario)}, status=201)
 
 
-@rol_requerido(ROL_PROPIETARIO)
+@rol_requerido(ROL_PROPIETARIO, ROL_OPERARIO)
 @require_POST
 def actualizar_usuario_api(request, usuario_id):
-    """Actualiza clave, rol, establecimientos y acceso de un usuario.
+    """Actualiza datos de un usuario.
 
-    El rol es a nivel usuario: 'Propietario' accede a todos los establecimientos,
-    'Operario' solo a los establecimientos seleccionados. El estado_acceso
-    activa/desactiva el acceso del usuario por completo.
+    El propietario puede administrar cualquier usuario (datos, clave, rol,
+    establecimientos y acceso). Un operario solo puede editar sus propios datos
+    personales y su clave; nunca los roles ni el acceso.
     """
     usuario = get_object_or_404(Usuario.objects.select_related('persona'), pk=usuario_id)
     es_el_propio = usuario.id == request.session.get('usuario_id')
+    puede_administrar = es_propietario(request)
+    if not es_el_propio and not puede_administrar:
+        return JsonResponse({'error': 'No tenés permiso para editar a otros usuarios.'}, status=403)
     try:
         # Datos personales (nombre, apellido, correo, teléfono).
         persona = usuario.persona
@@ -414,73 +418,89 @@ def actualizar_usuario_api(request, usuario_id):
         if nueva_clave:
             if len(nueva_clave) < 6:
                 raise ValueError('La contraseña debe tener al menos 6 caracteres.')
-            usuario.clave = make_password(nueva_clave)
-            usuario.debe_cambiar_clave = True
+            if es_el_propio:
+                # Quien cambia su propia contraseña debe confirmar la actual.
+                clave_actual = request.POST.get('clave_actual', '')
+                if not verificar_clave(usuario, clave_actual):
+                    raise ValueError('La contraseña actual es incorrecta.')
+                if verificar_clave(usuario, nueva_clave):
+                    raise ValueError('La nueva contraseña no puede ser igual a la anterior.')
+                usuario.clave = make_password(nueva_clave)
+                usuario.debe_cambiar_clave = False
+            else:
+                # Restablecimiento por un propietario: clave temporal, se cambia en el próximo ingreso.
+                usuario.clave = make_password(nueva_clave)
+                usuario.debe_cambiar_clave = True
             usuario.save(update_fields=['clave', 'debe_cambiar_clave'])
 
         rol_nuevo = request.POST.get('rol')
-        if rol_nuevo:
-            rol_nuevo = rol_nuevo.strip()
-            if rol_nuevo not in (ROL_PROPIETARIO, ROL_OPERARIO):
-                raise ValueError('Rol no válido.')
-
         estado_param = request.POST.get('estado_acceso')
-        nuevo_estado = None
-        if estado_param is not None:
-            nuevo_estado = estado_param in ('true', 'on', '1', 'Activo')
-
         establecimiento_ids = request.POST.getlist('establecimiento_ids')
         if len(establecimiento_ids) == 1 and ',' in establecimiento_ids[0]:
             establecimiento_ids = establecimiento_ids[0].split(',')
 
-        filas = RolEstablecimiento.objects.filter(usuario=usuario)
-        es_propietario_actual = filas.filter(nombre=ROL_PROPIETARIO).exists()
+        if not puede_administrar:
+            # Un operario no puede modificar roles, establecimientos ni su acceso.
+            filas = RolEstablecimiento.objects.filter(usuario=usuario)
+            filas.all().update(estado_acceso=True)
+        else:
+            nuevo_estado = None
+            if estado_param is not None:
+                nuevo_estado = estado_param in ('true', 'on', '1', 'Activo')
 
-        if es_el_propio and rol_nuevo and rol_nuevo != ROL_PROPIETARIO:
-            raise ValueError('No podés quitarte tu propio rol de propietario.')
-        if es_propietario_actual:
-            if rol_nuevo and rol_nuevo != ROL_PROPIETARIO:
-                _verificar_no_quitar_ultimo_propietario(usuario)
-            if nuevo_estado is False:
-                _verificar_no_quitar_ultimo_propietario(usuario)
+            if rol_nuevo:
+                rol_nuevo = rol_nuevo.strip()
+                if rol_nuevo not in (ROL_PROPIETARIO, ROL_OPERARIO):
+                    raise ValueError('Rol no válido.')
 
-        if rol_nuevo == ROL_PROPIETARIO:
-            # El propietario pasa a tener acceso a todos los establecimientos.
-            for est in Establecimiento.objects.order_by('id'):
-                fila = filas.filter(establecimiento=est).first()
-                if fila is None:
-                    RolEstablecimiento.objects.create(
-                        usuario=usuario, establecimiento=est, nombre=ROL_PROPIETARIO,
-                        fecha_ingreso=date.today(), estado_acceso=True,
-                    )
-                else:
-                    fila.nombre = ROL_PROPIETARIO
-                    fila.save(update_fields=['nombre'])
-        elif rol_nuevo == ROL_OPERARIO or establecimiento_ids:
-            # Operario: solo los establecimientos seleccionados.
-            elegidos = set()
-            for est_id in establecimiento_ids:
-                resuelto = _resolver_establecimiento(request, est_id)
-                if resuelto is not None:
-                    elegidos.add(resuelto)
-            if rol_nuevo == ROL_OPERARIO and not elegidos:
-                raise ValueError('Seleccioná al menos un establecimiento para un usuario operario.')
-            for fila in filas.all():
-                if fila.establecimiento_id not in elegidos:
-                    fila.delete()
-            for est_id in elegidos:
-                fila = filas.filter(establecimiento_id=est_id).first()
-                if fila is None:
-                    RolEstablecimiento.objects.create(
-                        usuario=usuario, establecimiento_id=est_id, nombre=ROL_OPERARIO,
-                        fecha_ingreso=date.today(), estado_acceso=True,
-                    )
-                else:
-                    fila.nombre = ROL_OPERARIO
-                    fila.save(update_fields=['nombre'])
+            filas = RolEstablecimiento.objects.filter(usuario=usuario)
+            es_propietario_actual = filas.filter(nombre=ROL_PROPIETARIO).exists()
 
-        if nuevo_estado is not None:
-            filas.all().update(estado_acceso=nuevo_estado)
+            if es_el_propio and rol_nuevo and rol_nuevo != ROL_PROPIETARIO:
+                raise ValueError('No podés quitarte tu propio rol de propietario.')
+            if es_propietario_actual:
+                if rol_nuevo and rol_nuevo != ROL_PROPIETARIO:
+                    _verificar_no_quitar_ultimo_propietario(usuario)
+                if nuevo_estado is False:
+                    _verificar_no_quitar_ultimo_propietario(usuario)
+
+            if rol_nuevo == ROL_PROPIETARIO:
+                # El propietario pasa a tener acceso a todos los establecimientos.
+                for est in Establecimiento.objects.order_by('id'):
+                    fila = filas.filter(establecimiento=est).first()
+                    if fila is None:
+                        RolEstablecimiento.objects.create(
+                            usuario=usuario, establecimiento=est, nombre=ROL_PROPIETARIO,
+                            fecha_ingreso=date.today(), estado_acceso=True,
+                        )
+                    else:
+                        fila.nombre = ROL_PROPIETARIO
+                        fila.save(update_fields=['nombre'])
+            elif rol_nuevo == ROL_OPERARIO or establecimiento_ids:
+                # Operario: solo los establecimientos seleccionados.
+                elegidos = set()
+                for est_id in establecimiento_ids:
+                    resuelto = _resolver_establecimiento(request, est_id)
+                    if resuelto is not None:
+                        elegidos.add(resuelto)
+                if rol_nuevo == ROL_OPERARIO and not elegidos:
+                    raise ValueError('Seleccioná al menos un establecimiento para un usuario operario.')
+                for fila in filas.all():
+                    if fila.establecimiento_id not in elegidos:
+                        fila.delete()
+                for est_id in elegidos:
+                    fila = filas.filter(establecimiento_id=est_id).first()
+                    if fila is None:
+                        RolEstablecimiento.objects.create(
+                            usuario=usuario, establecimiento_id=est_id, nombre=ROL_OPERARIO,
+                            fecha_ingreso=date.today(), estado_acceso=True,
+                        )
+                    else:
+                        fila.nombre = ROL_OPERARIO
+                        fila.save(update_fields=['nombre'])
+
+            if nuevo_estado is not None:
+                filas.all().update(estado_acceso=nuevo_estado)
     except (ValueError, ValidationError) as exc:
         return JsonResponse({'error': str(exc)}, status=400)
     return JsonResponse({'usuario': _usuario_data(usuario)})

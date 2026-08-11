@@ -24,7 +24,7 @@ from usuarios.models import Comprador, Proveedor, RolEstablecimiento, Usuario, V
 
 # Las inseminaciones se registran y muestran solo desde el módulo de Preñez.
 TIPO_INSEMINACION = 'Inseminación'
-from .auth import ROL_PROPIETARIO, rol_requerido, usuario_actual
+from .auth import ROL_OPERARIO, ROL_PROPIETARIO, es_propietario, rol_requerido, usuario_actual
 from .auth_views import _usuario_data
 
 
@@ -1553,13 +1553,19 @@ def alimentacion(request):
     return _page(request, 'alimentacion.html', 'alimentacion', data)
 
 
-@rol_requerido(ROL_PROPIETARIO)
+@rol_requerido(ROL_PROPIETARIO, ROL_OPERARIO)
 def usuarios(request):
-    usuarios_data = [_usuario_data(u) for u in Usuario.objects.filter(activo=True).select_related('persona')]
     actual = usuario_actual(request)
+    es_propietario_user = es_propietario(request)
+    if es_propietario_user:
+        usuarios_data = [_usuario_data(u) for u in Usuario.objects.filter(activo=True).select_related('persona')]
+    else:
+        # Un operario solo puede ver (y editar) su propia información.
+        usuarios_data = [_usuario_data(actual)] if actual else []
     data = {'usuarios': usuarios_data,
             'establecimientos_data': [{'id': e.id, 'nombre': e.nombre} for e in Establecimiento.objects.filter(activo=True).order_by('nombre')],
-            'usuario_actual_id': actual.id if actual else None}
+            'usuario_actual_id': actual.id if actual else None,
+            'es_propietario': es_propietario_user}
     return _page(request, 'usuarios.html', 'usuarios', data)
 
 
@@ -2659,13 +2665,12 @@ def crear_evento_inseminacion(request):
 def _validar_inseminacion(evento, animal_ids, tipo_animal=''):
     if not tipo_animal or tipo_animal not in [c[0] for c in Animal.TIPO_CHOICES]:
         raise ValueError('Seleccioná el tipo de animal para la inseminación.')
-    if not evento.padre_id:
-        raise ValueError('Seleccioná el padre (macho) para la inseminación.')
-    padre = Animal.objects.filter(pk=evento.padre_id, activo=True).first()
-    if padre is None or padre.sexo != 'Macho':
-        raise ValueError('El padre seleccionado debe ser macho.')
-    if padre.tipo_animal != tipo_animal:
-        raise ValueError('El padre debe ser del mismo tipo de animal que las hembras a inseminar.')
+    if evento.padre_id:
+        padre = Animal.objects.filter(pk=evento.padre_id, activo=True).first()
+        if padre is None or padre.sexo != 'Macho':
+            raise ValueError('El padre seleccionado debe ser macho.')
+        if padre.tipo_animal != tipo_animal:
+            raise ValueError('El padre debe ser del mismo tipo de animal que las hembras a inseminar.')
     if Animal.objects.filter(activo=True, pk__in=animal_ids, sexo='Hembra').count() != len(animal_ids):
         raise ValueError('Solo se pueden inseminar animales hembra.')
     if Animal.objects.filter(activo=True, pk__in=animal_ids).exclude(tipo_animal=tipo_animal).exists():

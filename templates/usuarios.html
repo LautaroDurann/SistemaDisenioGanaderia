@@ -26,9 +26,11 @@
                 <p class="text-secondary mb-0">Administra los usuarios, roles y permisos del sistema.</p>
               </div>
               <div class="col-lg-7 text-lg-end mt-3 mt-lg-0">
+                {% if es_propietario %}
                 <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
                   <i class="bi bi-person-plus-fill me-1"></i> Nuevo Usuario
                 </button>
+                {% endif %}
               </div>
             </div>
           </div>
@@ -40,6 +42,7 @@
           <div class="container-fluid">
             <!--begin::Listado de usuarios y Perfil del usuario-->
             <div class="row g-3 mb-3" id="perfil-usuario">
+              {% if es_propietario %}
               <div class="col-lg-8">
                 <div class="card vacapp-card h-100">
                   <div class="card-header bg-transparent border-0 pb-0">
@@ -116,7 +119,8 @@
                   </div>
                 </div>
               </div>
-              <div class="col-lg-4">
+              {% endif %}
+              <div class="{% if es_propietario %}col-lg-4{% else %}col-lg-7 mx-auto{% endif %}">
                 <div class="card vacapp-card h-100">
                   <div class="card-header bg-transparent border-0 pb-0">
                     <h3 class="card-title">Perfil del usuario</h3>
@@ -132,6 +136,16 @@
                       </button>
                       <input type="file" id="perfil-foto-input" accept="image/*" class="d-none" />
                     </div>
+                    {% if not es_propietario %}
+                    <div class="d-flex justify-content-center gap-2 mb-3">
+                      <button type="button" class="btn btn-sm btn-primary" id="btn-editar-mis-datos">
+                        <i class="bi bi-pencil me-1"></i>Editar información
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cambiar-mi-clave">
+                        <i class="bi bi-key me-1"></i>Cambiar contraseña
+                      </button>
+                    </div>
+                    {% endif %}
                     <h5 class="mb-0" id="perfil-nombre">-</h5>
                     <p class="text-secondary small mb-4" id="perfil-cargo">-</p>
                     <ul class="list-group list-group-flush text-start vacapp-perfil-lista">
@@ -174,6 +188,7 @@
     </div>
 
     <!--begin::Modal Nuevo Usuario-->
+    {% if es_propietario %}
     <div class="modal fade" id="modalNuevoUsuario" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -238,6 +253,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
     <!--end::Modal Nuevo Usuario-->
 
     <!--begin::Modal Asignar rol-->
@@ -268,27 +284,29 @@
                 <input type="tel" class="form-control" id="ar-telefono" placeholder="Ej: +54 9 3644 000000" />
               </div>
             </div>
-            <hr>
-            <div class="mb-3">
-              <label class="form-label">Rol</label>
-              <select class="form-select" id="ar-rol-user">
-                <option value="Operario">Operario</option>
-                <option value="Propietario">Propietario</option>
-              </select>
-              <div class="form-text d-none" id="ar-rol-note">
-                El propietario accede automáticamente a todos los establecimientos.
+            <div id="ar-zona-admin" class="d-none">
+              <hr>
+              <div class="mb-3">
+                <label class="form-label">Rol</label>
+                <select class="form-select" id="ar-rol-user">
+                  <option value="Operario">Operario</option>
+                  <option value="Propietario">Propietario</option>
+                </select>
+                <div class="form-text d-none" id="ar-rol-note">
+                  El propietario accede automáticamente a todos los establecimientos.
+                </div>
               </div>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Acceso habilitado</label>
-              <select class="form-select" id="ar-estado-user">
-                <option value="Activo">Activo</option>
-                <option value="Inactivo">Inactivo</option>
-              </select>
-            </div>
-            <div class="mb-3" id="ar-est-container">
-              <label class="form-label" id="ar-est-label">Establecimientos con acceso</label>
-              <div id="ar-establecimientos" class="d-flex flex-column gap-1 border rounded p-2"></div>
+              <div class="mb-3">
+                <label class="form-label">Acceso habilitado</label>
+                <select class="form-select" id="ar-estado-user">
+                  <option value="Activo">Activo</option>
+                  <option value="Inactivo">Inactivo</option>
+                </select>
+              </div>
+              <div class="mb-3" id="ar-est-container">
+                <label class="form-label" id="ar-est-label">Establecimientos con acceso</label>
+                <div id="ar-establecimientos" class="d-flex flex-column gap-1 border rounded p-2"></div>
+              </div>
             </div>
           </div>
           <div class="modal-footer">
@@ -302,20 +320,59 @@
     </div>
     <!--end::Modal Asignar rol-->
 
+    <!--begin::Modal Cambiar contraseña-->
+    <div class="modal fade" id="modalCambiarClave" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Cambiar contraseña</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="text-secondary small" id="cc-usuario-nombre"></p>
+            <div class="mb-3" id="cc-zona-actual">
+              <label class="form-label">Contraseña actual</label>
+              <input type="password" class="form-control" id="cc-clave-actual" autocomplete="current-password" required />
+              <div class="invalid-feedback" id="cc-clave-actual-feedback">La contraseña actual es incorrecta.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Nueva contraseña</label>
+              <input type="password" class="form-control" id="cc-clave" autocomplete="new-password" required />
+              <div class="form-text">Mínimo 6 caracteres.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Confirmar nueva contraseña</label>
+              <input type="password" class="form-control" id="cc-clave-confirm" autocomplete="new-password" required />
+              <div class="invalid-feedback" id="cc-clave-confirm-feedback">Las contraseñas no coinciden.</div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-success" id="btn-guardar-clave">
+              <i class="bi bi-key me-1"></i> Guardar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--end::Modal Cambiar contraseña-->
+
 {% endblock %}
 
 {% block page_js%}
     {{ page_data.usuarios|json_script:"huacapp-data-usuarios" }}
     {{ page_data.establecimientos_data|json_script:"huacapp-data-establecimientos" }}
     {{ page_data.usuario_actual_id|json_script:"huacapp-data-usuario-actual" }}
+    {{ page_data.es_propietario|json_script:"huacapp-data-es-propietario" }}
     <script>
       window.HUACAPP_DATA = {
         usuarios: JSON.parse(document.getElementById('huacapp-data-usuarios').textContent),
         establecimientos: JSON.parse(document.getElementById('huacapp-data-establecimientos').textContent),
         usuario_actual_id: JSON.parse(document.getElementById('huacapp-data-usuario-actual').textContent),
+        es_propietario: JSON.parse(document.getElementById('huacapp-data-es-propietario').textContent),
       };
     </script>
-    <script src="{% static 'js/usuarios.js' %}?v=12"></script>
+    <script src="{% static 'js/usuarios.js' %}?v=14"></script>
 {% endblock %}
 
          

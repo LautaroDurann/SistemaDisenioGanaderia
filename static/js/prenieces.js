@@ -326,19 +326,25 @@
   function renderPadresInsem() {
     const tipo = $('insem-tipo').value;
     const opciones = PADRES.filter((p) => p.tipo === tipo);
-    $('insem-padre').innerHTML = '<option value="">Seleccionar...</option>' +
-      (opciones.length
-        ? opciones.map((padre) => `<option value="${padre.id}">${escapeHtml(padre.nombre)}</option>`).join('')
-        : '<option value="" disabled>No hay machos de este tipo</option>');
+    $('insem-padre').innerHTML = '<option value="">Sin padre</option>' +
+      opciones.map((padre) => `<option value="${padre.id}">${escapeHtml(padre.nombre)}</option>`).join('');
   }
 
-  function renderInsemAnimales(search) {
+  function renderInsemAnimales(search, idsPreMarcadas) {
     const termino = (search || '').toLowerCase();
     const tipo = $('insem-tipo').value;
     const seleccionadas = new Set(
-      Array.from($('insem-animales').querySelectorAll('input:checked')).map((i) => Number(i.value)),
+      idsPreMarcadas
+        ? idsPreMarcadas.map(Number)
+        : Array.from($('insem-animales').querySelectorAll('input:checked')).map((i) => Number(i.value)),
     );
-    const opciones = MADRES.filter((m) => m.tipo === tipo && (!termino || `#${m.caravana} ${m.nombre} ${m.tipo}`.toLowerCase().includes(termino)));
+    // Al editar, las hembras ya seleccionadas aparecen primero.
+    const opciones = MADRES
+      // Las preñadas no se ofrecen para agendar; al editar se mantienen las ya elegidas.
+      .filter((m) => m.tipo === tipo &&
+        (!m.preniada || seleccionadas.has(m.id)) &&
+        (!termino || `#${m.caravana} ${m.nombre} ${m.tipo}`.toLowerCase().includes(termino)))
+      .sort((a, b) => Number(seleccionadas.has(b.id)) - Number(seleccionadas.has(a.id)));
     $('insem-animales').innerHTML = opciones.length
       ? opciones.map((m) => `
         <label class="list-group-item d-flex align-items-center gap-2 py-1">
@@ -381,12 +387,8 @@
     $('insem-costo').value = e.costo_total || '';
     $('insem-detalle').value = e.detalle || '';
     $('insem-animales-search').value = '';
-    renderInsemAnimales('');
-    const ids = new Set(e.animales.map((a) => a.id));
-    Array.from($('insem-animales').querySelectorAll('.insem-animal-check')).forEach((chk) => {
-      if (ids.has(Number(chk.value))) chk.checked = true;
-    });
-    $('insem-animales-info').textContent = `${ids.size} hembra(s) seleccionada(s)`;
+    renderInsemAnimales('', e.animales.map((a) => a.id));
+    $('insem-animales-info').textContent = `${e.animales.length} hembra(s) seleccionada(s)`;
     bootstrap.Modal.getOrCreateInstance($('modalInseminacion')).show();
   }
 

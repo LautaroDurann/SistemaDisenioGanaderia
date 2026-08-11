@@ -1,0 +1,38 @@
+html {
+  /* Reserva siempre el espacio de la scrollbar vertical, asi el ancho de la pagina
+     no cambia cuando la tabla achica/agranda el contenido con los filtros. Sin esto,
+     al aparecer o desaparecer la scrollbar, los graficos de ApexCharts se redibujan solos. */
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+}
+
+/* Ajustes propios de VacApp - paleta sobria, cards mas suaves */
+body {
+  font-size: 0.95rem;
+}
+.vacapp-card {
+  border: 0;
+  border-radius: 0.75rem;
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
+}
+.vacapp-alert-card {
+  border: 0;
+  border-radius: 0.75rem;
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.06);
+}
+.vacapp-alert-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+}
+.table-vacapp thead th {
+  white-space: nowrap;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--bs-secondary-color);
+}

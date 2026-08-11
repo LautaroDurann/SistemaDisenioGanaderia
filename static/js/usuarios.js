@@ -85,11 +85,13 @@ const ESTADO_BADGE = {
 let USUARIOS = window.HUACAPP_DATA?.usuarios ?? [];
 const ESTABLECIMIENTOS = window.HUACAPP_DATA?.establecimientos ?? [];
 const USUARIO_ACTUAL_ID = window.HUACAPP_DATA?.usuario_actual_id ?? null;
+const ES_PROPIETARIO = window.HUACAPP_DATA?.es_propietario ?? true;
 
 const FILAS_POR_PAGINA = 6;
 let paginaActual = 1;
 let usuarioSeleccionado = null;
 let usuarioEdicion = null;
+let usuarioClave = null;
 
 function nombreCompleto(u) {
   return `${u.nombre || ''} ${u.apellido || ''}`.trim();
@@ -186,6 +188,7 @@ function avatarHtml(u) {
 }
 
 function renderTabla() {
+  if (!ES_PROPIETARIO) return;
   const filtrados = aplicarFiltros();
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / FILAS_POR_PAGINA));
   if (paginaActual > totalPaginas) paginaActual = totalPaginas;
@@ -264,20 +267,9 @@ function renderTabla() {
   });
 
   document.querySelectorAll('.btn-restablecer-clave').forEach((btn) => {
-    btn.addEventListener('click', async (e) => {
+    btn.addEventListener('click', (e) => {
       e.preventDefault();
-      const clave = prompt('Ingresá la nueva contraseña (mínimo 6 caracteres):');
-      if (!clave) return;
-      if (clave.length < 6) {
-        alert('La contraseña debe tener al menos 6 caracteres.');
-        return;
-      }
-      try {
-        await apiFetch(`/api/usuarios/${btn.dataset.id}/`, { clave });
-        alert('Contraseña actualizada.');
-      } catch (error) {
-        alert(error.message);
-      }
+      abrirModalClave(Number(btn.dataset.id));
     });
   });
 
@@ -423,7 +415,9 @@ function abrirModalRol(usuarioId) {
   const u = USUARIOS.find((x) => x.id === usuarioId);
   if (!u) return;
   usuarioEdicion = usuarioId;
-  document.getElementById('ar-usuario-nombre').textContent = `Editando a ${nombreCompleto(u) || u.usuario} (@${u.usuario})`;
+  document.getElementById('ar-usuario-nombre').textContent = ES_PROPIETARIO
+    ? `Editando a ${nombreCompleto(u) || u.usuario} (@${u.usuario})`
+    : `Editando mi información (@${u.usuario})`;
   document.getElementById('ar-nombre').value = u.nombre || '';
   document.getElementById('ar-apellido').value = u.apellido || '';
   document.getElementById('ar-email').value = u.email || '';
@@ -432,11 +426,37 @@ function abrirModalRol(usuarioId) {
   document.getElementById('ar-estado-user').value = u.estado;
   const marcados = new Set((u.roles || []).map((r) => r.establecimiento_id));
   llenarChecksEstablecimientos(document.getElementById('ar-establecimientos'), marcados);
+  const zonaAdmin = document.getElementById('ar-zona-admin');
+  if (zonaAdmin) zonaAdmin.classList.toggle('d-none', !ES_PROPIETARIO);
   aplicarRolModal(u.rol, false, u.estado);
   bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAsignarRol')).show();
 }
 
+function abrirModalClave(usuarioId) {
+  const u = USUARIOS.find((x) => x.id === usuarioId);
+  if (!u) return;
+  usuarioClave = usuarioId;
+  const esPropia = usuarioId === Number(USUARIO_ACTUAL_ID);
+  document.getElementById('cc-usuario-nombre').textContent = esPropia
+    ? 'Estás cambiando tu propia contraseña.'
+    : `Vas a restablecer la contraseña de ${nombreCompleto(u) || u.usuario} (@${u.usuario}).`;
+  document.getElementById('cc-zona-actual').classList.toggle('d-none', !esPropia);
+  document.getElementById('cc-clave-actual').value = '';
+  document.getElementById('cc-clave').value = '';
+  document.getElementById('cc-clave-confirm').value = '';
+  ['cc-clave-actual', 'cc-clave', 'cc-clave-confirm'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('is-invalid');
+  });
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCambiarClave')).show();
+}
+
+function cerrarModalClave() {
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCambiarClave')).hide();
+}
+
 async function cargarUsuarios() {
+  if (!ES_PROPIETARIO) return;
   try {
     const respuesta = await fetch('/api/usuarios/', { method: 'GET' });
     const cuerpo = await respuesta.json();
@@ -473,6 +493,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!USUARIOS.length) {
     cargarUsuarios();
   }
+  if (!ES_PROPIETARIO && USUARIO_ACTUAL_ID != null) {
+    usuarioSeleccionado = Number(USUARIO_ACTUAL_ID);
+  }
 
   renderTabla();
   renderPerfil();
@@ -493,63 +516,120 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  document.getElementById('btn-limpiar-filtros').addEventListener('click', () => {
-    document.getElementById('f-buscar').value = '';
-    document.getElementById('f-rol').value = '';
-    document.getElementById('f-estado').value = '';
-    paginaActual = 1;
-    renderTabla();
-  });
+  const btnLimpiarFiltros = document.getElementById('btn-limpiar-filtros');
+  if (btnLimpiarFiltros) {
+    btnLimpiarFiltros.addEventListener('click', () => {
+      document.getElementById('f-buscar').value = '';
+      document.getElementById('f-rol').value = '';
+      document.getElementById('f-estado').value = '';
+      paginaActual = 1;
+      renderTabla();
+    });
+  }
 
-  // Alta de usuario
+  // Alta de usuario (solo propietarios)
   const form = document.getElementById('form-nuevo-usuario');
-  const pass = document.getElementById('nu-password');
-  const passConfirm = document.getElementById('nu-password-confirm');
+  if (form) {
+    const pass = document.getElementById('nu-password');
+    const passConfirm = document.getElementById('nu-password-confirm');
 
-  passConfirm.addEventListener('input', () => passConfirm.classList.remove('is-invalid'));
+    passConfirm.addEventListener('input', () => passConfirm.classList.remove('is-invalid'));
 
-  llenarChecksEstablecimientos(document.getElementById('nu-establecimientos'), new Set());
-  document.getElementById('nu-rol').addEventListener('change', (e) => {
-    aplicarRolModal(e.target.value, true);
-  });
+    llenarChecksEstablecimientos(document.getElementById('nu-establecimientos'), new Set());
+    document.getElementById('nu-rol').addEventListener('change', (e) => {
+      aplicarRolModal(e.target.value, true);
+    });
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (pass.value !== passConfirm.value) {
-      passConfirm.classList.add('is-invalid');
-      return;
-    }
-    passConfirm.classList.remove('is-invalid');
-    const rol = document.getElementById('nu-rol').value;
-    const establecimiento_ids = [];
-    if (rol === 'Operario') {
-      document.querySelectorAll('#nu-establecimientos input:checked').forEach((cb) => {
-        establecimiento_ids.push(cb.value);
-      });
-      if (!establecimiento_ids.length) {
-        alert('Seleccioná al menos un establecimiento para el usuario.');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (pass.value !== passConfirm.value) {
+        passConfirm.classList.add('is-invalid');
         return;
       }
+      passConfirm.classList.remove('is-invalid');
+      const rol = document.getElementById('nu-rol').value;
+      const establecimiento_ids = [];
+      if (rol === 'Operario') {
+        document.querySelectorAll('#nu-establecimientos input:checked').forEach((cb) => {
+          establecimiento_ids.push(cb.value);
+        });
+        if (!establecimiento_ids.length) {
+          alert('Seleccioná al menos un establecimiento para el usuario.');
+          return;
+        }
+      }
+      const datos = {
+        nombre: document.getElementById('nu-nombre').value,
+        apellido: document.getElementById('nu-apellido').value,
+        email: document.getElementById('nu-email').value,
+        telefono: document.getElementById('nu-telefono').value,
+        usuario: document.getElementById('nu-usuario').value,
+        clave: pass.value,
+        rol,
+        establecimiento_ids,
+      };
+      try {
+        await apiFetch('/api/usuarios/', datos);
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('modalNuevoUsuario')).hide();
+        form.reset();
+        document.getElementById('nu-rol').value = 'Operario';
+        llenarChecksEstablecimientos(document.getElementById('nu-establecimientos'), new Set());
+        aplicarRolModal('Operario', true);
+        await cargarUsuarios();
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+  }
+
+  // Operario: editar mi información y cambiar mi contraseña
+  if (!ES_PROPIETARIO) {
+    const btnEditarMisDatos = document.getElementById('btn-editar-mis-datos');
+    if (btnEditarMisDatos) {
+      btnEditarMisDatos.addEventListener('click', () => {
+        const u = USUARIOS.find((x) => x.id === usuarioSeleccionado) || USUARIOS[0];
+        if (u) abrirModalRol(u.id);
+      });
     }
-    const datos = {
-      nombre: document.getElementById('nu-nombre').value,
-      apellido: document.getElementById('nu-apellido').value,
-      email: document.getElementById('nu-email').value,
-      telefono: document.getElementById('nu-telefono').value,
-      usuario: document.getElementById('nu-usuario').value,
-      clave: pass.value,
-      rol,
-      establecimiento_ids,
-    };
+
+    const btnCambiarMiClave = document.getElementById('btn-cambiar-mi-clave');
+    if (btnCambiarMiClave) {
+      btnCambiarMiClave.addEventListener('click', () => {
+        const u = USUARIOS.find((x) => x.id === usuarioSeleccionado) || USUARIOS[0];
+        if (u) abrirModalClave(u.id);
+      });
+    }
+  }
+
+  // Cambio de contraseña
+  document.getElementById('btn-guardar-clave').addEventListener('click', async () => {
+    if (!usuarioClave) return;
+    const u = USUARIOS.find((x) => x.id === usuarioClave);
+    if (!u) return;
+    const esPropia = usuarioClave === Number(USUARIO_ACTUAL_ID);
+    const claveNueva = document.getElementById('cc-clave').value;
+    const claveConfirm = document.getElementById('cc-clave-confirm').value;
+    if (claveNueva.length < 6) {
+      alert('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (claveNueva !== claveConfirm) {
+      document.getElementById('cc-clave-confirm').classList.add('is-invalid');
+      return;
+    }
+    document.getElementById('cc-clave-confirm').classList.remove('is-invalid');
+    const datos = { clave: claveNueva };
+    if (esPropia) {
+      datos.clave_actual = document.getElementById('cc-clave-actual').value;
+    }
     try {
-      await apiFetch('/api/usuarios/', datos);
-      bootstrap.Modal.getOrCreateInstance(document.getElementById('modalNuevoUsuario')).hide();
-      form.reset();
-      document.getElementById('nu-rol').value = 'Operario';
-      llenarChecksEstablecimientos(document.getElementById('nu-establecimientos'), new Set());
-      aplicarRolModal('Operario', true);
-      await cargarUsuarios();
+      await apiFetch(`/api/usuarios/${usuarioClave}/`, datos);
+      cerrarModalClave();
+      alert('Contraseña actualizada.');
     } catch (error) {
+      if (esPropia && /actual es incorrecta/.test(error.message)) {
+        document.getElementById('cc-clave-actual').classList.add('is-invalid');
+      }
       alert(error.message);
     }
   });
@@ -566,35 +646,44 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-guardar-rol').addEventListener('click', async () => {
     if (!usuarioEdicion) return;
     const url = `/api/usuarios/${usuarioEdicion}/`;
-    const rol = document.getElementById('ar-rol-user').value;
-    const estado = document.getElementById('ar-estado-user').value;
     const nombre = document.getElementById('ar-nombre').value.trim();
     if (!nombre) {
       alert('El nombre es obligatorio.');
       return;
     }
-    const establecimiento_ids = [];
-    if (rol === 'Operario') {
-      document.querySelectorAll('#ar-establecimientos input:checked').forEach((cb) => {
-        establecimiento_ids.push(cb.value);
-      });
-      if (!establecimiento_ids.length) {
-        alert('Seleccioná al menos un establecimiento para el usuario.');
-        return;
+    const datos = {
+      nombre,
+      apellido: document.getElementById('ar-apellido').value,
+      email: document.getElementById('ar-email').value,
+      telefono: document.getElementById('ar-telefono').value,
+    };
+    if (ES_PROPIETARIO) {
+      const rol = document.getElementById('ar-rol-user').value;
+      const estado = document.getElementById('ar-estado-user').value;
+      const establecimiento_ids = [];
+      if (rol === 'Operario') {
+        document.querySelectorAll('#ar-establecimientos input:checked').forEach((cb) => {
+          establecimiento_ids.push(cb.value);
+        });
+        if (!establecimiento_ids.length) {
+          alert('Seleccioná al menos un establecimiento para el usuario.');
+          return;
+        }
       }
+      datos.rol = rol;
+      datos.estado_acceso = estado;
+      datos.establecimiento_ids = establecimiento_ids;
     }
     try {
-      await apiFetch(url, {
-        nombre,
-        apellido: document.getElementById('ar-apellido').value,
-        email: document.getElementById('ar-email').value,
-        telefono: document.getElementById('ar-telefono').value,
-        rol,
-        estado_acceso: estado,
-        establecimiento_ids,
-      });
+      const cuerpo = await apiFetch(url, datos);
       bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAsignarRol')).hide();
+      if (cuerpo.usuario) {
+        const idx = USUARIOS.findIndex((x) => x.id === Number(usuarioEdicion));
+        if (idx >= 0) USUARIOS[idx] = cuerpo.usuario;
+        sincronizarNavbarCon(cuerpo.usuario);
+      }
       await cargarUsuarios();
+      renderPerfil();
     } catch (error) {
       alert(error.message);
     }
@@ -627,6 +716,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sincronizarNavbarCon(actualizado);
       }
       await cargarUsuarios();
+      renderPerfil();
     } catch (error) {
       alert(error.message);
     }
@@ -640,6 +730,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await apiFetch(`/api/usuarios/${u.id}/`, { eliminar_foto: '1' });
       await cargarUsuarios();
       sincronizarNavbarCon(USUARIOS.find((x) => x.id === Number(u.id)));
+      renderPerfil();
     } catch (error) {
       alert(error.message);
     }

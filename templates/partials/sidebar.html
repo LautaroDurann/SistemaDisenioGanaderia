@@ -89,24 +89,18 @@
           </a>
         </li>
         <li class="nav-item">
-          <a href="{% url 'alimentacion' %}" class="nav-link{% if request.resolver_match.url_name == 'alimentacion' %} active{% endif %}" data-page="alimentacion.html">
-            <i class="nav-icon bi bi-basket2-fill"></i>
-            <p>Alimentación</p>
-          </a>
-        </li>
-        <li class="nav-item">
           <a href="{% url 'insumos' %}" class="nav-link{% if request.resolver_match.url_name == 'insumos' %} active{% endif %}" data-page="insumos.html">
             <i class="nav-icon bi bi-box-seam"></i>
             <p>Insumos</p>
           </a>
         </li>
-        {% if es_propietario %}
         <li class="nav-item">
           <a href="{% url 'usuarios' %}" class="nav-link{% if request.resolver_match.url_name == 'usuarios' %} active{% endif %}" data-page="usuarios.html">
             <i class="nav-icon bi bi-people-fill"></i>
             <p>Usuarios</p>
           </a>
         </li>
+        {% if es_propietario %}
         <li class="nav-item">
           <a href="{% url 'configuracion' %}" class="nav-link{% if request.resolver_match.url_name == 'configuracion' %} active{% endif %}" data-page="configuracion.html">
             <i class="nav-icon bi bi-gear-fill"></i>
