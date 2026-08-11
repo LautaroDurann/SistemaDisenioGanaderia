@@ -376,6 +376,7 @@ def _alertas_dashboard(request, animales=None):
 
     # Vacunas vencidas: lotes de vacunas con vencimiento pasado y stock pendiente.
     lotes_vacunas = Lote.objects.select_related('insumo').filter(
+        activo=True, insumo__activo=True,
         insumo__tipo='Vacuna', fechaVencimiento__lt=today, stockActual__gt=0,
     )
     if establecimiento is not None:
@@ -450,10 +451,10 @@ def _alertas_dashboard(request, animales=None):
         })
 
     # Insumos agotados: insumos con lotes cargados pero sin stock restante.
-    lotes_qs = Lote.objects.select_related('insumo')
+    lotes_qs = Lote.objects.select_related('insumo').filter(activo=True)
     if establecimiento is not None:
         lotes_qs = lotes_qs.filter(establecimiento=establecimiento)
-    insumos_por_id = {i.id: i for i in Insumo.objects.all()}
+    insumos_por_id = {i.id: i for i in Insumo.objects.filter(activo=True)}
     agotados = []
     for insumo_id, total in (
         lotes_qs.exclude(insumo__isnull=True)
@@ -1083,7 +1084,7 @@ def gastos(request):
     sueldos_anio = liquidaciones.filter(fecha__year=today.year).aggregate(total=Sum('sueldo'))['total'] or Decimal('0')
 
     proveedores = list(Proveedor.objects.filter(activo=True).order_by('apellido', 'nombre'))
-    insumos = list(Insumo.objects.order_by('tipo', 'nombre'))
+    insumos = list(Insumo.objects.filter(activo=True).order_by('tipo', 'nombre'))
     empleados = _empleados_de(request)
 
     # Los pagos de sueldos se suman a las compras: ambos son egresos del módulo.
@@ -1430,7 +1431,7 @@ def sanidad(request):
     if establecimiento is not None:
         diagnosticos = diagnosticos.filter(animal__establecimiento=establecimiento)
     veterinarios = Veterinario.objects.filter(activo=True).order_by('apellido', 'nombre')
-    lotes = Lote.objects.select_related('insumo').order_by('insumo__nombre', 'fechaVencimiento')
+    lotes = Lote.objects.filter(activo=True, insumo__activo=True).select_related('insumo').order_by('insumo__nombre', 'fechaVencimiento')
     if establecimiento is not None:
         lotes = lotes.filter(establecimiento=establecimiento)
     # Incluir animales vivos aunque ya hayan sido vendidos para permitir registrar eventos y diagnósticos históricos.
@@ -1448,7 +1449,7 @@ def sanidad(request):
         'diagnosticos': [_diagnostico_data(d) for d in diagnosticos],
         'veterinarios': [_veterinario_data(v) for v in veterinarios],
         'lotes': [_lote_data(l) for l in lotes],
-        'insumos': [_insumo_data(i) for i in Insumo.objects.order_by('nombre')],
+        'insumos': [_insumo_data(i) for i in Insumo.objects.filter(activo=True).order_by('nombre')],
         'tipos_evento': [choice[0] for choice in EventoSanitario.TIPO_CHOICES if choice[0] != TIPO_INSEMINACION],
         'animales': [{
             'id': a.idAnimal,
@@ -1546,10 +1547,10 @@ def vacunacion(request):
 
 def alimentacion(request):
     data = {'alimentos': [{'id': str(i.id), 'nombre': i.nombre, 'categoria': 'Insumo',
-                           'stock': float(i.lotes.aggregate(total=Sum('stockActual'))['total'] or Decimal('0')),
+                           'stock': float(i.lotes.filter(activo=True).aggregate(total=Sum('stockActual'))['total'] or Decimal('0')),
                            'unidad': i.unidadDeMedida,
                            'consumoMensual': 0, 'stockMinimo': 0, 'ultimaCompra': '-', 'precioUnitario': 0}
-                          for i in Insumo.objects.all()]}
+                          for i in Insumo.objects.filter(activo=True)]}
     return _page(request, 'alimentacion.html', 'alimentacion', data)
 
 
@@ -1787,8 +1788,14 @@ def eliminar_parcela(request, parcela_id):
     return JsonResponse({'ok': True})
 
 
-def _registrar_venta(venta, datos):
-    """Guarda una venta y todos sus efectos como una única transacción."""
+def _registrar_venta(venta, datos, historicos_ids=None):
+    """Guarda una venta y todos sus efectos como una única transacción.
+
+    historicos_ids: IDs de los animales que ya formaban parte de esta venta.
+    Al editar se conservan aunque ya no estén disponibles (baja lógica, muerte,
+    etc.) porque su historia ya quedó ligada a la venta. Solo los animales
+    nuevos deben seguir activos, vivos y sin vender.
+    """
     try:
         precio_por_kg = Decimal(datos['precio_por_kg'])
         animales_ids = [int(animal_id) for animal_id in datos.getlist('animales')]
@@ -1797,8 +1804,16 @@ def _registrar_venta(venta, datos):
     if precio_por_kg <= 0 or not animales_ids or len(animales_ids) != len(set(animales_ids)):
         raise ValueError('Indicá un precio por kilo válido y al menos un animal.')
 
-    animales = list(Animal.objects.select_for_update().filter(pk__in=animales_ids, activo=True, vivo=True, vendido=False))
-    if len(animales) != len(animales_ids):
+    historicos_ids = {int(animal_id) for animal_id in (historicos_ids or ())}
+    animales = list(Animal.objects.select_for_update().filter(pk__in=animales_ids))
+    existentes_ids = {animal.idAnimal for animal in animales}
+    if any(animal_id not in existentes_ids for animal_id in animales_ids):
+        raise ValueError('Uno o más animales ya no existen en el sistema.')
+    no_disponibles = [
+        animal for animal in animales
+        if animal.idAnimal not in historicos_ids and not (animal.activo and animal.vivo and not animal.vendido)
+    ]
+    if no_disponibles:
         raise ValueError('Uno o más animales ya no están disponibles para la venta.')
 
     peso_total_manual = _parse_decimal(datos.get('peso_total'))
@@ -1929,8 +1944,9 @@ def actualizar_venta(request, venta_id):
     try:
         with transaction.atomic():
             venta = get_object_or_404(Venta.objects.select_for_update(), pk=venta_id, activo=True)
+            historicos_ids = set(venta.animal_set.values_list('pk', flat=True))
             _revertir_venta(venta)
-            _registrar_venta(venta, request.POST)
+            _registrar_venta(venta, request.POST, historicos_ids=historicos_ids)
     except (ValueError, ValidationError, IntegrityError, ArithmeticError) as error:
         return JsonResponse({'error': str(error) or 'No se pudo actualizar la venta.'}, status=400)
     return JsonResponse({'venta': _venta_data(venta)})

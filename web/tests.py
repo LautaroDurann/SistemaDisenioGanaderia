@@ -516,6 +516,45 @@ class WebIntegrationTests(TestCase):
         self.assertFalse(segundo.vendido)
         self.assertIsNone(segundo.venta)
 
+    def test_editar_venta_con_animal_dado_de_baja_conserva_la_relacion(self):
+        self.animal.peso_actual = Decimal('300.00')
+        self.animal.save(update_fields=['peso_actual'])
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-03', 'precio_por_kg': '1000.00', 'peso_total': '300.00',
+            'peso_manual': 'on', 'estadoDeCobro': 'Pendiente', 'animales': [self.animal.idAnimal],
+        })
+        venta = Venta.objects.get(pk=response.json()['id'])
+
+        response = self.client.post(reverse('eliminar_animal', args=[self.animal.idAnimal]))
+        self.assertEqual(response.status_code, 200)
+        self.animal.refresh_from_db()
+        self.assertFalse(self.animal.activo)
+
+        response = self.client.post(reverse('actualizar_venta', args=[venta.id]), {
+            'fecha': '2026-08-03', 'precio_por_kg': '1000.00', 'peso_total': '300.00',
+            'peso_manual': 'on', 'estadoDeCobro': 'Pagada', 'metodoDePago': 'Transferencia',
+            'animales': [self.animal.idAnimal],
+        })
+        self.assertEqual(response.status_code, 200)
+        venta.refresh_from_db()
+        self.assertEqual(venta.estadoDeCobro, 'Pagada')
+        self.assertEqual(venta.mov_financiero.monto_total, Decimal('300000.00'))
+        self.animal.refresh_from_db()
+        self.assertTrue(self.animal.vendido)
+        self.assertEqual(self.animal.venta, venta)
+
+    def test_crear_venta_sigue_rechazando_animales_dados_de_baja(self):
+        self.animal.peso_actual = Decimal('300.00')
+        self.animal.save(update_fields=['peso_actual'])
+        response = self.client.post(reverse('eliminar_animal', args=[self.animal.idAnimal]))
+        self.assertEqual(response.status_code, 200)
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-03', 'precio_por_kg': '1000.00', 'peso_total': '300.00',
+            'peso_manual': 'on', 'animales': [self.animal.idAnimal],
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Venta.objects.exists())
+
     def test_crear_comprador_y_venta_con_peso_total_manual(self):
         self.animal.peso_actual = None
         self.animal.save(update_fields=['peso_actual'])

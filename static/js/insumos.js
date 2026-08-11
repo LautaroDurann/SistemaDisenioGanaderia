@@ -318,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const deleteInlineLote = async (loteId, insumoId) => {
-    if (!confirm('¿Desea eliminar este lote?')) return;
+    if (!confirm('¿Dar de baja este lote? No se eliminarán las compras ni los consumos asociados.')) return;
     const response = await fetch(`/api/lotes/${loteId}/`, { method: 'DELETE', headers: buildHeaders() });
     if (!response.ok) {
       alert('No se pudo eliminar el lote');
@@ -380,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (deleteInsumoButton) {
       const id = Number(deleteInsumoButton.dataset.id);
-      if (!confirm('¿Desea eliminar este insumo?')) return;
+      if (!confirm('¿Dar de baja este insumo? No se eliminarán las compras ni los eventos sanitarios asociados.')) return;
       const response = await fetch(`/api/insumos/${id}/`, { method: 'DELETE', headers: buildHeaders() });
       if (response.ok) {
         await loadItems();

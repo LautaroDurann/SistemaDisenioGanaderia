@@ -13,6 +13,10 @@ class Insumo(models.Model):
     unidadDeMedida = models.CharField(max_length=50, null=True, blank=True)
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, null=True, blank=True)
 
+    # Baja lógica: activo=False oculta al insumo del sistema pero conserva su
+    # historial (compras, consumos en eventos sanitarios y dietas).
+    activo = models.BooleanField(default=True)
+
     class Meta:
         ordering = ['nombre']
 
@@ -30,13 +34,17 @@ class Lote(models.Model):
     stockActual = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     
     # CF: idInsumo -> Insumo(idInsumo)
-    insumo = models.ForeignKey(Insumo, on_delete=models.CASCADE, related_name='lotes', null=True, blank=True)
+    # PROTECT: impide borrar físicamente un insumo que tiene lotes (se conserva el historial).
+    insumo = models.ForeignKey(Insumo, on_delete=models.PROTECT, related_name='lotes', null=True, blank=True)
 
     # Establecimiento al que pertenece el stock del lote.
     establecimiento = models.ForeignKey(
         'establecimientos.Establecimiento', on_delete=models.SET_NULL,
         null=True, blank=True, related_name='lotes',
     )
+
+    # Baja lógica: activo=False oculta al lote del sistema pero conserva su historial.
+    activo = models.BooleanField(default=True)
 
     def __str__(self):
         # Ahora el panel mostrará el nombre del lote si lo tiene, o su ID si no le pusiste nombre

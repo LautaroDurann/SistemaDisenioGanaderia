@@ -118,7 +118,10 @@ class InsumoCrudTests(TestCase):
 
         delete_response = self.client.delete(reverse('insumo_detalle', args=[insumo_id]))
         self.assertEqual(delete_response.status_code, 200)
-        self.assertFalse(Insumo.objects.filter(pk=insumo_id).exists())
+        # La baja es lógica: el insumo queda oculto pero no se borra.
+        self.assertTrue(Insumo.objects.filter(pk=insumo_id, activo=False).exists())
+        self.assertFalse(Insumo.objects.filter(pk=insumo_id, activo=True).exists())
+        self.assertNotIn(insumo_id, [i['id'] for i in self.client.get(reverse('insumos_api')).json()['insumos']])
 
     def test_api_insumo_detail_returns_lotes(self):
         insumo = Insumo.objects.create(nombre='Alimento B', tipo='Alimento', unidadDeMedida='kg')
@@ -133,3 +136,74 @@ class InsumoCrudTests(TestCase):
         self.assertEqual(payload['cantidad_total'], '150.00')
         self.assertEqual(len(payload['lotes']), 2)
         self.assertEqual(payload['lotes'][0]['nombre'], 'Lote 1')
+
+    def _crear_historial(self, insumo, lote):
+        """Crea compra, evento sanitario (con consumo) y dieta asociados al lote."""
+        compra = Compra.objects.create(
+            tipo='Insumos', fecha=date(2026, 1, 1), monto_total=Decimal('100.00'),
+        )
+        detalle = DetalleCompra.objects.create(
+            compra=compra, lote=lote, cantidad=Decimal('10.00'), precioUnitario=Decimal('10.00'),
+        )
+        veterinario = Veterinario.objects.create(
+            dni='12345678', nombre='Ana', apellido='Perez',
+            correo_electronico='ana-historial@example.com', fecha_nacimiento=date(1990, 1, 1),
+            telefono='1234',
+        )
+        animal = Animal.objects.create(tipo_animal='Bovino', sexo='Hembra', nombre='Vaca 1', vivo=True)
+        evento = EventoSanitario.objects.create(
+            detalle='Aplicación', tipo='Vacunación', fecha_aplicacion=date(2026, 1, 2),
+            costo_total=Decimal('20.00'), veterinario=veterinario,
+        )
+        DetalleEvento.objects.create(evento=evento, animal=animal)
+        consumo = Consumo.objects.create(lote=lote, evento_sanitario=evento, cantidad=Decimal('5.00'))
+        EventoSanitario.objects.filter(pk=evento.pk).update(lote=lote)
+        evento.refresh_from_db()
+        dieta = Dieta.objects.create(nombre='Dieta historial')
+        composicion = ComposicionDieta.objects.create(
+            lote=lote, dieta=dieta, cantidadPorPorcion=Decimal('2.00'),
+        )
+        return {'compra': compra, 'detalle': detalle, 'evento': evento,
+                'consumo': consumo, 'composicion': composicion}
+
+    def test_baja_logica_insumo_conserva_historial(self):
+        insumo = Insumo.objects.create(nombre='Vacuna historica', tipo='Vacuna', unidadDeMedida='dosis')
+        lote = Lote.objects.create(insumo=insumo, nombre='Lote A', stockActual=Decimal('50.00'),
+                                   establecimiento=self.establecimiento)
+        historial = self._crear_historial(insumo, lote)
+
+        response = self.client.delete(reverse('insumo_detalle', args=[insumo.id]))
+        self.assertEqual(response.status_code, 200)
+
+        # El insumo queda oculto pero no se borra.
+        self.assertTrue(Insumo.objects.filter(pk=insumo.id, activo=False).exists())
+        # Su historial queda intacto.
+        self.assertTrue(Lote.objects.filter(pk=lote.pk, activo=True).exists())
+        self.assertTrue(DetalleCompra.objects.filter(pk=historial['detalle'].pk).exists())
+        self.assertTrue(Consumo.objects.filter(pk=historial['consumo'].pk).exists())
+        self.assertTrue(ComposicionDieta.objects.filter(pk=historial['composicion'].pk).exists())
+        self.assertEqual(historial['evento'].lote_id, lote.id)
+        # No aparece en los listados activos.
+        self.assertNotIn(insumo.id, [i['id'] for i in self.client.get(reverse('insumos_api')).json()['insumos']])
+        self.assertEqual(self.client.get(reverse('insumo_detalle', args=[insumo.id])).status_code, 404)
+
+    def test_baja_logica_lote_conserva_historial(self):
+        insumo = Insumo.objects.create(nombre='Medicamento historico', tipo='Medicamento', unidadDeMedida='ml')
+        lote = Lote.objects.create(insumo=insumo, nombre='Lote B', stockActual=Decimal('30.00'),
+                                   establecimiento=self.establecimiento)
+        historial = self._crear_historial(insumo, lote)
+
+        response = self.client.delete(reverse('lote_detalle', args=[lote.id]))
+        self.assertEqual(response.status_code, 200)
+
+        # El lote queda oculto pero no se borra.
+        self.assertTrue(Lote.objects.filter(pk=lote.pk, activo=False).exists())
+        # Su historial queda intacto.
+        self.assertTrue(DetalleCompra.objects.filter(pk=historial['detalle'].pk).exists())
+        self.assertTrue(Consumo.objects.filter(pk=historial['consumo'].pk).exists())
+        self.assertTrue(ComposicionDieta.objects.filter(pk=historial['composicion'].pk).exists())
+        self.assertEqual(historial['evento'].lote_id, lote.id)
+        # No aparece en el detalle del insumo ni se puede acceder.
+        payload = self.client.get(reverse('insumo_detalle', args=[insumo.id])).json()['insumo']
+        self.assertEqual(payload['lotes'], [])
+        self.assertEqual(self.client.get(reverse('lote_detalle', args=[lote.id])).status_code, 404)
