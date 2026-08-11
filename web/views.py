@@ -1415,7 +1415,7 @@ def sanidad(request):
         estado=True,
         fecha_aplicacion__year=today.year, fecha_aplicacion__month=today.month,
     ).count()
-    proximas_aplicaciones = EventoSanitario.objects.exclude(tipo=TIPO_INSEMINACION).filter(
+    proximas_aplicaciones = EventoSanitario.objects.exclude(tipo=TIPO_INSEMINACION).filter
     eventos = _eventos_sanitarios_de(request).select_related('veterinario', 'diagnostico', 'lote').prefetch_related('detalles__animal__parcela').order_by('-fecha_aplicacion', '-id')
     eventos_aplicados_mes = eventos.filter(
         estado=True,
