@@ -209,6 +209,20 @@
     $('panel-insumos').classList.toggle('d-none', tipo !== 'Insumos');
     $('panel-animales').classList.toggle('d-none', tipo !== 'Animales');
     $('grupo-monto-generico').classList.toggle('d-none', tipo === 'Insumos' || tipo === 'Animales');
+    actualizarRequeridosTipo(tipo);
+  }
+
+  function actualizarRequeridosTipo(tipo) {
+    const insumos = tipo === 'Insumos';
+    const animales = tipo === 'Animales';
+    const generico = tipo !== 'Insumos' && tipo !== 'Animales';
+    const esNuevo = $('compra-nuevo-insumo').checked;
+    $('compra-cantidad').required = insumos;
+    $('compra-precio-unitario').required = insumos;
+    $('compra-insumo').required = insumos && !esNuevo;
+    $('compra-nuevo-insumo-nombre').required = insumos && esNuevo;
+    $('compra-monto-animal').required = animales;
+    $('compra-monto-total').required = generico;
   }
 
   function filtrarInsumos() {
@@ -273,6 +287,7 @@
       $('compra-fecha-vencimiento').value = lote.fecha_vencimiento || '';
       $('compra-cantidad').value = lote.cantidad || '';
       $('compra-precio-unitario').value = lote.precio_unitario || '';
+      actualizarRequeridosTipo(c.tipo);
       actualizarMontoInsumos();
     } else if (c.tipo === 'Animales') {
       const animal = c.animal || {};
@@ -438,6 +453,7 @@
     $('compra-tipo-insumo').addEventListener('change', filtrarInsumos);
     $('compra-nuevo-insumo').addEventListener('change', e => {
       $('grupo-nuevo-insumo').classList.toggle('d-none', !e.target.checked);
+      actualizarRequeridosTipo($('compra-tipo').value);
     });
     ['compra-cantidad', 'compra-precio-unitario'].forEach(id => $(id).addEventListener('input', actualizarMontoInsumos));
 
@@ -468,7 +484,7 @@
 
       const r = await fetch(id ? `/api/compras/${id}/` : '/api/compras/', { method: 'POST', headers: { 'X-CSRFToken': csrf() }, body: form });
       const respuesta = await r.json();
-      if (!r.ok) return mostrar(respuesta.error || 'No se pudo guardar la compra.', 'danger');
+      if (!r.ok) return alert(respuesta.error || 'No se pudo guardar la compra.');
       const compraData = respuesta.compra;
       const montoNuevo = Number(compraData.monto_total || 0);
       const anioActual = String(new Date().getFullYear());
@@ -543,7 +559,7 @@
 
       const r = await fetch(id ? `/api/liquidaciones/${id}/` : '/api/liquidaciones/', { method: 'POST', headers: { 'X-CSRFToken': csrf() }, body: form });
       const respuesta = await r.json();
-      if (!r.ok) return mostrar(respuesta.error || 'No se pudo guardar la liquidación.', 'danger');
+      if (!r.ok) return alert(respuesta.error || 'No se pudo guardar la liquidación.');
       const liquidacionData = respuesta.liquidacion;
       const montoNuevo = Number(liquidacionData.sueldo || 0);
       const anioActual = String(new Date().getFullYear());

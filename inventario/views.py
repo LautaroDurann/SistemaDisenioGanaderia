@@ -22,7 +22,7 @@ def _parse_fecha(value):
 
 
 def _lotes_de(insumo, establecimiento):
-    lotes = insumo.lotes.all()
+    lotes = insumo.lotes.filter(activo=True)
     if establecimiento is not None:
         lotes = lotes.filter(establecimiento=establecimiento)
     return lotes
@@ -68,7 +68,7 @@ def _serialize_lote(lote):
 
 @require_http_methods(['GET', 'POST'])
 def insumo_lotes(request, insumo_id):
-    insumo = get_object_or_404(Insumo, pk=insumo_id)
+    insumo = get_object_or_404(Insumo, pk=insumo_id, activo=True)
     establecimiento = _establecimiento_actual(request)
 
     if request.method == 'GET':
@@ -95,7 +95,7 @@ def insumo_lotes(request, insumo_id):
 
 @require_http_methods(['GET', 'POST', 'DELETE'])
 def lote_detalle(request, lote_id):
-    lote = get_object_or_404(Lote, pk=lote_id)
+    lote = get_object_or_404(Lote.objects.filter(activo=True), pk=lote_id)
 
     if request.method == 'GET':
         return JsonResponse({'lote': _serialize_lote(lote)})
@@ -113,7 +113,8 @@ def lote_detalle(request, lote_id):
 
         return JsonResponse({'lote': _serialize_lote(lote)})
 
-    lote.delete()
+    lote.activo = False
+    lote.save(update_fields=['activo'])
     return JsonResponse({'ok': True})
 
 
@@ -121,7 +122,7 @@ def lote_detalle(request, lote_id):
 def insumos(request):
     establecimiento = _establecimiento_actual(request)
 
-    lotes = Lote.objects.select_related('insumo').all()
+    lotes = Lote.objects.filter(activo=True).select_related('insumo').all()
     if establecimiento is not None:
         lotes = lotes.filter(establecimiento=establecimiento)
     stock_por_insumo = {}
@@ -130,7 +131,7 @@ def insumos(request):
             continue
         stock_por_insumo[lote.insumo_id] = stock_por_insumo.get(lote.insumo_id, Decimal('0')) + (lote.stockActual or Decimal('0'))
 
-    insumos_qs = Insumo.objects.order_by('nombre')
+    insumos_qs = Insumo.objects.filter(activo=True).order_by('nombre')
     insumos_list = []
     for insumo in insumos_qs:
         total = stock_por_insumo.get(insumo.id, Decimal('0')).quantize(Decimal('0.00'))
@@ -166,7 +167,7 @@ def insumos_api(request):
         query = request.GET.get('q', '').strip()
         tipo = request.GET.get('tipo', '').strip()
         establecimiento = _establecimiento_actual(request)
-        qs = Insumo.objects.all()
+        qs = Insumo.objects.filter(activo=True)
         if query:
             qs = qs.filter(Q(nombre__icontains=query) | Q(tipo__icontains=query))
         if tipo:
@@ -190,7 +191,7 @@ def insumos_api(request):
 
 @require_http_methods(['GET', 'POST', 'DELETE'])
 def insumo_detalle(request, insumo_id):
-    insumo = get_object_or_404(Insumo, pk=insumo_id)
+    insumo = get_object_or_404(Insumo, pk=insumo_id, activo=True)
     establecimiento = _establecimiento_actual(request)
 
     if request.method == 'GET':
@@ -208,5 +209,6 @@ def insumo_detalle(request, insumo_id):
         return JsonResponse({'insumo': _serialize_insumo(insumo, include_lotes=True, establecimiento=establecimiento)})
 
     if request.method == 'DELETE':
-        insumo.delete()
+        insumo.activo = False
+        insumo.save(update_fields=['activo'])
         return JsonResponse({'ok': True})

@@ -59,7 +59,7 @@
 </div>
 
 <div class="modal fade" id="modalCompra" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
-  <form id="form-compra" novalidate>
+  <form id="form-compra">
     <div class="modal-header"><h5 class="modal-title" id="titulo-compra">Registrar compra</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
       <input type="hidden" id="compra-id">
@@ -100,7 +100,7 @@
           <div class="col-md-2"><label class="form-label">Fecha de nacimiento</label><input class="form-control" type="date" name="fecha_nacimiento" id="compra-fecha-nacimiento"></div>
           <div class="col-md-2"><label class="form-label">Peso al nacer (kg)</label><input class="form-control" type="number" step="0.01" name="peso_al_nacer" id="compra-peso-nacer"></div>
           <div class="col-md-2"><label class="form-label">Peso actual (kg)</label><input class="form-control" type="number" step="0.01" name="peso_actual" id="compra-peso-actual"></div>
-          <div class="col-md-4"><label class="form-label">Costo / monto ($)</label><input class="form-control" type="number" min="0.01" step="0.01" name="monto_total" id="compra-monto-animal" required></div>
+          <div class="col-md-4"><label class="form-label">Costo / monto ($)</label><input class="form-control" type="number" min="0.01" step="0.01" name="monto_total" id="compra-monto-animal"></div>
         </div>
         <div class="row g-3 mt-0">
           <div class="col-md-12"><label class="form-label">Detalles del animal</label><textarea class="form-control" name="descripcion" id="compra-detalle-animal" rows="2" placeholder="Opcional"></textarea></div>
@@ -110,7 +110,7 @@
       <div class="row g-3 mb-3">
         <div class="col-md-3"><label class="form-label">Método de pago</label><select class="form-select" name="metodoDePago" id="compra-metodo"><option value="Efectivo">Efectivo</option><option value="Transferencia">Transferencia</option><option value="Cheque">Cheque</option></select></div>
         <div class="col-md-3"><label class="form-label">Estado de pago</label><select class="form-select" name="estadoDePago" id="compra-estado"><option value="Pendiente">Pendiente</option><option value="Pagada">Pagada</option></select></div>
-        <div class="col-md-3 d-none" id="grupo-monto-generico"><label class="form-label">Monto total</label><input class="form-control" type="number" min="0.01" step="0.01" name="monto_total" id="compra-monto-total" required></div>
+        <div class="col-md-3 d-none" id="grupo-monto-generico"><label class="form-label">Monto total</label><input class="form-control" type="number" min="0.01" step="0.01" name="monto_total" id="compra-monto-total"></div>
         <div class="col-md-3"><label class="form-label">Detalle de la compra</label><input class="form-control" name="detalle" id="compra-detalle" placeholder="Opcional"></div>
       </div>
     </div>
@@ -137,14 +137,14 @@
 </div></div></div>
 
 <div class="modal fade" id="modalLiquidacion" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
-  <form id="form-liquidacion" novalidate>
+  <form id="form-liquidacion">
     <div class="modal-header"><h5 class="modal-title" id="titulo-liquidacion">Registrar liquidación</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
       <input type="hidden" id="liquidacion-id">
       <div class="row g-3">
-        <div class="col-md-4"><label class="form-label">Fecha de liquidación</label><input class="form-control" type="date" name="fecha" id="liquidacion-fecha"></div>
-        <div class="col-md-8"><label class="form-label">Empleado</label><select class="form-select" name="empleado_id" id="liquidacion-empleado"><option value="">— Elegí un empleado —</option>{% for empleado in page_data.empleados %}<option value="{{ empleado.id }}">{{ empleado.nombre }} (@{{ empleado.usuario }})</option>{% endfor %}</select></div>
-        <div class="col-md-4"><label class="form-label">Sueldo ($)</label><input class="form-control" type="number" min="0.01" step="0.01" name="sueldo" id="liquidacion-sueldo"></div>
+        <div class="col-md-4"><label class="form-label">Fecha de liquidación</label><input class="form-control" type="date" name="fecha" id="liquidacion-fecha" required></div>
+        <div class="col-md-8"><label class="form-label">Empleado</label><select class="form-select" name="empleado_id" id="liquidacion-empleado" required><option value="">— Elegí un empleado —</option>{% for empleado in page_data.empleados %}<option value="{{ empleado.id }}">{{ empleado.nombre }} (@{{ empleado.usuario }})</option>{% endfor %}</select></div>
+        <div class="col-md-4"><label class="form-label">Sueldo ($)</label><input class="form-control" type="number" min="0.01" step="0.01" name="sueldo" id="liquidacion-sueldo" required></div>
         <div class="col-md-8"><label class="form-label">Descripción / Detalle</label><input class="form-control" name="descripcion" id="liquidacion-descripcion" placeholder="Opcional. Ej: Sueldo de agosto"></div>
       </div>
       <div class="form-text mt-2">Cada liquidación se registra automáticamente como un egreso y suma a los gráficos de este módulo.</div>

@@ -34,7 +34,8 @@ DEBUG = True
 # Desarrollo local y cliente de pruebas de Django. En producción se reemplaza
 # por el dominio público del sistema.
 #ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver']
-ALLOWED_HOSTS = ['*']
+#ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['149.50.154.139', 'localhost', '127.0.0.1', 'establecimientodonhugo.com.ar', 'www.establecimientodonhugo.com.ar']
 
 # URL pública del sitio para los enlaces que se envían por correo
 # (restablecer contraseña). En producción debe apuntar al dominio real,
