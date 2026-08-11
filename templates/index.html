@@ -1,7 +1,7 @@
 {% extends 'dashboard/base.html' %}
 {% load static %}
  
-{% block title %}HuacApp | Dashboard{% endblock %}
+{% block title %}HuacApp | Inicio{% endblock %}
 
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'css/index.css' %}">
@@ -13,7 +13,7 @@
   <div class="container-fluid">
     <div class="row align-items-center">
       <div class="col-lg-5">
-        <h3 class="mb-0">Dashboard</h3>
+        <h3 class="mb-0">Inicio</h3>
         <p class="text-secondary mb-0">
           {% if establecimiento_actual %}
             Resumen general de <span class="fw-semibold text-body">{{ establecimiento_actual.nombre }}</span>

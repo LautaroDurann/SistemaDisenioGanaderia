@@ -10,6 +10,19 @@
   let chartLabels = [];
   let chartSeries = [];
   const $ = (id) => document.getElementById(id);
+  const temaApex = () =>
+    typeof window.huacappTemaApex === 'function'
+      ? window.huacappTemaApex()
+      : document.documentElement.getAttribute('data-bs-theme') === 'dark'
+        ? 'dark'
+        : 'light';
+  const esOscuro = () => temaApex() === 'dark';
+  const temaChart = () => (esOscuro() ? { theme: { mode: 'dark' }, tooltip: { theme: 'dark' } } : {});
+  const temaTooltip = () => (esOscuro() ? { theme: 'dark' } : {});
+  document.addEventListener('temaCambiado', (e) => {
+    const tema = e.detail.theme === 'dark' ? 'dark' : 'light';
+    if (chartInstance) chartInstance.updateOptions({ theme: { mode: tema }, tooltip: { theme: tema } });
+  });
   const dinero = (valor) => `$ ${Number(valor || 0).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
   const categoria = (a) => a.categoria || '-';
   const fechaHoy = () => new Date().toISOString().slice(0, 10);
@@ -138,11 +151,12 @@
     chartInstance?.destroy();
     chartInstance = new ApexCharts(chartEl, {
       chart: { type: 'bar', height: 320, toolbar: { show: false } },
+      ...temaChart(),
       series: [{ name: 'Ganancia', data: chartSeries }],
       xaxis: { categories: chartLabels },
       colors: ['#198754'],
       dataLabels: { enabled: false },
-      tooltip: { y: { formatter: value => dinero(value) } },
+      tooltip: { ...temaTooltip(), y: { formatter: value => dinero(value) } },
     });
     chartInstance.render();
   }

@@ -202,6 +202,28 @@
     border-radius: 50%;
   }
 
+      /* ApexCharts: en modo oscuro el tooltip "light" hereda el texto claro del
+         tema oscuro y queda blanco sobre blanco (ilegible). Se fuerza un fondo
+         oscuro con texto claro para que la información siempre se lea. */
+      [data-bs-theme="dark"] .apexcharts-tooltip,
+      [data-bs-theme="dark"] .apexcharts-tooltip.apexcharts-theme-light {
+        background: rgba(30, 30, 30, 0.92) !important;
+        border-color: #333 !important;
+        color: #fff !important;
+      }
+      [data-bs-theme="dark"] .apexcharts-tooltip .apexcharts-tooltip-title,
+      [data-bs-theme="dark"] .apexcharts-tooltip.apexcharts-theme-light .apexcharts-tooltip-title {
+        background: rgba(0, 0, 0, 0.7) !important;
+        border-bottom-color: #333 !important;
+        color: #fff !important;
+      }
+      [data-bs-theme="dark"] .apexcharts-tooltip .apexcharts-tooltip-text-y-label,
+      [data-bs-theme="dark"] .apexcharts-tooltip .apexcharts-tooltip-text-y-value,
+      [data-bs-theme="dark"] .apexcharts-tooltip .apexcharts-tooltip-text-z-label,
+      [data-bs-theme="dark"] .apexcharts-tooltip .apexcharts-tooltip-text-z-value {
+        color: #fff !important;
+      }
+
 
 
 

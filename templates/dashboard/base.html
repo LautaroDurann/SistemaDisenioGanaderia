@@ -30,7 +30,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/apexcharts@3.37.1/dist/apexcharts.css">
 
     <link rel="stylesheet" href="{% static 'css/adminlte.css' %}">
-    <link rel="stylesheet" href="{% static 'css/index.css' %}?v=5">
+    <link rel="stylesheet" href="{% static 'css/index.css' %}?v=6">
 
     {% block extra_css %}{% endblock %}
 </head>
@@ -104,6 +104,8 @@
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     const THEME_KEY = 'lte-theme';
+    window.huacappTemaApex = () =>
+      document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light';
     
     // Función para aplicar el tema en la pantalla
     const setTheme = (theme) => {
@@ -113,6 +115,7 @@
       }
       document.documentElement.setAttribute('data-bs-theme', resolved);
       document.documentElement.style.colorScheme = resolved;
+      document.dispatchEvent(new CustomEvent('temaCambiado', { detail: { theme: resolved } }));
     };
 
     // Función para cambiar los íconos y el botón activo en el menú

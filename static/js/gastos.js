@@ -16,6 +16,21 @@
   let sueldosChartLabels = [];
   let sueldosChartSeries = [];
   const $ = (id) => document.getElementById(id);
+  const temaApex = () =>
+    typeof window.huacappTemaApex === 'function'
+      ? window.huacappTemaApex()
+      : document.documentElement.getAttribute('data-bs-theme') === 'dark'
+        ? 'dark'
+        : 'light';
+  const esOscuro = () => temaApex() === 'dark';
+  const temaChart = () => (esOscuro() ? { theme: { mode: 'dark' }, tooltip: { theme: 'dark' } } : {});
+  const temaTooltip = () => (esOscuro() ? { theme: 'dark' } : {});
+  document.addEventListener('temaCambiado', (e) => {
+    const tema = e.detail.theme === 'dark' ? 'dark' : 'light';
+    [chartGastos, chartSueldos].forEach((c) => {
+      if (c) c.updateOptions({ theme: { mode: tema }, tooltip: { theme: tema } });
+    });
+  });
   const dinero = (valor) => `$ ${Number(valor || 0).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
   const fechaHoy = () => new Date().toISOString().slice(0, 10);
   const csrf = () => document.cookie.split('; ').find(v => v.startsWith('csrftoken='))?.split('=')[1] || '';
@@ -148,6 +163,7 @@
       chartGastos?.destroy();
       chartGastos = new ApexCharts(chartGastosEl, {
         chart: { type: 'bar', height: 320, stacked: true, toolbar: { show: false } },
+        ...temaChart(),
         series: [
           { name: 'Compras', data: comprasSeries },
           { name: 'Sueldos', data: sueldosSeries },
@@ -155,7 +171,7 @@
         xaxis: { categories: gastosLabels },
         colors: ['#dc3545', '#fd7e14'],
         dataLabels: { enabled: false },
-        tooltip: { y: { formatter: value => dinero(value) } },
+        tooltip: { ...temaTooltip(), y: { formatter: value => dinero(value) } },
         legend: { position: 'top' },
       });
       chartGastos.render();
@@ -166,11 +182,12 @@
       chartSueldos?.destroy();
       chartSueldos = new ApexCharts(chartSueldosEl, {
         chart: { type: 'bar', height: 320, toolbar: { show: false } },
+        ...temaChart(),
         series: [{ name: 'Sueldos', data: sueldosChartSeries }],
         xaxis: { categories: sueldosChartLabels },
         colors: ['#fd7e14'],
         dataLabels: { enabled: false },
-        tooltip: { y: { formatter: value => dinero(value) } },
+        tooltip: { ...temaTooltip(), y: { formatter: value => dinero(value) } },
       });
       chartSueldos.render();
     }

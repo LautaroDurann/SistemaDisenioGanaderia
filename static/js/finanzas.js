@@ -10,6 +10,22 @@ const mesActualClave = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
+const temaApex = () =>
+  typeof window.huacappTemaApex === 'function'
+    ? window.huacappTemaApex()
+    : document.documentElement.getAttribute('data-bs-theme') === 'dark'
+      ? 'dark'
+      : 'light';
+const esOscuro = () => temaApex() === 'dark';
+const temaChart = () => (esOscuro() ? { theme: { mode: 'dark' }, tooltip: { theme: 'dark' } } : {});
+const temaTooltip = () => (esOscuro() ? { theme: 'dark' } : {});
+
+document.addEventListener('temaCambiado', (e) => {
+  const tema = e.detail.theme === 'dark' ? 'dark' : 'light';
+  [chartInstance, chartFlujo, chartCategorias, chartEstablecimientos].forEach((c) => {
+    if (c) c.updateOptions({ theme: { mode: tema }, tooltip: { theme: tema } });
+  });
+});
 
 let chartInstance = null;
 let chartIngresos = [];
@@ -28,13 +44,14 @@ function renderChartsAnaliticos() {
     chartFlujo?.destroy();
     chartFlujo = new ApexCharts(elFlujo, {
       chart: { height: 280, type: 'line', toolbar: { show: false } },
+      ...temaChart(),
       series: [{ name: 'Saldo acumulado', data: FLUJO_VALORES }],
       xaxis: { categories: FLUJO_ETIQUETAS },
       colors: ['#0d6efd'],
       stroke: { width: 2, curve: 'smooth' },
       markers: { size: 3 },
       yaxis: { labels: { formatter: value => dinero(value) } },
-      tooltip: { y: { formatter: value => dinero(value) } },
+      tooltip: { ...temaTooltip(), y: { formatter: value => dinero(value) } },
     });
     chartFlujo.render().catch(() => {});
   }
@@ -45,12 +62,13 @@ function renderChartsAnaliticos() {
     const sinDatos = !CATEGORIAS_VALORES.length || CATEGORIAS_VALORES.every(v => !v);
     chartCategorias = new ApexCharts(elCategorias, {
       chart: { height: 280, type: 'pie', toolbar: { show: false } },
+      ...temaChart(),
       series: sinDatos ? [1] : CATEGORIAS_VALORES,
       labels: sinDatos ? ['Sin egresos'] : CATEGORIAS_ETIQUETAS,
       legend: { position: 'bottom' },
       colors: ['#dc3545', '#fd7e14', '#ffc107', '#198754', '#0dcaf0'],
       dataLabels: { formatter: (val, opt) => `${opt.w.globals.labels[opt.seriesIndex]}: ${Math.round(val)}%` },
-      tooltip: { y: { formatter: value => dinero(value) } },
+      tooltip: { ...temaTooltip(), y: { formatter: value => dinero(value) } },
     });
     chartCategorias.render().catch(() => {});
   }
@@ -60,6 +78,7 @@ function renderChartsAnaliticos() {
     chartEstablecimientos?.destroy();
     chartEstablecimientos = new ApexCharts(elEst, {
       chart: { height: 300, type: 'bar', toolbar: { show: false } },
+      ...temaChart(),
       series: [
         { name: 'Ingresos', data: ESTABLECIMIENTOS_INGRESOS },
         { name: 'Egresos', data: ESTABLECIMIENTOS_EGRESOS },
@@ -68,7 +87,7 @@ function renderChartsAnaliticos() {
       colors: ['#198754', '#dc3545'],
       dataLabels: { enabled: false },
       plotOptions: { bar: { horizontal: false, columnWidth: '50%' } },
-      tooltip: { y: { formatter: value => dinero(value) } },
+      tooltip: { ...temaTooltip(), y: { formatter: value => dinero(value) } },
     });
     chartEstablecimientos.render().catch(() => {});
   }
@@ -214,6 +233,7 @@ document.addEventListener('DOMContentLoaded', function () {
   try {
     chartInstance = new ApexCharts(document.querySelector('#chart-finanzas'), {
       chart: { height: 320, type: 'bar', toolbar: { show: false } },
+      ...temaChart(),
       series: [
         { name: 'Ingresos', data: chartIngresos.slice() },
         { name: 'Egresos', data: chartEgresos.slice() },

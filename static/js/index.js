@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const setTheme = (theme) => {
     const resolved = theme === 'auto' ? (prefersDark() ? 'dark' : 'light') : theme;
     document.documentElement.setAttribute('data-bs-theme', resolved);
+    document.dispatchEvent(new CustomEvent('temaCambiado', { detail: { theme: resolved } }));
   };
   setTheme(getPreferredTheme());
   const showActiveTheme = (theme) => {
@@ -119,7 +120,20 @@ const COLORES_CATEGORIA = {
 let graficoGanancias = null;
 let graficoDistribucion = null;
 
+// Actualiza los gráficos en caliente cuando cambia el tema, sin recargar
+document.addEventListener('temaCambiado', (e) => {
+  const temaApex = e.detail.theme === 'dark' ? 'dark' : 'light';
+  if (typeof graficoGanancias !== 'undefined' && graficoGanancias) {
+    graficoGanancias.updateOptions({ theme: { mode: temaApex }, tooltip: { theme: temaApex } });
+  }
+  if (typeof graficoDistribucion !== 'undefined' && graficoDistribucion) {
+    graficoDistribucion.updateOptions({ theme: { mode: temaApex }, tooltip: { theme: temaApex } });
+  }
+});
+
 function renderGraficos() {
+  const temaOscuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+  const temaApex = temaOscuro ? 'dark' : 'light';
   const distribucion = HUACAPP.distribucion ?? {};
   const chartGanancias = document.querySelector('#chart-ganancias-gastos');
   if (chartGanancias) {
@@ -141,6 +155,8 @@ function renderGraficos() {
     graficoGanancias = new ApexCharts(chartGanancias, {
       series,
       chart: { height: 300, type: 'bar', toolbar: { show: false } },
+      theme: { mode: temaApex },
+      tooltip: { theme: temaApex },
       colors: ['#198754', '#dc3545'],
       plotOptions: { bar: { columnWidth: '55%', borderRadius: 4 } },
       dataLabels: { enabled: false },
@@ -167,6 +183,8 @@ function renderGraficos() {
     graficoDistribucion = new ApexCharts(chartDistribucion, {
       series,
       chart: { height: 300, type: 'donut' },
+      theme: { mode: temaApex },
+      tooltip: { theme: temaApex },
       labels,
       colors,
       legend: { position: 'bottom' },

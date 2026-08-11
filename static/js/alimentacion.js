@@ -301,7 +301,25 @@
         document.getElementById('compra-precio-total').value = (cantidad * precioUnitario).toLocaleString('es-AR');
       }
 
+      const temaApex = () =>
+        typeof window.huacappTemaApex === 'function'
+          ? window.huacappTemaApex()
+          : document.documentElement.getAttribute('data-bs-theme') === 'dark'
+            ? 'dark'
+            : 'light';
+      const esOscuro = () => temaApex() === 'dark';
+      const temaChart = () => (esOscuro() ? { theme: { mode: 'dark' }, tooltip: { theme: 'dark' } } : {});
+
       let chartDetalle = null;
+      let chartConsumoMensual = null;
+      let chartDistribucionConsumo = null;
+      document.addEventListener('temaCambiado', (e) => {
+        const tema = e.detail.theme === 'dark' ? 'dark' : 'light';
+        [chartDetalle, chartConsumoMensual, chartDistribucionConsumo].forEach((c) => {
+          if (c) c.updateOptions({ theme: { mode: tema }, tooltip: { theme: tema } });
+        });
+      });
+
       function abrirDetalle(id) {
         const a = ALIMENTOS.find((x) => x.id === id);
         const estado = estadoAlimento(a);
@@ -321,6 +339,7 @@
         chartDetalle = new ApexCharts(el, {
           series: [{ name: `Stock (${a.unidad})`, data: serie }],
           chart: { height: 200, type: 'line', toolbar: { show: false } },
+          ...temaChart(),
           colors: ['#0d6efd'],
           stroke: { curve: 'smooth', width: 3 },
           markers: { size: 4 },
@@ -352,23 +371,27 @@
         renderSelectsAlimento();
 
         // Grafico consumo mensual (barras) - mock 12 meses
-        new ApexCharts(document.querySelector('#chart-consumo-mensual'), {
+        chartConsumoMensual = new ApexCharts(document.querySelector('#chart-consumo-mensual'), {
           series: [{ name: 'Consumo (kg)', data: [9800, 10200, 11000, 9500, 10800, 11500, 12000, 11800, 12600, 12300, 12100, 12600] }],
           chart: { height: 300, type: 'bar', toolbar: { show: false } },
+          ...temaChart(),
           colors: ['#198754'],
           plotOptions: { bar: { borderRadius: 5, columnWidth: '55%' } },
           dataLabels: { enabled: false },
           xaxis: { categories: ['Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul'] },
-        }).render();
+        });
+        chartConsumoMensual.render();
 
         // Grafico distribucion del consumo (doughnut) - mock
-        new ApexCharts(document.querySelector('#chart-distribucion-consumo'), {
+        chartDistribucionConsumo = new ApexCharts(document.querySelector('#chart-distribucion-consumo'), {
           series: [32, 18, 14, 20, 6, 8, 2],
           chart: { height: 300, type: 'donut' },
+          ...temaChart(),
           labels: ['Balanceado', 'Maíz', 'Rollos', 'Silaje', 'Pastura', 'Suplementos', 'Otros'],
           colors: ['#198754', '#0d6efd', '#ffc107', '#6c757d', '#20c997', '#6610f2', '#adb5bd'],
           legend: { position: 'bottom' },
-        }).render();
+        });
+        chartDistribucionConsumo.render();
 
         document.getElementById('tabla-alimentos-body').addEventListener('click', (ev) => {
           const btnDetalle = ev.target.closest('.btn-ver-detalle');
