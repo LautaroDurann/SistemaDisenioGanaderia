@@ -190,4 +190,19 @@
       .vacapp-alert-item:hover {
         background-color: var(--bs-tertiary-bg);
       }
+
+        /* Logo del sidebar (HuacApp): el archivo ya es circular con fondo
+    transparente, pero el <img> en sí sigue siendo un cuadrado invisible.
+    La clase "shadow" de Bootstrap dibuja el box-shadow siguiendo ese
+    cuadrado, no el círculo visible, por eso se veía un recuadro tenue
+    alrededor. Con border-radius: 50% la sombra (y cualquier recorte)
+    sigue la forma circular en vez de la cuadrada. No recorta nada del
+    logo porque el contenido visible ya está todo dentro del círculo. */
+  .sidebar-brand .brand-image {
+    border-radius: 50%;
+  }
+
+
+
+
     
