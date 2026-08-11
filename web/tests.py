@@ -14,8 +14,9 @@ from animales.models import Animal, Parto, Preniez
 from establecimientos.models import Establecimiento, Parcela
 from finanzas.models import Compra, LiquidacionSueldo, MovimientoFinanciero, Venta
 from inventario.models import Consumo, DetalleCompra, Insumo, Lote
-from sanidad.models import DetalleEvento, EventoSanitario
+from sanidad.models import DetalleEvento, EventoSanitario, Enfermedad, Diagnostico
 from web.views import _evento_inseminacion_data
+from web.models import Notificacion
 from usuarios.models import Comprador, Persona, Proveedor, RolEstablecimiento, Usuario
 
 
@@ -2353,3 +2354,161 @@ class AuthTests(TestCase):
             'nombre': 'X', 'usuario': 'x', 'clave': 'clave123', 'rol': 'Operario',
         })
         self.assertEqual(response.status_code, 403)
+
+
+class NotificacionesTests(TestCase):
+    def setUp(self):
+        self.establecimiento = Establecimiento.objects.create(
+            nombre='Campo notif', fecha_inicio=date.today(), ubicacion='Chaco'
+        )
+        persona = Persona.objects.create(nombre='Nora', correo_electronico='nora-notif@test.com')
+        self.usuario = Usuario.objects.create(
+            nombre_usuario='nora-notif', clave=make_password('clave123'), persona=persona,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=self.usuario, establecimiento=self.establecimiento,
+            nombre='Propietario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        session = self.client.session
+        session['usuario_id'] = self.usuario.id
+        session.save()
+
+    def _crear_vacuna_vencida(self):
+        insumo = Insumo.objects.create(nombre='Vacuna aftosa', tipo='Vacuna', unidadDeMedida='dosis')
+        return Lote.objects.create(
+            insumo=insumo, nombre='Lote vencido', stockActual=Decimal('10'),
+            fechaVencimiento=date(2020, 1, 1), establecimiento=self.establecimiento,
+        )
+
+    def test_api_crea_y_lista_notificaciones(self):
+        self._crear_vacuna_vencida()
+        respuesta = self.client.get(reverse('notificaciones_api'))
+        self.assertEqual(respuesta.status_code, 200)
+        datos = respuesta.json()
+        self.assertEqual(datos['no_leidas'], 1)
+        notificacion = datos['notificaciones'][0]
+        self.assertEqual(notificacion['clave'], 'vacunas_vencidas')
+        self.assertFalse(notificacion['leida'])
+        self.assertEqual(notificacion['url'], reverse('insumos'))
+        self.assertTrue(Notificacion.objects.filter(usuario=self.usuario).exists())
+
+    def test_marcar_leida_baja_el_contador(self):
+        self._crear_vacuna_vencida()
+        self.client.get(reverse('notificaciones_api'))
+        notificacion = Notificacion.objects.get(usuario=self.usuario, clave='vacunas_vencidas')
+        respuesta = self.client.post(reverse('marcar_notificacion_leida', args=[notificacion.id]))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json()['no_leidas'], 0)
+        notificacion.refresh_from_db()
+        self.assertTrue(notificacion.leida)
+
+    def test_eliminar_notificacion_no_se_vuelve_a_crear(self):
+        self._crear_vacuna_vencida()
+        self.client.get(reverse('notificaciones_api'))
+        notificacion = Notificacion.objects.get(usuario=self.usuario, clave='vacunas_vencidas')
+        respuesta = self.client.post(reverse('eliminar_notificacion', args=[notificacion.id]))
+        self.assertEqual(respuesta.status_code, 200)
+        datos = self.client.get(reverse('notificaciones_api')).json()
+        self.assertEqual(datos['notificaciones'], [])
+        self.assertEqual(datos['no_leidas'], 0)
+        notificacion.refresh_from_db()
+        self.assertTrue(notificacion.eliminada)
+
+    def test_marcar_todas_leidas_y_eliminar_todas(self):
+        self._crear_vacuna_vencida()
+        self.client.get(reverse('notificaciones_api'))
+        respuesta = self.client.post(reverse('marcar_todas_notificaciones_leidas'))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json()['no_leidas'], 0)
+        respuesta = self.client.post(reverse('eliminar_todas_notificaciones'))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json()['no_leidas'], 0)
+        datos = self.client.get(reverse('notificaciones_api')).json()
+        self.assertEqual(datos['notificaciones'], [])
+
+    def test_no_puede_marcar_notificacion_de_otro_usuario(self):
+        self._crear_vacuna_vencida()
+        persona = Persona.objects.create(nombre='Otra', correo_electronico='otra-notif@test.com')
+        usuario_otro = Usuario.objects.create(
+            nombre_usuario='otra-notif', clave=make_password('clave123'), persona=persona,
+        )
+        notificacion_otro = Notificacion.objects.create(
+            usuario=usuario_otro, establecimiento=self.establecimiento,
+            clave='bajo_peso', titulo='X', detalle='', url='/stock/',
+        )
+        respuesta = self.client.post(reverse('marcar_notificacion_leida', args=[notificacion_otro.id]))
+        self.assertEqual(respuesta.status_code, 404)
+
+    def test_eventos_programados_generan_notificacion(self):
+        parcela = Parcela.objects.create(ancho=10, largo=20, establecimiento=self.establecimiento)
+        animal = Animal.objects.create(
+            id_senasa=77777, nombre='Vaca', tipo_animal='Bovino', sexo='Hembra',
+            parcela=parcela, establecimiento=self.establecimiento, vivo=True,
+        )
+        evento = EventoSanitario.objects.create(
+            tipo='Vacunación', fecha_aplicacion=date(2099, 1, 1), estado=False,
+        )
+        DetalleEvento.objects.create(evento=evento, animal=animal)
+
+        datos = self.client.get(reverse('notificaciones_api')).json()
+        claves = [n['clave'] for n in datos['notificaciones']]
+        self.assertIn('proximos_eventos', claves)
+        notificacion = next(n for n in datos['notificaciones'] if n['clave'] == 'proximos_eventos')
+        self.assertEqual(notificacion['url'], reverse('sanidad'))
+        self.assertEqual(datos['no_leidas'], 1)
+
+        # Al aplicar el evento, la notificación deja de aparecer.
+        evento.estado = True
+        evento.save()
+        datos = self.client.get(reverse('notificaciones_api')).json()
+        claves = [n['clave'] for n in datos['notificaciones']]
+        self.assertNotIn('proximos_eventos', claves)
+
+    def test_insumos_agotados_generan_notificacion(self):
+        insumo_vacio = Insumo.objects.create(nombre='Antiparasitario', tipo='Medicamento', unidadDeMedida='dosis')
+        Lote.objects.create(
+            insumo=insumo_vacio, nombre='Lote vacío', stockActual=Decimal('0'),
+            establecimiento=self.establecimiento,
+        )
+        insumo_con_stock = Insumo.objects.create(nombre='Vacuna aftosa', tipo='Vacuna', unidadDeMedida='dosis')
+        Lote.objects.create(
+            insumo=insumo_con_stock, nombre='Lote con stock', stockActual=Decimal('50'),
+            establecimiento=self.establecimiento,
+        )
+        datos = self.client.get(reverse('notificaciones_api')).json()
+        notificaciones = {n['clave']: n for n in datos['notificaciones']}
+        self.assertIn('insumos_agotados', notificaciones)
+        self.assertEqual(notificaciones['insumos_agotados']['url'], reverse('insumos'))
+        self.assertIn('Antiparasitario', notificaciones['insumos_agotados']['detalle'])
+        self.assertNotIn('Vacuna aftosa', notificaciones['insumos_agotados']['detalle'])
+
+    def test_compras_pendientes_generan_notificacion(self):
+        movimiento = MovimientoFinanciero.objects.create(
+            tipo='Egreso', nombre='Compra de insumos', monto_total=Decimal('5000.00'),
+            fecha=date.today(), establecimiento=self.establecimiento,
+        )
+        Compra.objects.create(
+            tipo='Insumos', fecha=date.today(), monto_total=Decimal('5000.00'),
+            estadoDePago='Pendiente', mov_financiero=movimiento,
+        )
+        datos = self.client.get(reverse('notificaciones_api')).json()
+        notificaciones = {n['clave']: n for n in datos['notificaciones']}
+        self.assertIn('compras_pendientes', notificaciones)
+        self.assertEqual(notificaciones['compras_pendientes']['url'], reverse('gastos'))
+
+    def test_ventas_pendientes_generan_notificacion(self):
+        parcela = Parcela.objects.create(ancho=10, largo=20, establecimiento=self.establecimiento)
+        animal = Animal.objects.create(
+            id_senasa=66666, nombre='Vaca venta', tipo_animal='Bovino', sexo='Hembra',
+            parcela=parcela, establecimiento=self.establecimiento, vivo=True,
+        )
+        venta = Venta.objects.create(
+            tipo='Venta', fecha=date.today(), monto_total=Decimal('8000.00'),
+            estadoDeCobro='Pendiente',
+        )
+        animal.venta = venta
+        animal.save(update_fields=['venta'])
+        datos = self.client.get(reverse('notificaciones_api')).json()
+        notificaciones = {n['clave']: n for n in datos['notificaciones']}
+        self.assertIn('ventas_pendientes', notificaciones)
+        self.assertEqual(notificaciones['ventas_pendientes']['url'], reverse('ventas'))

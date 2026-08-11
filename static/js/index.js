@@ -185,8 +185,10 @@ function renderAlertas() {
     return;
   }
   alertas.forEach((alerta, indice) => {
-    const item = document.createElement('div');
-    item.className = 'd-flex align-items-center gap-2';
+    const item = document.createElement('a');
+    item.className = 'vacapp-alert-item d-flex align-items-center gap-2 text-decoration-none text-body';
+    item.href = alerta.url || '#';
+    item.title = 'Ir al módulo correspondiente';
     item.innerHTML = `
       <div class="vacapp-alert-icon ${alerta.color}"><i class="bi ${alerta.icono}"></i></div>
       <div>

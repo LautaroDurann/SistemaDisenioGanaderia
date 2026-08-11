@@ -144,6 +144,12 @@
         margin: 0 auto;
       }
 
+      /* Header del menú de usuario: verde institucional en lugar del azul de Bootstrap. */
+      .user-header.text-bg-primary {
+        background-color: #1d4e43 !important;
+        color: #fff !important;
+      }
+
       .spin {
         animation: vacapp-spin 0.5s linear;
       }
@@ -154,5 +160,34 @@
         to {
           transform: rotate(360deg);
         }
+      }
+
+      /* Notificaciones */
+      .notif-fila {
+        transition: background-color 0.15s ease;
+      }
+      .notif-no-leida {
+        background-color: rgba(255, 193, 7, 0.1);
+      }
+      .notif-no-leida .fw-semibold {
+        font-weight: 700;
+      }
+      .notif-punto {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 0.65rem;
+        height: 0.65rem;
+        border-radius: 50%;
+        padding: 0;
+      }
+      .vacapp-alert-item {
+        display: block;
+        border-radius: 0.5rem;
+        padding: 0.4rem 0.5rem;
+        transition: background-color 0.15s ease;
+      }
+      .vacapp-alert-item:hover {
+        background-color: var(--bs-tertiary-bg);
       }
     

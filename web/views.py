@@ -11,8 +11,10 @@ from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from .models import Notificacion
 from animales.models import Animal, Parto, Preniez
 from establecimientos.models import Establecimiento, Parcela
 from finanzas.models import Compra, LiquidacionSueldo, MovimientoFinanciero, Venta
@@ -383,6 +385,7 @@ def _alertas_dashboard(request, animales=None):
             'color': 'text-bg-danger',
             'titulo': f"{len(lotes_vacunas)} {'vacuna' if len(lotes_vacunas) == 1 else 'vacunas'} vencidas",
             'detalle': ', '.join(l.nombre or f'Lote {l.id}' for l in lotes_vacunas[:5]),
+            'url': reverse('insumos'),
         })
 
     # Próximos partos: preñadas sin parto con fecha estimada dentro de los próximos 30 días.
@@ -398,6 +401,7 @@ def _alertas_dashboard(request, animales=None):
             'color': 'text-bg-info',
             'titulo': f"{len(faltantes)} {'parto próximo' if len(faltantes) == 1 else 'partos próximos'}",
             'detalle': f'Estimado en {_tiempo_estimado(min(faltantes))}',
+            'url': reverse('prenieces'),
         })
 
     # Animales enfermos activos.
@@ -410,6 +414,7 @@ def _alertas_dashboard(request, animales=None):
             'color': 'text-bg-secondary',
             'titulo': f"{len(enfermos)} {'animal enfermo' if len(enfermos) == 1 else 'animales enfermos'}",
             'detalle': ', '.join(parcelas) or 'Sin parcela asignada',
+            'url': reverse('sanidad'),
         })
 
     # Animales con bajo peso.
@@ -422,6 +427,77 @@ def _alertas_dashboard(request, animales=None):
             'color': 'text-bg-dark',
             'titulo': f"{len(bajo_peso)} {'animal con bajo peso' if len(bajo_peso) == 1 else 'animales con bajo peso'}",
             'detalle': ', '.join(parcelas) or 'Revisar dieta',
+            'url': reverse('stock'),
+        })
+
+    # Próximas aplicaciones: eventos sanitarios programados (pendientes) para el futuro.
+    eventos_programados = list(_eventos_sanitarios_de(request).filter(
+        estado=False, fecha_aplicacion__gte=today,
+    ).exclude(tipo=TIPO_INSEMINACION).order_by('fecha_aplicacion'))
+    if eventos_programados:
+        tipos = sorted({e.tipo for e in eventos_programados})
+        proximo_en = _tiempo_estimado((min(e.fecha_aplicacion for e in eventos_programados) - today).days)
+        alertas.append({
+            'clave': 'proximos_eventos',
+            'icono': 'bi-calendar2-event',
+            'color': 'text-bg-primary',
+            'titulo': f"{len(eventos_programados)} {'evento programado' if len(eventos_programados) == 1 else 'eventos programados'}",
+            'detalle': f"{', '.join(tipos)} · próximo en {proximo_en}",
+            'url': reverse('sanidad'),
+        })
+
+    # Insumos agotados: insumos con lotes cargados pero sin stock restante.
+    lotes_qs = Lote.objects.select_related('insumo')
+    if establecimiento is not None:
+        lotes_qs = lotes_qs.filter(establecimiento=establecimiento)
+    insumos_por_id = {i.id: i for i in Insumo.objects.all()}
+    agotados = []
+    for insumo_id, total in (
+        lotes_qs.exclude(insumo__isnull=True)
+        .values_list('insumo_id')
+        .annotate(total=Sum('stockActual'))
+        .filter(total=0)
+    ):
+        if insumo_id in insumos_por_id:
+            agotados.append(insumos_por_id[insumo_id])
+    if agotados:
+        nombres = sorted(a.nombre or f'Insumo {a.id}' for a in agotados)
+        alertas.append({
+            'clave': 'insumos_agotados',
+            'icono': 'bi-box-seam',
+            'color': 'text-bg-danger',
+            'titulo': f"{len(agotados)} {'insumo agotado' if len(agotados) == 1 else 'insumos agotados'}",
+            'detalle': ', '.join(nombres[:5]),
+            'url': reverse('insumos'),
+        })
+
+    # Compras pendientes de pago.
+    compras_pendientes = Compra.objects.filter(estadoDePago='Pendiente').order_by('fecha')
+    if establecimiento is not None:
+        compras_pendientes = compras_pendientes.filter(mov_financiero__establecimiento=establecimiento)
+    compras_pendientes = list(compras_pendientes)
+    if compras_pendientes:
+        adeudado = sum(c.monto_total for c in compras_pendientes)
+        alertas.append({
+            'clave': 'compras_pendientes',
+            'icono': 'bi-cart-x',
+            'color': 'text-bg-warning',
+            'titulo': f"{len(compras_pendientes)} {'compra pendiente de pago' if len(compras_pendientes) == 1 else 'compras pendientes de pago'}",
+            'detalle': f"Total adeudado: ${adeudado:,.0f}".replace(',', '.'),
+            'url': reverse('gastos'),
+        })
+
+    # Ventas pendientes de cobro.
+    ventas_pendientes = list(_ventas_de(request).filter(estadoDeCobro='Pendiente').order_by('fecha'))
+    if ventas_pendientes:
+        a_cobrar = sum(v.monto_total for v in ventas_pendientes)
+        alertas.append({
+            'clave': 'ventas_pendientes',
+            'icono': 'bi-cash-coin',
+            'color': 'text-bg-success',
+            'titulo': f"{len(ventas_pendientes)} {'venta pendiente de cobro' if len(ventas_pendientes) == 1 else 'ventas pendientes de cobro'}",
+            'detalle': f"Total a cobrar: ${a_cobrar:,.0f}".replace(',', '.'),
+            'url': reverse('ventas'),
         })
 
     return alertas
@@ -485,8 +561,108 @@ def dashboard_api(request):
     return JsonResponse(_dashboard_data(request))
 
 
+def _notificaciones_visibles(request):
+    """Notificaciones activas del usuario en el establecimiento actual."""
+    usuario = usuario_actual(request)
+    if usuario is None:
+        return Notificacion.objects.none()
+    qs = Notificacion.objects.filter(usuario=usuario, activa=True, eliminada=False)
+    establecimiento = _establecimiento_actual(request)
+    if establecimiento is not None:
+        qs = qs.filter(establecimiento=establecimiento)
+    else:
+        qs = qs.filter(establecimiento__isnull=True)
+    return qs
+
+
+def _notificacion_data(notificacion):
+    return {
+        'id': notificacion.id,
+        'clave': notificacion.clave,
+        'titulo': notificacion.titulo,
+        'detalle': notificacion.detalle,
+        'icono': notificacion.icono,
+        'color': notificacion.color,
+        'url': notificacion.url,
+        'leida': notificacion.leida,
+        'creada': notificacion.creada.strftime('%d/%m/%Y %H:%M'),
+    }
+
+
+def _sincronizar_notificaciones(request, alertas):
+    """Persiste las alertas calculadas como notificaciones por usuario/establecimiento.
+
+    Las notificaciones eliminadas no se vuelven a mostrar aunque la alerta siga
+    presente; el estado "leída" se conserva entre actualizaciones.
+    """
+    usuario = usuario_actual(request)
+    if usuario is None:
+        return
+    establecimiento = _establecimiento_actual(request)
+
+    claves_activas = set()
+    for alerta in alertas:
+        clave = alerta['clave']
+        claves_activas.add(clave)
+        try:
+            notificacion = Notificacion.objects.get(
+                usuario=usuario, establecimiento=establecimiento, clave=clave,
+            )
+        except Notificacion.DoesNotExist:
+            notificacion = Notificacion(
+                usuario=usuario, establecimiento=establecimiento, clave=clave,
+            )
+        if notificacion.eliminada:
+            continue
+        notificacion.titulo = alerta['titulo']
+        notificacion.detalle = alerta['detalle']
+        notificacion.icono = alerta['icono']
+        notificacion.color = alerta['color']
+        notificacion.url = alerta['url']
+        notificacion.activa = True
+        notificacion.save()
+
+    _notificaciones_visibles(request).exclude(clave__in=claves_activas).update(activa=False)
+
+
 def notificaciones_api(request):
-    return JsonResponse({'notificaciones': _alertas_dashboard(request)})
+    """Lista las notificaciones activas y el total sin leer."""
+    alertas = _alertas_dashboard(request)
+    _sincronizar_notificaciones(request, alertas)
+    notificaciones = _notificaciones_visibles(request).order_by('leida', '-creada')
+    return JsonResponse({
+        'notificaciones': [_notificacion_data(n) for n in notificaciones],
+        'no_leidas': notificaciones.filter(leida=False).count(),
+    })
+
+
+@require_POST
+def marcar_notificacion_leida(request, notificacion_id):
+    """Marca una notificación como leída (se dispara al hacer clic en ella)."""
+    notificacion = get_object_or_404(Notificacion, pk=notificacion_id, usuario=usuario_actual(request))
+    notificacion.leida = True
+    notificacion.save(update_fields=['leida'])
+    return JsonResponse({'ok': True, 'no_leidas': _notificaciones_visibles(request).filter(leida=False).count()})
+
+
+@require_POST
+def marcar_todas_notificaciones_leidas(request):
+    _notificaciones_visibles(request).update(leida=True)
+    return JsonResponse({'ok': True, 'no_leidas': 0})
+
+
+@require_POST
+def eliminar_notificacion(request, notificacion_id):
+    notificacion = get_object_or_404(Notificacion, pk=notificacion_id, usuario=usuario_actual(request))
+    notificacion.eliminada = True
+    notificacion.save(update_fields=['eliminada'])
+    return JsonResponse({'ok': True, 'no_leidas': _notificaciones_visibles(request).filter(leida=False).count()})
+
+
+@require_POST
+def eliminar_todas_notificaciones(request):
+    _notificaciones_visibles(request).update(eliminada=True)
+    return JsonResponse({'ok': True, 'no_leidas': 0})
 
 
 def stock(request):

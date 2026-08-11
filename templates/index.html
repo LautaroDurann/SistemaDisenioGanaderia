@@ -172,8 +172,11 @@
       <!--begin::Alertas-->
       <div class="col-12 col-lg-8">
         <div class="card vacapp-alert-card h-100">
-          <div class="card-header bg-transparent border-0 pb-0">
+          <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
             <h3 class="card-title">Alertas</h3>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modal-notificaciones" id="btn-ver-notificaciones">
+              <i class="bi bi-bell me-1"></i> Ver todas
+            </button>
           </div>
           <div class="card-body d-flex flex-column gap-2" id="alertas-contenedor">
             <div class="text-secondary small">Sin alertas pendientes.</div>
@@ -185,6 +188,38 @@
   </div>
 </div>
 <!--end::App Content-->
+
+<!--begin::Modal Notificaciones-->
+<div class="modal fade" id="modal-notificaciones" tabindex="-1" aria-labelledby="modal-notificaciones-titulo" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-notificaciones-titulo">
+          <i class="bi bi-bell-fill me-2"></i>Notificaciones
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+          <span class="text-secondary small" id="notificaciones-resumen"></span>
+          <div class="d-flex gap-1">
+            <button type="button" class="btn btn-sm btn-outline-success" id="btn-notificaciones-leer-todas">
+              <i class="bi bi-check2-all me-1"></i> Marcar todas como leídas
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger" id="btn-notificaciones-eliminar-todas">
+              <i class="bi bi-trash me-1"></i> Eliminar todas
+            </button>
+          </div>
+        </div>
+        <div id="notificaciones-lista"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!--end::Modal Notificaciones-->
 {% endblock %}
  
 {% block page_js %}
