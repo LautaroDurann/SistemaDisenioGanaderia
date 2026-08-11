@@ -188,6 +188,30 @@
           reader.readAsDataURL(file);
         });
 
+        // Eliminación del logo del establecimiento activo
+        document.getElementById('est-logo-eliminar-btn')?.addEventListener('click', () => {
+          confirmarAccion(
+            'Eliminar logo',
+            '¿Deseas eliminar el logo del establecimiento? Esta acción no se puede deshacer.',
+            async () => {
+              mostrarErrorEstablecimiento('');
+              try {
+                const r = await fetch('/api/establecimientos/config/logo/eliminar/', {
+                  method: 'POST',
+                  headers: { 'X-CSRFToken': getCookie('csrftoken') },
+                });
+                const data = await r.json();
+                if (!r.ok) throw new Error(data.error || 'No se pudo eliminar el logo.');
+                document.getElementById('est-logo-preview').innerHTML = '<i class="bi bi-image"></i>';
+                document.getElementById('est-logo-input').value = '';
+                document.getElementById('est-logo-eliminar-btn').classList.add('d-none');
+              } catch (err) {
+                mostrarErrorEstablecimiento(err.message);
+              }
+            }
+          );
+        });
+
         // Guardado de los datos del establecimiento activo (nombre, ubicacion y logo)
         document.getElementById('form-establecimiento').addEventListener('submit', async (e) => {
           e.preventDefault();

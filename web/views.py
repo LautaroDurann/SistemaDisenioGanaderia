@@ -296,6 +296,18 @@ def eliminar_establecimiento(request, establecimiento_id):
 
 @require_POST
 @rol_requerido(ROL_PROPIETARIO)
+def eliminar_logo_establecimiento(request):
+    """Elimina el logo del establecimiento activo."""
+    establecimiento = _establecimiento_actual(request)
+    if establecimiento is None:
+        return JsonResponse({'error': 'No hay ningún establecimiento activo.'}, status=400)
+    if establecimiento.logo:
+        establecimiento.logo.delete(save=True)
+    return JsonResponse({'ok': True})
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
 def config_establecimiento_api(request):
     """Guarda los datos del establecimiento activo (nombre, ubicación y logo)."""
     establecimiento = _establecimiento_actual(request)

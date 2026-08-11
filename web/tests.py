@@ -1997,6 +1997,24 @@ class InseminacionModuleTests(TestCase):
         })
         self.assertEqual(response.status_code, 400)
 
+    def test_eliminar_logo_establecimiento(self):
+        png = base64.b64decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+        )
+        logo = SimpleUploadedFile('logo.png', png, content_type='image/png')
+        establecimiento = Establecimiento.objects.get()
+        establecimiento.logo = logo
+        establecimiento.save()
+        self.assertTrue(establecimiento.logo)
+
+        response = self.client.post(reverse('eliminar_logo_establecimiento'))
+        self.assertEqual(response.status_code, 200)
+        establecimiento.refresh_from_db()
+        self.assertFalse(establecimiento.logo)
+
+        response = self.client.post(reverse('eliminar_logo_establecimiento'))
+        self.assertEqual(response.status_code, 200)
+
     def test_eliminar_establecimiento_borra_dependencias(self):
         segundo = Establecimiento.objects.create(
             nombre='Campo Chico', fecha_inicio=date.today(), ubicacion='Salta'

@@ -90,4 +90,5 @@ urlpatterns = [
     path('api/establecimientos/crear/', views.crear_establecimiento, name='crear_establecimiento'),
     path('api/establecimientos/<int:establecimiento_id>/eliminar/', views.eliminar_establecimiento, name='eliminar_establecimiento'),
     path('api/establecimientos/config/', views.config_establecimiento_api, name='config_establecimiento_api'),
+    path('api/establecimientos/config/logo/eliminar/', views.eliminar_logo_establecimiento, name='eliminar_logo_establecimiento'),
 ]
