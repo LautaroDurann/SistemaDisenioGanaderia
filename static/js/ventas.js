@@ -4,6 +4,8 @@
   let disponibles = [...baseAnimales];
   let ventas = data.ventas || [];
   let seleccionados = new Set();
+  const POR_PAGINA = 6;
+  let paginaActual = 1;
   let modal;
   let modalComprador;
   let chartInstance;
@@ -44,11 +46,31 @@
     montoInput.value = dinero(pesoDesbastado * precio);
   }
 
-  function renderAnimales() {
+  function obtenerFiltrados() {
     const especie = $('filtro-especie').value;
     const cat = $('filtro-categoria').value;
     const buscar = $('filtro-animal').value.toLowerCase();
-    const filas = disponibles.filter(a => (!especie || a.tipo_animal === especie) && (!cat || categoria(a) === cat) && (!buscar || `${a.caravana} ${a.nombre}`.toLowerCase().includes(buscar))).map(a => `
+    return disponibles.filter(a => (!especie || a.tipo_animal === especie) && (!cat || categoria(a) === cat) && (!buscar || `${a.caravana} ${a.nombre}`.toLowerCase().includes(buscar)));
+  }
+
+  function renderPaginacion(total) {
+    const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
+    if (paginaActual > totalPaginas) paginaActual = totalPaginas;
+    const info = $('paginacion-info');
+    const actual = $('paginacion-actual');
+    const prev = $('pagina-anterior');
+    const next = $('pagina-siguiente');
+    if (info) info.textContent = `${total} animal(es)`;
+    if (actual) actual.textContent = `${paginaActual} / ${totalPaginas}`;
+    if (prev) prev.disabled = paginaActual <= 1;
+    if (next) next.disabled = paginaActual >= totalPaginas;
+  }
+
+  function renderAnimales() {
+    const filtrados = obtenerFiltrados();
+    renderPaginacion(filtrados.length);
+    const inicio = (paginaActual - 1) * POR_PAGINA;
+    const filas = filtrados.slice(inicio, inicio + POR_PAGINA).map(a => `
       <tr>
         <td><input class="form-check-input seleccionar-animal" type="checkbox" value="${a.id}" ${seleccionados.has(a.id) ? 'checked' : ''}></td>
         <td>${escapeHtml(a.caravana)}</td>
@@ -167,6 +189,7 @@
     $('venta-peso-manual').checked = false;
     $('titulo-venta').textContent = 'Registrar venta';
     seleccionados = new Set();
+    paginaActual = 1;
     actualizarTotales();
     cargarSelectCompradores();
     renderAnimales();
@@ -189,6 +212,7 @@
     $('titulo-venta').textContent = `Editar venta #${id}`;
     const ids = new Set(v.animales.map(a => a.id));
     seleccionados = ids;
+    paginaActual = 1;
     actualizarTotales();
     cargarSelectCompradores();
     renderAnimales();
@@ -250,14 +274,14 @@
       select.disabled = !visible;
       if (!visible) select.value = '';
     }
+    paginaActual = 1;
     renderAnimales();
   }
 
   function seleccionarVisibles() {
-    const especie = $('filtro-especie').value;
-    const cat = $('filtro-categoria').value;
-    const buscar = $('filtro-animal').value.toLowerCase();
-    const visibles = disponibles.filter(a => (!especie || a.tipo_animal === especie) && (!cat || categoria(a) === cat) && (!buscar || `${a.caravana} ${a.nombre}`.toLowerCase().includes(buscar))).map(a => Number(a.id));
+    const filtrados = obtenerFiltrados();
+    const inicio = (paginaActual - 1) * POR_PAGINA;
+    const visibles = filtrados.slice(inicio, inicio + POR_PAGINA).map(a => Number(a.id));
     const todosSeleccionados = visibles.length > 0 && visibles.every(id => seleccionados.has(id));
     if (todosSeleccionados) {
       visibles.forEach(id => seleccionados.delete(id));
@@ -282,7 +306,6 @@
     cargarSelectCompradores();
 
     $('nueva-venta').onclick = abrirNueva;
-    $('nueva-venta-tabla').onclick = abrirNueva;
     $('nuevo-comprador').onclick = () => {
       $('form-comprador').reset();
       $('comprador-id').value = '';
@@ -290,6 +313,19 @@
       modalComprador.show();
     };
     $('seleccionar-filtrados').onclick = seleccionarVisibles;
+    $('pagina-anterior').onclick = () => {
+      if (paginaActual > 1) {
+        paginaActual--;
+        renderAnimales();
+      }
+    };
+    $('pagina-siguiente').onclick = () => {
+      const totalPaginas = Math.max(1, Math.ceil(obtenerFiltrados().length / POR_PAGINA));
+      if (paginaActual < totalPaginas) {
+        paginaActual++;
+        renderAnimales();
+      }
+    };
 
     ['filtro-especie', 'filtro-categoria', 'filtro-animal'].forEach(id => $(id).addEventListener('input', actualizarFiltroCategoria));
     $('venta-precio').addEventListener('input', actualizarTotales);
