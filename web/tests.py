@@ -131,7 +131,7 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         evento.refresh_from_db()
         self.assertIsNone(evento.mov_financiero)
-        self.assertEqual(MovimientoFinanciero.objects.count(), 0)
+        self.assertEqual(MovimientoFinanciero.objects.filter(activo=True).count(), 0)
 
     def test_eliminar_evento_con_costo_elimina_el_movimiento_financiero(self):
         response = self.client.post(reverse('crear_evento_sanitario'), {
@@ -143,8 +143,8 @@ class WebIntegrationTests(TestCase):
 
         response = self.client.post(reverse('eliminar_evento_sanitario', args=[evento.id]))
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(EventoSanitario.objects.filter(pk=evento.id).exists())
-        self.assertEqual(MovimientoFinanciero.objects.count(), 0)
+        self.assertFalse(EventoSanitario.objects.filter(pk=evento.id, activo=True).exists())
+        self.assertEqual(MovimientoFinanciero.objects.filter(activo=True).count(), 0)
 
     def test_crear_y_editar_movimiento_financiero(self):
         response = self.client.post(reverse('api_finanzas_movimientos'), {
@@ -237,19 +237,38 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['animales'][0]['caravana'], '12345')
 
-    def test_filtro_madre_solo_incluye_vacas_activas(self):
-        # self.animal (Luna) es hembra viva del establecimiento: categoría Vaca.
-        Animal.objects.create(id_senasa='20001', nombre='Vendida', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, vivo=True, vendido=True)
-        Animal.objects.create(id_senasa='20002', nombre='Muerta', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, vivo=False)
-        Animal.objects.create(id_senasa='20003', nombre='Ternera', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, vivo=True, fecha_nacimiento=date.today(), peso_actual=Decimal('80.00'))
+    def test_filtro_madre_incluye_todas_las_hembras_con_crias(self):
+        # Madre con cría registrada: debe aparecer aunque esté muerta/vendida.
+        madre = Animal.objects.create(id_senasa='20001', nombre='Mama', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, vivo=False)
+        Animal.objects.create(id_senasa='20002', nombre='Cria', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, madre=madre, vivo=True)
+        # Hembra sin crías: no debe aparecer.
+        Animal.objects.create(id_senasa='20003', nombre='Sola', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, vivo=True)
+        # Macho con crías: no debe aparecer.
         toro = Animal.objects.create(id_senasa='20004', nombre='Toro', tipo_animal='Bovino', sexo='Macho', parcela=self.parcela, vivo=True)
+        Animal.objects.create(id_senasa='20005', nombre='Cria toro', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, padre=toro, vivo=True)
 
         response = self.client.get(reverse('stock'))
         self.assertEqual(response.status_code, 200)
         ids = {m['id'] for m in response.context['page_data']['madres']}
-        self.assertIn(self.animal.idAnimal, ids)
-        self.assertNotIn(toro.idAnimal, ids)
-        self.assertEqual(len(ids), 1)
+        self.assertEqual(ids, {madre.idAnimal})
+
+    def test_madre_de_distinto_tipo_rechazada(self):
+        madre_ovino = Animal.objects.create(id_senasa='30001', nombre='Oveja', tipo_animal='Ovino', sexo='Hembra', parcela=self.parcela, vivo=True)
+        response = self.client.post(reverse('crear_animal'), {
+            'id_senasa': '30002', 'nombre': 'Cordero', 'sexo': 'Macho', 'tipo_animal': 'Bovino',
+            'madre_id': madre_ovino.idAnimal,
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Animal.objects.filter(id_senasa='30002').exists())
+
+    def test_padre_de_distinto_tipo_rechazado(self):
+        padre_ovino = Animal.objects.create(id_senasa='30003', nombre='Carnero', tipo_animal='Ovino', sexo='Macho', parcela=self.parcela, vivo=True)
+        response = self.client.post(reverse('crear_animal'), {
+            'id_senasa': '30004', 'nombre': 'Cordero', 'sexo': 'Hembra', 'tipo_animal': 'Bovino',
+            'padre_id': padre_ovino.idAnimal,
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Animal.objects.filter(id_senasa='30004').exists())
 
     def test_crear_animal_desde_stock(self):
         response = self.client.post(reverse('crear_animal'), {
@@ -299,7 +318,7 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(str(self.animal.peso_actual), '412.00')
         response = self.client.post(reverse('eliminar_animal', args=[self.animal.idAnimal]))
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Animal.objects.filter(pk=self.animal.idAnimal).exists())
+        self.assertFalse(Animal.objects.filter(pk=self.animal.idAnimal, activo=True).exists())
 
     def test_crear_animal_con_caravana_alfanumerica(self):
         response = self.client.post(reverse('crear_animal'), {
@@ -436,8 +455,8 @@ class WebIntegrationTests(TestCase):
         self.animal.refresh_from_db()
         self.assertFalse(self.animal.vendido)
         self.assertIsNone(self.animal.venta)
-        self.assertFalse(Venta.objects.exists())
-        self.assertFalse(MovimientoFinanciero.objects.exists())
+        self.assertFalse(Venta.objects.filter(activo=True).exists())
+        self.assertFalse(MovimientoFinanciero.objects.filter(activo=True).exists())
 
     def test_actualizar_venta_recalcula_montos_y_conserva_animales(self):
         self.animal.peso_actual = Decimal('300.00')
@@ -607,7 +626,7 @@ class WebIntegrationTests(TestCase):
 
         response = self.client.post(reverse('eliminar_comprador', args=[comprador.id]))
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Comprador.objects.filter(pk=comprador.id).exists())
+        self.assertFalse(Comprador.objects.filter(pk=comprador.id, activo=True).exists())
 
 
 class CompraModuleTests(TestCase):
@@ -782,9 +801,9 @@ class CompraModuleTests(TestCase):
 
         response = self.client.post(reverse('eliminar_compra', args=[compra.id]))
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Compra.objects.filter(pk=compra.id).exists())
-        self.assertFalse(MovimientoFinanciero.objects.filter(pk=movimiento_id).exists())
-        self.assertFalse(Lote.objects.filter(pk=lote_id).exists())
+        self.assertFalse(Compra.objects.filter(pk=compra.id, activo=True).exists())
+        self.assertFalse(MovimientoFinanciero.objects.filter(pk=movimiento_id, activo=True).exists())
+        self.assertTrue(Lote.objects.filter(pk=lote_id).exists())
 
     def test_compra_de_insumos_sin_cantidad_da_error(self):
         response = self.crear_compra({
@@ -843,7 +862,7 @@ class FinanzasSyncTests(TestCase):
 
         response = self.client.post(reverse('eliminar_movimiento_financiero', args=[movimiento_id]))
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(MovimientoFinanciero.objects.filter(pk=movimiento_id).exists())
+        self.assertFalse(MovimientoFinanciero.objects.filter(pk=movimiento_id, activo=True).exists())
 
     def test_eliminar_movimiento_vinculado_a_venta_bloqueado(self):
         animal = Animal.objects.create(
@@ -967,9 +986,9 @@ class FinanzasSyncTests(TestCase):
         response, data = self.get_page_data('ventas')
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        self.assertIn('resumen-mes-cantidad', content)
-        self.assertIn('resumen-mes-ingresos', content)
-        self.assertIn('resumen-mes-cobrado', content)
+        self.assertIn('resumen-anio-cantidad', content)
+        self.assertIn('resumen-anio-ingresos', content)
+        self.assertIn('resumen-anio-kilos', content)
         venta = data['ventas'][0]
         self.assertEqual(venta['estado_de_cobro'], 'Pagada')
         self.assertEqual(venta['metodo_de_pago'], 'Cheque')
@@ -1536,7 +1555,7 @@ class SueldosModuleTests(TestCase):
         response = self.client.post(reverse('eliminar_liquidacion', args=[liquidacion_id]))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(LiquidacionSueldo.objects.filter(pk=liquidacion_id).exists())
-        self.assertFalse(MovimientoFinanciero.objects.filter(pk=movimiento_id).exists())
+        self.assertFalse(MovimientoFinanciero.objects.filter(pk=movimiento_id, activo=True).exists())
 
 
 class PreniezModuleTests(TestCase):
@@ -2015,7 +2034,7 @@ class InseminacionModuleTests(TestCase):
         response = self.client.post(reverse('eliminar_logo_establecimiento'))
         self.assertEqual(response.status_code, 200)
 
-    def test_eliminar_establecimiento_borra_dependencias(self):
+    def test_eliminar_establecimiento_oculta_y_conserva_dependencias(self):
         segundo = Establecimiento.objects.create(
             nombre='Campo Chico', fecha_inicio=date.today(), ubicacion='Salta'
         )
@@ -2034,12 +2053,12 @@ class InseminacionModuleTests(TestCase):
         response = self.client.post(reverse('eliminar_establecimiento', args=[segundo.id]))
         self.assertEqual(response.status_code, 200)
 
-        self.assertFalse(Establecimiento.objects.filter(pk=segundo.id).exists())
-        self.assertFalse(Parcela.objects.filter(pk=parcela_segunda.id).exists())
-        self.assertFalse(RolEstablecimiento.objects.filter(pk=rol.id).exists())
+        self.assertFalse(Establecimiento.objects.filter(pk=segundo.id, activo=True).exists())
+        self.assertTrue(Parcela.objects.filter(pk=parcela_segunda.id).exists())
+        self.assertTrue(RolEstablecimiento.objects.filter(pk=rol.id).exists())
         animal.refresh_from_db()
-        self.assertIsNone(animal.establecimiento)
-        self.assertIsNone(animal.parcela)
+        self.assertEqual(animal.establecimiento, segundo)
+        self.assertEqual(animal.parcela, parcela_segunda)
         self.assertNotIn('establecimiento_id', self.client.session)
 
     def test_no_se_elimina_el_unico_establecimiento(self):

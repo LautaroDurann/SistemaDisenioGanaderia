@@ -104,7 +104,7 @@
     tbody.innerHTML = proveedores.map(p => `
       <tr>
         <td>${escapeHtml(p.nombre)}</td>
-        <td>${escapeHtml(p.correo || p.dni || '-')}</td>
+        <td>${escapeHtml(p.correo || '-')}</td>
         <td>${escapeHtml(p.telefono || '-')}</td>
         <td class="text-end">
           <button class="btn btn-sm btn-outline-primary editar-proveedor" data-id="${p.id}"><i class="bi bi-pencil"></i></button>
@@ -294,7 +294,7 @@
   }
 
   async function eliminarCompra(id) {
-    if (!confirm('¿Eliminar la compra? Se quitará el movimiento financiero y el lote/animal asociado.')) return;
+    if (!confirm('¿Dar de baja la compra? Su movimiento financiero dejará de contabilizarse.')) return;
     const r = await fetch(`/api/compras/${id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf() } });
     if (!r.ok) return mostrar('No se pudo eliminar la compra.', 'danger');
     const compra = compras.find(c => c.id === id);
@@ -345,7 +345,7 @@
   }
 
   async function eliminarProveedor(id) {
-    if (!confirm('¿Eliminar este proveedor?')) return;
+    if (!confirm('¿Dar de baja este proveedor? Dejará de estar disponible.')) return;
     const r = await fetch(`/api/proveedores/${id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf() } });
     if (!r.ok) return mostrar('No se pudo eliminar el proveedor.', 'danger');
     proveedores = proveedores.filter(p => p.id !== id);
@@ -380,7 +380,7 @@
   }
 
   async function eliminarLiquidacion(id) {
-    if (!confirm('¿Eliminar la liquidación? Se quitará también el egreso registrado en Finanzas.')) return;
+    if (!confirm('¿Dar de baja la liquidación? Su egreso dejará de contabilizarse en Finanzas.')) return;
     const r = await fetch(`/api/liquidaciones/${id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf() } });
     if (!r.ok) return mostrar('No se pudo eliminar la liquidación.', 'danger');
     const liquidacion = liquidaciones.find(c => c.id === id);
@@ -512,11 +512,16 @@
     $('form-proveedor').addEventListener('submit', async e => {
       e.preventDefault();
       const form = new FormData(e.target);
+      const dni = String(form.get('dni') || '').trim();
+      if (dni && (dni.length < 7 || dni.length > 8)) {
+        alert('El DNI debe tener entre 7 y 8 caracteres.');
+        return;
+      }
       const proveedorId = $('proveedor-id').value;
       const url = proveedorId ? `/api/proveedores/${proveedorId}/` : '/api/proveedores/';
       const r = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrf() }, body: form });
       const respuesta = await r.json();
-      if (!r.ok) return mostrar(respuesta.error || 'No se pudo guardar el proveedor.', 'danger');
+      if (!r.ok) return alert(respuesta.error || 'No se pudo guardar el proveedor.');
       if (proveedorId) {
         const idx = proveedores.findIndex(p => p.id === Number(proveedorId));
         if (idx !== -1) proveedores[idx] = respuesta.proveedor;

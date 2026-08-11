@@ -103,8 +103,8 @@
         const id = boton.dataset.establecimientoId;
         const nombre = boton.dataset.establecimientoNombre;
         confirmarAccion(
-          'Eliminar establecimiento',
-          `¿Deseas eliminar "${nombre}"? Se borrarán sus parcelas, movimientos y registros asociados. Esta acción no se puede deshacer.`,
+          'Dar de baja establecimiento',
+          `¿Deseas dar de baja "${nombre}"? Dejará de estar disponible y no se mostrarán sus registros.`,
           async () => {
             mostrarErrorEstablecimiento('');
             try {

@@ -127,7 +127,7 @@
             (!categoria || a.categoria === categoria) &&
             (!sexo || a.sexo === sexo) &&
             (!estado || a.estado === estado) &&
-            (!parcela || a.parcela === parcela) &&
+            (!parcela || String(a.parcela_id) === parcela) &&
             (!madre || String(a.madre_id) === madre) &&
             (!enfermo || (enfermo === 'enfermos' ? a.enfermo : !a.enfermo))
           );
@@ -246,7 +246,10 @@
         document.getElementById('ficha-tipo').textContent = a.tipo_animal;
         document.getElementById('ficha-pesos-iniciales').textContent = `${a.peso_al_nacer || '-'} / ${a.peso_al_destete || '-'} kg`;
         document.getElementById('ficha-dieta').textContent = a.dieta;
-        document.getElementById('ficha-progenitores').textContent = `${a.madre} / ${a.padre}`;
+        const madre = ANIMALES.find((x) => x.id === a.madre_id);
+        const padre = ANIMALES.find((x) => x.id === a.padre_id);
+        const etiquetaProgenitor = (x) => `${x.nombre} (SENASA: ${x.caravana})`;
+        document.getElementById('ficha-progenitores').textContent = `${madre ? etiquetaProgenitor(madre) : 'No registrada'} / ${padre ? etiquetaProgenitor(padre) : 'No registrado'}`;
         document.getElementById('ficha-condicion').textContent = [a.vivo ? 'Vivo' : 'Muerto', a.vendido ? 'Vendido' : 'No vendido', a.enfermo ? 'Enfermo' : 'Sano'].join(' · ');
         document.getElementById('ficha-castrado').textContent = a.castrado ? 'Sí' : 'No';
         document.getElementById('ficha-color').textContent = a.color || '-';
@@ -263,6 +266,9 @@
         document.getElementById('animal-nombre').value = animal.nombre;
         document.getElementById('animal-sexo').value = animal.sexo;
         document.getElementById('animal-tipo').value = animal.tipo_animal;
+        document.getElementById('buscar-madre').value = '';
+        document.getElementById('buscar-padre').value = '';
+        seleccionarProgenitores();
         document.getElementById('animal-raza').value = animal.raza === '-' ? '' : animal.raza;
         document.getElementById('animal-peso').value = animal.peso_actual_valor;
         document.getElementById('animal-fecha-nacimiento').value = animal.ingreso === '-' ? '' : animal.ingreso;
@@ -346,6 +352,77 @@
         datos.filter(filtro).forEach((dato) => select.add(new Option(texto(dato), dato.id)));
       }
 
+      // Fuentes dinámicas de progenitores y madres: se derivan de ANIMALES para
+      // que al registrar/editar/eliminar un animal las opciones se actualicen al
+      // instante (sin recargar la página), como ocurre con la tabla.
+      function obtenerProgenitores() {
+        return ANIMALES.map((a) => ({
+          id: a.id,
+          nombre: `#${a.caravana} — ${a.nombre}`,
+          sexo: a.sexo,
+          tipo_animal: a.tipo_animal,
+        }));
+      }
+
+      function obtenerMadres() {
+        const idsConHijos = new Set(ANIMALES.map((a) => a.madre_id).filter((id) => id != null));
+        return ANIMALES
+          .filter((a) => a.sexo === 'Hembra' && idsConHijos.has(a.id))
+          .map((a) => ({ id: a.id, nombre: `#${a.caravana} — ${a.nombre}` }));
+      }
+
+      // Puebla el select de madre o padre según el tipo de animal y el texto
+      // buscado (por caravana o nombre). Solo se ofrecen animales del mismo tipo.
+      function poblarSelectProgenitores(selectId, placeholder, sexo, tipo, buscar) {
+        const select = document.getElementById(selectId);
+        const anterior = select.value;
+        select.innerHTML = `<option value="">${placeholder}</option>`;
+        obtenerProgenitores()
+          .filter((p) => p.sexo === sexo && p.tipo_animal === tipo)
+          .filter((p) => !buscar || p.nombre.toLowerCase().includes(buscar))
+          .forEach((p) => select.add(new Option(p.nombre, p.id)));
+        if (anterior && [...select.options].some((o) => o.value === anterior)) select.value = anterior;
+      }
+
+      function seleccionarProgenitores() {
+        const tipo = document.getElementById('animal-tipo').value;
+        const buscarMadre = document.getElementById('buscar-madre').value.trim().toLowerCase();
+        const buscarPadre = document.getElementById('buscar-padre').value.trim().toLowerCase();
+        poblarSelectProgenitores('animal-madre', 'No registrada', 'Hembra', tipo, buscarMadre);
+        poblarSelectProgenitores('animal-padre', 'No registrado', 'Macho', tipo, buscarPadre);
+      }
+
+      // Opciones del filtro de madre en la grilla: todas las hembras con crías.
+      function cargarFiltroMadres() {
+        const select = document.getElementById('f-madre');
+        const anterior = select.value;
+        const buscar = document.getElementById('f-buscar-madre').value.trim().toLowerCase();
+        select.innerHTML = '<option value="">Todas</option>';
+        obtenerMadres()
+          .filter((m) => !buscar || m.nombre.toLowerCase().includes(buscar))
+          .forEach((m) => select.add(new Option(m.nombre, m.id)));
+        if (anterior && [...select.options].some((o) => o.value === anterior)) select.value = anterior;
+      }
+
+      function refrescarRelaciones() {
+        cargarFiltroMadres();
+        seleccionarProgenitores();
+      }
+
+      // Replica el filtro del backend: un animal pertenece al stock del
+      // establecimiento activo si lo tiene asignado, o si quedó sin
+      // establecimiento pero su parcela sí pertenece al establecimiento activo.
+      function animalPerteneceAlEstablecimientoActivo(animal) {
+        const activo = window.HUACAPP_DATA?.establecimiento_id;
+        if (!activo) return true;
+        if (animal.establecimiento_id === activo) return true;
+        if (animal.establecimiento_id == null) {
+          const parcela = (window.HUACAPP_DATA?.parcelas || []).find((p) => p.id === animal.parcela_id);
+          return parcela?.establecimiento_id === activo;
+        }
+        return false;
+      }
+
       function cargarParcelasDeEstablecimiento(establecimientoId) {
         const selectParcela = document.getElementById('animal-parcela');
         selectParcela.innerHTML = '<option value="">Sin asignar</option>';
@@ -356,7 +433,7 @@
       }
 
       document.addEventListener('DOMContentLoaded', () => {
-        if (ANIMALES.length) renderFichaAnimal(ANIMALES[0].caravana);
+        if (ANIMALES.length) renderFichaAnimal(ANIMALES[0].id);
         renderTabla();
         ajustarAlturaFilaCompleta();
 
@@ -378,18 +455,29 @@
           if (botonEliminar) {
             ev.stopPropagation();
             const animal = ANIMALES.find((item) => item.id === Number(botonEliminar.dataset.id));
-            if (!animal || !window.confirm(`¿Eliminar definitivamente a #${animal.caravana} ${animal.nombre}?`)) return;
+            if (!animal || !window.confirm(`¿Dar de baja a #${animal.caravana} ${animal.nombre}? Dejará de mostrarse en el stock.`)) return;
             const csrf = document.cookie.split('; ').find((row) => row.startsWith('csrftoken='))?.split('=')[1];
             fetch(`/api/animales/${animal.id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf || '' } })
               .then((response) => {
                 if (!response.ok) throw new Error();
                 const index = ANIMALES.findIndex((item) => item.id === animal.id);
                 if (index !== -1) ANIMALES.splice(index, 1);
+                ANIMALES.forEach((item) => {
+                  if (item.madre_id === animal.id) {
+                    item.madre_id = null;
+                    item.madre = 'No registrada';
+                  }
+                  if (item.padre_id === animal.id) {
+                    item.padre_id = null;
+                    item.padre = 'No registrado';
+                  }
+                });
                 if (animalSeleccionadoId === animal.id) {
                   animalSeleccionadoId = null;
                   if (ANIMALES.length) renderFichaAnimal(ANIMALES[0].id);
                 }
                 renderTabla();
+                refrescarRelaciones();
               })
               .catch(() => alert('No se pudo eliminar el animal.'));
             return;
@@ -416,8 +504,10 @@
           document.getElementById('f-estado').value = 'Activo';
           document.getElementById('f-parcela').value = '';
           document.getElementById('f-madre').value = '';
+          document.getElementById('f-buscar-madre').value = '';
           document.getElementById('f-enfermo').value = '';
           document.getElementById('grupo-f-categoria').classList.add('d-none');
+          cargarFiltroMadres();
           paginaActual = 1;
           renderTabla();
         });
@@ -448,13 +538,19 @@
         (window.HUACAPP_DATA?.parcelas || [])
           .filter((parcela) => !establecimientoActualId || String(parcela.establecimiento_id) === String(establecimientoActualId))
           .forEach((parcela) => {
-            filtroParcela.add(new Option(parcela.nombre, parcela.nombre));
+            filtroParcela.add(new Option(parcela.nombre, parcela.id));
           });
         agregarOpciones('animal-dieta', window.HUACAPP_DATA?.dietas || [], (dieta) => dieta.nombre);
-        const progenitores = window.HUACAPP_DATA?.progenitores || [];
-        agregarOpciones('animal-madre', progenitores, (animal) => animal.nombre, (animal) => animal.sexo === 'Hembra');
-        agregarOpciones('animal-padre', progenitores, (animal) => animal.nombre, (animal) => animal.sexo === 'Macho');
-        agregarOpciones('f-madre', window.HUACAPP_DATA?.madres || [], (animal) => animal.nombre);
+        seleccionarProgenitores();
+        cargarFiltroMadres();
+        document.getElementById('animal-tipo').addEventListener('change', seleccionarProgenitores);
+        document.getElementById('buscar-madre').addEventListener('input', seleccionarProgenitores);
+        document.getElementById('buscar-padre').addEventListener('input', seleccionarProgenitores);
+        document.getElementById('f-buscar-madre').addEventListener('input', () => {
+          cargarFiltroMadres();
+          paginaActual = 1;
+          renderTabla();
+        });
         document.getElementById('animal-sexo').addEventListener('change', actualizarCampoDiametro);
         actualizarCampoDiametro();
         document.getElementById('animal-vivo').addEventListener('change', actualizarCampoFechaMuerte);
@@ -494,6 +590,7 @@
           selectEstablecimiento.value = establecimientoActualId;
           cargarParcelasDeEstablecimiento(selectEstablecimiento.value);
           actualizarCampoFechaMuerte();
+          seleccionarProgenitores();
           document.getElementById('foto-acciones').classList.add('d-none');
           document.getElementById('foto-preview').classList.add('d-none');
           document.getElementById('animal-eliminar-foto').value = '';
@@ -527,15 +624,23 @@
             if (!response.ok) throw new Error(result.error || 'No se pudo guardar el animal.');
             const guardado = result.animal;
             const estabaSeleccionado = animalEnEdicion && animalSeleccionadoId === animalEnEdicion.id;
-            if (animalEnEdicion) {
+            if (!animalPerteneceAlEstablecimientoActivo(guardado)) {
+              const index = ANIMALES.findIndex((item) => item.id === guardado.id);
+              if (index !== -1) ANIMALES.splice(index, 1);
+              if (estabaSeleccionado) {
+                animalSeleccionadoId = null;
+                if (ANIMALES.length) renderFichaAnimal(ANIMALES[0].id);
+              }
+            } else if (animalEnEdicion) {
               const index = ANIMALES.findIndex((item) => item.id === animalEnEdicion.id);
               if (index !== -1) ANIMALES[index] = guardado;
               else ANIMALES.push(guardado);
             } else {
               ANIMALES.push(guardado);
             }
-            if (estabaSeleccionado) renderFichaAnimal(guardado.id);
+            if (estabaSeleccionado && animalPerteneceAlEstablecimientoActivo(guardado)) renderFichaAnimal(guardado.id);
             renderTabla();
+            refrescarRelaciones();
             bootstrap.Modal.getInstance(document.getElementById('modalNuevoAnimal'))?.hide();
           } catch (exception) {
             error.textContent = exception.message;

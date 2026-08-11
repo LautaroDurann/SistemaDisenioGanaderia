@@ -21,6 +21,9 @@ class MovimientoFinanciero(models.Model):
         null=True, blank=True, related_name='movimientos_financieros',
     )
 
+    # Baja lógica: activo=False oculta al movimiento del sistema pero conserva su historia.
+    activo = models.BooleanField(default=True)
+
     def __str__(self):
         return f"{self.tipo}: {self.nombre} (${self.monto_total})"
 
@@ -54,6 +57,9 @@ class Compra(models.Model):
     # Usamos OneToOneField porque una compra genera un único movimiento financiero
     mov_financiero = models.OneToOneField(MovimientoFinanciero, on_delete=models.CASCADE, null=True, blank=True)
 
+    # Baja lógica: activo=False oculta a la compra del sistema pero conserva su historia.
+    activo = models.BooleanField(default=True)
+
     def __str__(self):
         return f"Compra {self.tipo} - {self.fecha}"
 
@@ -84,6 +90,9 @@ class Venta(models.Model):
     # Claves Foráneas
     comprador = models.ForeignKey('usuarios.Comprador', on_delete=models.SET_NULL, null=True, blank=True)
     mov_financiero = models.OneToOneField(MovimientoFinanciero, on_delete=models.CASCADE, null=True, blank=True)
+
+    # Baja lógica: activo=False oculta a la venta del sistema pero conserva su historia.
+    activo = models.BooleanField(default=True)
 
     @property
     def peso_desbastado(self):

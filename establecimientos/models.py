@@ -6,6 +6,8 @@ class Establecimiento(models.Model):
     fecha_inicio = models.DateField()
     ubicacion = models.CharField(max_length=100)
     logo = models.ImageField(upload_to='establecimientos/', null=True, blank=True)
+    # Baja lógica: activo=False oculta al establecimiento del sistema.
+    activo = models.BooleanField(default=True)
 
     def __str__(self):
         return self.nombre

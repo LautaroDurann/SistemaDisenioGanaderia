@@ -509,7 +509,7 @@ function bindVeterinariosTable() {
   });
   tbody.querySelectorAll('.btn-eliminar-veterinario').forEach((btn) => {
     btn.addEventListener('click', () => {
-      if (confirm('¿Eliminar este veterinario?')) {
+      if (confirm('¿Dar de baja este veterinario? Dejará de estar disponible.')) {
         eliminarVeterinario(btn.dataset.id);
       }
     });
@@ -878,6 +878,11 @@ async function guardarVeterinario() {
     return;
   }
 
+  if (dni && (dni.length < 7 || dni.length > 8)) {
+    alert('El DNI debe tener entre 7 y 8 caracteres.');
+    return;
+  }
+
   const url = id ? `/api/sanidad/veterinarios/${id}/` : '/api/sanidad/veterinarios/';
   const response = await fetch(url, {
     method: 'POST',
@@ -1217,7 +1222,7 @@ async function guardarEvento() {
 }
 
 async function eliminarEvento(id) {
-  if (!confirm('¿Eliminar este evento sanitario?')) {
+  if (!confirm('¿Dar de baja este evento sanitario?')) {
     return;
   }
 

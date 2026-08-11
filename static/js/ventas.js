@@ -4,6 +4,8 @@
   let disponibles = [...baseAnimales];
   let ventas = data.ventas || [];
   let seleccionados = new Set();
+  const POR_PAGINA = 6;
+  let paginaActual = 1;
   let modal;
   let modalComprador;
   let chartInstance;
@@ -57,11 +59,31 @@
     montoInput.value = dinero(pesoDesbastado * precio);
   }
 
-  function renderAnimales() {
+  function obtenerFiltrados() {
     const especie = $('filtro-especie').value;
     const cat = $('filtro-categoria').value;
     const buscar = $('filtro-animal').value.toLowerCase();
-    const filas = disponibles.filter(a => (!especie || a.tipo_animal === especie) && (!cat || categoria(a) === cat) && (!buscar || `${a.caravana} ${a.nombre}`.toLowerCase().includes(buscar))).map(a => `
+    return disponibles.filter(a => (!especie || a.tipo_animal === especie) && (!cat || categoria(a) === cat) && (!buscar || `${a.caravana} ${a.nombre}`.toLowerCase().includes(buscar)));
+  }
+
+  function renderPaginacion(total) {
+    const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
+    if (paginaActual > totalPaginas) paginaActual = totalPaginas;
+    const info = $('paginacion-info');
+    const actual = $('paginacion-actual');
+    const prev = $('pagina-anterior');
+    const next = $('pagina-siguiente');
+    if (info) info.textContent = `${total} animal(es)`;
+    if (actual) actual.textContent = `${paginaActual} / ${totalPaginas}`;
+    if (prev) prev.disabled = paginaActual <= 1;
+    if (next) next.disabled = paginaActual >= totalPaginas;
+  }
+
+  function renderAnimales() {
+    const filtrados = obtenerFiltrados();
+    renderPaginacion(filtrados.length);
+    const inicio = (paginaActual - 1) * POR_PAGINA;
+    const filas = filtrados.slice(inicio, inicio + POR_PAGINA).map(a => `
       <tr>
         <td><input class="form-check-input seleccionar-animal" type="checkbox" value="${a.id}" ${seleccionados.has(a.id) ? 'checked' : ''}></td>
         <td>${escapeHtml(a.caravana)}</td>
@@ -103,17 +125,15 @@
     document.querySelectorAll('.eliminar').forEach(b => b.onclick = () => eliminarVenta(Number(b.dataset.id)));
   }
 
-  function renderResumenMes() {
-    const mesActual = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-    const delMes = ventas.filter(v => String(v.fecha || '').startsWith(mesActual));
-    const ingresos = delMes.reduce((s, v) => s + Number(v.monto_total || 0), 0);
-    const cobrado = delMes.filter(v => v.estado_de_cobro === 'Pagada').reduce((s, v) => s + Number(v.monto_total || 0), 0);
-    const kilos = delMes.reduce((s, v) => s + Number(v.peso_desbastado || 0), 0);
+  function renderResumenAnio() {
+    const anioActual = String(new Date().getFullYear());
+    const delAnio = ventas.filter(v => String(v.fecha || '').slice(0, 4) === anioActual);
+    const ingresos = delAnio.reduce((s, v) => s + Number(v.monto_total || 0), 0);
+    const kilos = delAnio.reduce((s, v) => s + Number(v.peso_desbastado || 0), 0);
     const el = (id) => document.getElementById(id);
-    if (el('resumen-mes-cantidad')) el('resumen-mes-cantidad').textContent = delMes.length;
-    if (el('resumen-mes-ingresos')) el('resumen-mes-ingresos').textContent = dinero(ingresos);
-    if (el('resumen-mes-cobrado')) el('resumen-mes-cobrado').textContent = dinero(cobrado);
-    if (el('resumen-mes-kilos')) el('resumen-mes-kilos').textContent = `${kilos.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} kg`;
+    if (el('resumen-anio-cantidad')) el('resumen-anio-cantidad').textContent = delAnio.length;
+    if (el('resumen-anio-ingresos')) el('resumen-anio-ingresos').textContent = dinero(ingresos);
+    if (el('resumen-anio-kilos')) el('resumen-anio-kilos').textContent = `${kilos.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} kg`;
   }
 
   function renderCompradores() {
@@ -122,7 +142,7 @@
     tbody.innerHTML = (data.compradores || []).map(c => `
       <tr>
         <td>${escapeHtml(c.nombre)}</td>
-        <td>${escapeHtml(c.correo || c.dni || '-')}</td>
+        <td>${escapeHtml(c.correo || '-')}</td>
         <td>${escapeHtml(c.telefono || '-')}</td>
         <td class="text-end">
           <button class="btn btn-sm btn-outline-primary editar-comprador" data-id="${c.id}"><i class="bi bi-pencil"></i></button>
@@ -135,24 +155,28 @@
   }
 
   function renderSummary() {
-    const summary = data.summary || {};
-    $('kpi-total-ventas').textContent = summary.total_ventas || 0;
-    $('kpi-ganancia-total').textContent = dinero(summary.ganancia_total || 0);
-    $('kpi-ganancia-anio').textContent = dinero(summary.ganancia_anio_actual || 0);
-    $('kpi-compradores').textContent = summary.compradores || 0;
+    const total = ventas.length;
+    const anioActual = String(new Date().getFullYear());
+    const ingresosAnio = ventas.filter(v => String(v.fecha || '').slice(0, 4) === anioActual).reduce((s, v) => s + Number(v.monto_total || 0), 0);
+    const promedio = ingresosAnio / (new Date().getMonth() + 1);
+    $('kpi-total-ventas').textContent = total;
+    $('kpi-promedio-mes').textContent = dinero(promedio);
+    $('kpi-ingresos-anio').textContent = dinero(ingresosAnio);
+    $('kpi-compradores').textContent = (data.compradores || []).length;
   }
 
   function renderChart() {
     const chartEl = $('chart-ventas');
     if (!chartEl) return;
-    const chartData = data.chart || {};
-    chartLabels = chartData.labels_json ? JSON.parse(chartData.labels_json) : [];
-    chartSeries = chartData.series_json ? JSON.parse(chartData.series_json) : [];
+    const anioActual = new Date().getFullYear();
+    chartLabels = [];
+    for (let i = 4; i >= 0; i--) chartLabels.push(String(anioActual - i));
+    chartSeries = chartLabels.map(anio => ventas.filter(v => String(v.fecha || '').slice(0, 4) === anio).reduce((s, v) => s + Number(v.monto_total || 0), 0));
     chartInstance?.destroy();
     chartInstance = new ApexCharts(chartEl, {
       chart: { type: 'bar', height: 320, toolbar: { show: false } },
       ...temaChart(),
-      series: [{ name: 'Ganancia', data: chartSeries }],
+      series: [{ name: 'Ingresos', data: chartSeries }],
       xaxis: { categories: chartLabels },
       colors: ['#198754'],
       dataLabels: { enabled: false },
@@ -161,10 +185,13 @@
     chartInstance.render();
   }
 
-  function actualizarChartAnio(fechaISO, monto, signo) {
-    const idx = chartLabels.indexOf(String(fechaISO || '').slice(0, 4));
-    if (idx === -1) return;
-    chartSeries[idx] = Number(chartSeries[idx] || 0) + signo * Number(monto || 0);
+  function cargarSelectCompradores() {
+    const select = $('venta-comprador');
+    if (!select) return;
+    const anterior = select.value;
+    select.innerHTML = '<option value="">Sin comprador</option>';
+    (data.compradores || []).forEach(c => select.add(new Option(escapeHtml(c.nombre), c.id)));
+    if (anterior && [...select.options].some(o => o.value === anterior)) select.value = anterior;
   }
 
   function abrirNueva() {
@@ -174,7 +201,9 @@
     $('venta-peso-manual').checked = false;
     $('titulo-venta').textContent = 'Registrar venta';
     seleccionados = new Set();
+    paginaActual = 1;
     actualizarTotales();
+    cargarSelectCompradores();
     renderAnimales();
     modal.show();
   }
@@ -195,7 +224,13 @@
     $('titulo-venta').textContent = `Editar venta #${id}`;
     const ids = new Set(v.animales.map(a => a.id));
     seleccionados = ids;
+    (v.animales || []).forEach(a => {
+      if (!disponibles.some(d => d.id === a.id)) disponibles.push(a);
+    });
+    disponibles.sort((x, y) => Number(seleccionados.has(y.id)) - Number(seleccionados.has(x.id)));
+    paginaActual = 1;
     actualizarTotales();
+    cargarSelectCompradores();
     renderAnimales();
     modal.show();
   }
@@ -216,19 +251,18 @@
   }
 
   async function eliminarComprador(id) {
-    if (!confirm('¿Eliminar este comprador?')) return;
+    if (!confirm('¿Dar de baja este comprador? Dejará de estar disponible.')) return;
     const r = await fetch(`/api/compradores/${id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf() } });
     if (!r.ok) return mostrar('No se pudo eliminar el comprador.', 'danger');
     data.compradores = (data.compradores || []).filter(c => c.id !== id);
-    data.summary = data.summary || {};
-    data.summary.compradores = Math.max(0, Number(data.summary.compradores || 0) - 1);
     renderCompradores();
+    cargarSelectCompradores();
     renderSummary();
     mostrar('Comprador eliminado.', 'success');
   }
 
   async function eliminarVenta(id) {
-    if (!confirm('¿Eliminar la venta y restaurar sus animales al stock?')) return;
+    if (!confirm('¿Dar de baja la venta y restaurar sus animales al stock?')) return;
     const r = await fetch(`/api/ventas/${id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf() } });
     if (!r.ok) return mostrar('No se pudo eliminar la venta.', 'danger');
     const venta = ventas.find(v => v.id === id);
@@ -237,20 +271,12 @@
       (venta.animales || []).forEach(a => {
         if (!disponibles.some(d => d.id === a.id)) disponibles.push(a);
       });
-      data.summary = data.summary || {};
-      data.summary.total_ventas = Math.max(0, Number(data.summary.total_ventas || 0) - 1);
-      const monto = Number(venta.monto_total || 0);
-      data.summary.ganancia_total = Math.max(0, Number(data.summary.ganancia_total || 0) - monto);
-      if (String(venta.fecha || '').slice(0, 4) === String(new Date().getFullYear())) {
-        data.summary.ganancia_anio_actual = Math.max(0, Number(data.summary.ganancia_anio_actual || 0) - monto);
-      }
-      actualizarChartAnio(venta.fecha, monto, -1);
     }
     renderVentas();
     renderSummary();
     renderChart();
     renderAnimales();
-    renderResumenMes();
+    renderResumenAnio();
     mostrar('Venta eliminada. Los animales volvieron al stock.', 'success');
   }
 
@@ -264,14 +290,14 @@
       select.disabled = !visible;
       if (!visible) select.value = '';
     }
+    paginaActual = 1;
     renderAnimales();
   }
 
   function seleccionarVisibles() {
-    const especie = $('filtro-especie').value;
-    const cat = $('filtro-categoria').value;
-    const buscar = $('filtro-animal').value.toLowerCase();
-    const visibles = disponibles.filter(a => (!especie || a.tipo_animal === especie) && (!cat || categoria(a) === cat) && (!buscar || `${a.caravana} ${a.nombre}`.toLowerCase().includes(buscar))).map(a => Number(a.id));
+    const filtrados = obtenerFiltrados();
+    const inicio = (paginaActual - 1) * POR_PAGINA;
+    const visibles = filtrados.slice(inicio, inicio + POR_PAGINA).map(a => Number(a.id));
     const todosSeleccionados = visibles.length > 0 && visibles.every(id => seleccionados.has(id));
     if (todosSeleccionados) {
       visibles.forEach(id => seleccionados.delete(id));
@@ -290,12 +316,12 @@
     renderCompradores();
     renderChart();
     renderVentas();
-    renderResumenMes();
+    renderResumenAnio();
     renderAnimales();
     actualizarFiltroCategoria();
+    cargarSelectCompradores();
 
     $('nueva-venta').onclick = abrirNueva;
-    $('nueva-venta-tabla').onclick = abrirNueva;
     $('nuevo-comprador').onclick = () => {
       $('form-comprador').reset();
       $('comprador-id').value = '';
@@ -303,6 +329,19 @@
       modalComprador.show();
     };
     $('seleccionar-filtrados').onclick = seleccionarVisibles;
+    $('pagina-anterior').onclick = () => {
+      if (paginaActual > 1) {
+        paginaActual--;
+        renderAnimales();
+      }
+    };
+    $('pagina-siguiente').onclick = () => {
+      const totalPaginas = Math.max(1, Math.ceil(obtenerFiltrados().length / POR_PAGINA));
+      if (paginaActual < totalPaginas) {
+        paginaActual++;
+        renderAnimales();
+      }
+    };
 
     ['filtro-especie', 'filtro-categoria', 'filtro-animal'].forEach(id => $(id).addEventListener('input', actualizarFiltroCategoria));
     $('venta-precio').addEventListener('input', actualizarTotales);
@@ -312,48 +351,27 @@
 
     $('form-venta').addEventListener('submit', async e => {
       e.preventDefault();
-      if (!seleccionados.size) return mostrar('Seleccioná al menos un animal.', 'warning');
+      if (!seleccionados.size) return alert('Seleccioná al menos un animal.');
 
       const form = new FormData(e.target);
       seleccionados.forEach(id => form.append('animales', id));
       const id = $('venta-id').value;
       const r = await fetch(id ? `/api/ventas/${id}/` : '/api/ventas/', { method: 'POST', headers: { 'X-CSRFToken': csrf() }, body: form });
       const respuesta = await r.json();
-      if (!r.ok) return mostrar(respuesta.error || 'No se pudo guardar la venta.', 'danger');
+      if (!r.ok) return alert(respuesta.error || 'No se pudo guardar la venta.');
       const ventaData = respuesta.venta;
-      const montoNuevo = Number(ventaData.monto_total || 0);
-      const anioActual = String(new Date().getFullYear());
       const esNueva = !id;
 
-      data.summary = data.summary || {};
       if (esNueva) {
         ventas.unshift(ventaData);
-        ventaData.animales.forEach(a => { disponibles = disponibles.filter(d => d.id !== a.id); });
-        data.summary.total_ventas = Number(data.summary.total_ventas || 0) + 1;
-        data.summary.ganancia_total = Number(data.summary.ganancia_total || 0) + montoNuevo;
-        if (String(ventaData.fecha || '').slice(0, 4) === anioActual) {
-          data.summary.ganancia_anio_actual = Number(data.summary.ganancia_anio_actual || 0) + montoNuevo;
-        }
-        actualizarChartAnio(ventaData.fecha, montoNuevo, 1);
       } else {
         const idx = ventas.findIndex(v => v.id === Number(id));
-        const vieja = idx !== -1 ? ventas[idx] : null;
-        if (vieja) {
-          const montoViejo = Number(vieja.monto_total || 0);
-          data.summary.ganancia_total = Number(data.summary.ganancia_total || 0) - montoViejo + montoNuevo;
-          if (String(vieja.fecha || '').slice(0, 4) === anioActual) {
-            data.summary.ganancia_anio_actual = Math.max(0, Number(data.summary.ganancia_anio_actual || 0) - montoViejo);
-          }
-          actualizarChartAnio(vieja.fecha, montoViejo, -1);
-          vieja.animales.forEach(a => {
+        if (idx !== -1) {
+          ventas[idx].animales.forEach(a => {
             if (!disponibles.some(d => d.id === a.id)) disponibles.push(a);
           });
           ventas[idx] = ventaData;
         }
-        if (String(ventaData.fecha || '').slice(0, 4) === anioActual) {
-          data.summary.ganancia_anio_actual = Number(data.summary.ganancia_anio_actual || 0) + montoNuevo;
-        }
-        actualizarChartAnio(ventaData.fecha, montoNuevo, 1);
       }
       ventaData.animales.forEach(a => { disponibles = disponibles.filter(d => d.id !== a.id); });
       seleccionados = new Set();
@@ -361,7 +379,7 @@
       renderSummary();
       renderChart();
       renderAnimales();
-      renderResumenMes();
+      renderResumenAnio();
       modal.hide();
       mostrar('Venta guardada.', 'success');
     });
@@ -369,21 +387,25 @@
     $('form-comprador').addEventListener('submit', async e => {
       e.preventDefault();
       const form = new FormData(e.target);
+      const dni = String(form.get('dni') || '').trim();
+      if (dni && (dni.length < 7 || dni.length > 8)) {
+        alert('El DNI debe tener entre 7 y 8 caracteres.');
+        return;
+      }
       const compradorId = $('comprador-id').value;
       const url = compradorId ? `/api/compradores/${compradorId}/` : '/api/compradores/';
       const r = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrf() }, body: form });
       const respuesta = await r.json();
-      if (!r.ok) return mostrar(respuesta.error || 'No se pudo guardar el comprador.', 'danger');
+      if (!r.ok) return alert(respuesta.error || 'No se pudo guardar el comprador.');
       data.compradores = data.compradores || [];
       if (compradorId) {
         const idx = data.compradores.findIndex(c => c.id === Number(compradorId));
         if (idx !== -1) data.compradores[idx] = respuesta.comprador;
       } else {
         data.compradores.push(respuesta.comprador);
-        data.summary = data.summary || {};
-        data.summary.compradores = Number(data.summary.compradores || 0) + 1;
       }
       renderCompradores();
+      cargarSelectCompradores();
       renderSummary();
       modalComprador.hide();
       mostrar('Comprador guardado.', 'success');
