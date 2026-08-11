@@ -143,11 +143,9 @@
 
   function renderSummary() {
     const total = ventas.length;
-    const ingresos = ventas.reduce((s, v) => s + Number(v.monto_total || 0), 0);
     const anioActual = String(new Date().getFullYear());
     const ingresosAnio = ventas.filter(v => String(v.fecha || '').slice(0, 4) === anioActual).reduce((s, v) => s + Number(v.monto_total || 0), 0);
-    const mesesConVentas = new Set(ventas.map(v => String(v.fecha || '').slice(0, 7)));
-    const promedio = mesesConVentas.size ? ingresos / mesesConVentas.size : 0;
+    const promedio = ingresosAnio / (new Date().getMonth() + 1);
     $('kpi-total-ventas').textContent = total;
     $('kpi-promedio-mes').textContent = dinero(promedio);
     $('kpi-ingresos-anio').textContent = dinero(ingresosAnio);
@@ -212,6 +210,10 @@
     $('titulo-venta').textContent = `Editar venta #${id}`;
     const ids = new Set(v.animales.map(a => a.id));
     seleccionados = ids;
+    (v.animales || []).forEach(a => {
+      if (!disponibles.some(d => d.id === a.id)) disponibles.push(a);
+    });
+    disponibles.sort((x, y) => Number(seleccionados.has(y.id)) - Number(seleccionados.has(x.id)));
     paginaActual = 1;
     actualizarTotales();
     cargarSelectCompradores();
@@ -235,7 +237,7 @@
   }
 
   async function eliminarComprador(id) {
-    if (!confirm('¿Eliminar este comprador?')) return;
+    if (!confirm('¿Dar de baja este comprador? Dejará de estar disponible.')) return;
     const r = await fetch(`/api/compradores/${id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf() } });
     if (!r.ok) return mostrar('No se pudo eliminar el comprador.', 'danger');
     data.compradores = (data.compradores || []).filter(c => c.id !== id);
@@ -246,7 +248,7 @@
   }
 
   async function eliminarVenta(id) {
-    if (!confirm('¿Eliminar la venta y restaurar sus animales al stock?')) return;
+    if (!confirm('¿Dar de baja la venta y restaurar sus animales al stock?')) return;
     const r = await fetch(`/api/ventas/${id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf() } });
     if (!r.ok) return mostrar('No se pudo eliminar la venta.', 'danger');
     const venta = ventas.find(v => v.id === id);

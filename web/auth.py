@@ -20,19 +20,22 @@ def _es_solicitud_ajax(request):
 
 
 def usuario_actual(request):
-    """Devuelve el Usuario logueado según la sesión, o None."""
+    """Devuelve el Usuario logueado según la sesión, o None.
+
+    Un usuario dado de baja (activo=False) se considera no logueado.
+    """
     usuario_id = request.session.get('usuario_id')
     if not usuario_id:
         return None
-    return Usuario.objects.select_related('persona').filter(pk=usuario_id).first()
+    return Usuario.objects.select_related('persona').filter(pk=usuario_id, activo=True).first()
 
 
 def _establecimiento_id_activo(request):
     establecimiento_id = request.session.get('establecimiento_id')
     if establecimiento_id:
         return establecimiento_id
-    if Establecimiento.objects.count() == 1:
-        return Establecimiento.objects.first().id
+    if Establecimiento.objects.filter(activo=True).count() == 1:
+        return Establecimiento.objects.filter(activo=True).first().id
     return None
 
 

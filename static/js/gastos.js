@@ -277,7 +277,7 @@
   }
 
   async function eliminarCompra(id) {
-    if (!confirm('¿Eliminar la compra? Se quitará el movimiento financiero y el lote/animal asociado.')) return;
+    if (!confirm('¿Dar de baja la compra? Su movimiento financiero dejará de contabilizarse.')) return;
     const r = await fetch(`/api/compras/${id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf() } });
     if (!r.ok) return mostrar('No se pudo eliminar la compra.', 'danger');
     const compra = compras.find(c => c.id === id);
@@ -328,7 +328,7 @@
   }
 
   async function eliminarProveedor(id) {
-    if (!confirm('¿Eliminar este proveedor?')) return;
+    if (!confirm('¿Dar de baja este proveedor? Dejará de estar disponible.')) return;
     const r = await fetch(`/api/proveedores/${id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf() } });
     if (!r.ok) return mostrar('No se pudo eliminar el proveedor.', 'danger');
     proveedores = proveedores.filter(p => p.id !== id);
@@ -363,7 +363,7 @@
   }
 
   async function eliminarLiquidacion(id) {
-    if (!confirm('¿Eliminar la liquidación? Se quitará también el egreso registrado en Finanzas.')) return;
+    if (!confirm('¿Dar de baja la liquidación? Su egreso dejará de contabilizarse en Finanzas.')) return;
     const r = await fetch(`/api/liquidaciones/${id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf() } });
     if (!r.ok) return mostrar('No se pudo eliminar la liquidación.', 'danger');
     const liquidacion = liquidaciones.find(c => c.id === id);

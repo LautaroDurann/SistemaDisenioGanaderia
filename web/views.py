@@ -114,8 +114,8 @@ def _establecimientos_permitidos(request):
         permitidos_ids = set(
             RolEstablecimiento.objects.filter(usuario=usuario).values_list('establecimiento_id', flat=True)
         )
-        return [e for e in Establecimiento.objects.order_by('nombre') if e.id in permitidos_ids]
-    return list(Establecimiento.objects.order_by('nombre'))
+        return [e for e in Establecimiento.objects.filter(activo=True).order_by('nombre') if e.id in permitidos_ids]
+    return list(Establecimiento.objects.filter(activo=True).order_by('nombre'))
 
 
 def _establecimiento_actual(request):
@@ -148,7 +148,7 @@ def _usuario_es_propietario_global(request):
 
 
 def _establecimiento_data(establecimiento):
-    total_animales = Animal.objects.filter(establecimiento=establecimiento).count()
+    total_animales = Animal.objects.filter(establecimiento=establecimiento, activo=True).count()
     total_parcelas = Parcela.objects.filter(establecimiento=establecimiento).count()
     return {
         'id': establecimiento.id,
@@ -161,9 +161,9 @@ def _establecimiento_data(establecimiento):
 
 
 def _animales_de(request):
-    """Animales del establecimiento activo (o todos si no hay establecimiento seleccionado)."""
+    """Animales activos del establecimiento activo (o todos si no hay establecimiento seleccionado)."""
     establecimiento = _establecimiento_actual(request)
-    qs = Animal.objects.all()
+    qs = Animal.objects.filter(activo=True)
     if establecimiento is not None:
         # El establecimiento se guarda directo en el animal; se contempla el caso
         # de animales históricos que solo lo tienen a través de su parcela.
@@ -180,8 +180,8 @@ def _parcelas_de(request):
 
 
 def _ventas_de(request):
-    """Ventas cuyo rodeo pertenece al establecimiento activo."""
-    qs = Venta.objects.all()
+    """Ventas activas cuyo rodeo pertenece al establecimiento activo."""
+    qs = Venta.objects.filter(activo=True)
     establecimiento = _establecimiento_actual(request)
     if establecimiento is not None:
         qs = qs.filter(animal__establecimiento=establecimiento).distinct()
@@ -189,8 +189,8 @@ def _ventas_de(request):
 
 
 def _eventos_sanitarios_de(request):
-    """Eventos sanitarios aplicados a animales del establecimiento activo."""
-    qs = EventoSanitario.objects.all()
+    """Eventos sanitarios activos aplicados a animales del establecimiento activo."""
+    qs = EventoSanitario.objects.filter(activo=True)
     establecimiento = _establecimiento_actual(request)
     if establecimiento is not None:
         qs = qs.filter(detalles__animal__establecimiento=establecimiento).distinct()
@@ -205,8 +205,8 @@ def _page(request, template, data_key=None, data=None):
 
 
 def establecimientos_api(request):
-    """Lista los establecimientos registrados (JSON)."""
-    return JsonResponse({'establecimientos': [_establecimiento_data(e) for e in Establecimiento.objects.order_by('nombre')]})
+    """Lista los establecimientos activos registrados (JSON)."""
+    return JsonResponse({'establecimientos': [_establecimiento_data(e) for e in Establecimiento.objects.filter(activo=True).order_by('nombre')]})
 
 
 @require_POST
@@ -217,7 +217,7 @@ def seleccionar_establecimiento(request):
         return JsonResponse({'error': 'Seleccioná un establecimiento.'}, status=400)
     try:
         establecimiento_id = int(establecimiento_id)
-        establecimiento = Establecimiento.objects.get(pk=establecimiento_id)
+        establecimiento = Establecimiento.objects.get(pk=establecimiento_id, activo=True)
     except (TypeError, ValueError, Establecimiento.DoesNotExist):
         return JsonResponse({'error': 'El establecimiento seleccionado no existe.'}, status=400)
     usuario = usuario_actual(request)
@@ -263,18 +263,19 @@ def crear_establecimiento(request):
 @require_POST
 @rol_requerido(ROL_PROPIETARIO)
 def eliminar_establecimiento(request, establecimiento_id):
-    """Elimina un establecimiento y todos sus datos asociados (parcelas, roles, registros)."""
+    """Da de baja (lógicamente) un establecimiento y lo oculta del sistema."""
     try:
-        establecimiento = Establecimiento.objects.get(pk=establecimiento_id)
+        establecimiento = Establecimiento.objects.get(pk=establecimiento_id, activo=True)
     except (TypeError, ValueError, Establecimiento.DoesNotExist):
         return JsonResponse({'error': 'El establecimiento no existe.'}, status=404)
 
-    if Establecimiento.objects.count() <= 1:
-        return JsonResponse({'error': 'No se puede eliminar el único establecimiento del sistema.'}, status=400)
+    if Establecimiento.objects.filter(activo=True).count() <= 1:
+        return JsonResponse({'error': 'No se puede dar de baja el único establecimiento del sistema.'}, status=400)
 
     nombre = establecimiento.nombre
     with transaction.atomic():
-        establecimiento.delete()
+        establecimiento.activo = False
+        establecimiento.save(update_fields=['activo'])
 
     if request.session.get('establecimiento_id') == establecimiento_id:
         request.session.pop('establecimiento_id', None)
@@ -507,7 +508,7 @@ def _compra_data(compra):
 
 
 def _movimientos_financieros_data(request=None):
-    movimientos = MovimientoFinanciero.objects.order_by('-fecha', '-id')
+    movimientos = MovimientoFinanciero.objects.filter(activo=True).order_by('-fecha', '-id')
     establecimiento = _establecimiento_actual(request) if request is not None else None
     if establecimiento is not None:
         movimientos = movimientos.filter(establecimiento=establecimiento)
@@ -528,7 +529,7 @@ def finanzas(request):
     mes = today.month
 
     establecimiento = _establecimiento_actual(request)
-    movimientos_qs = MovimientoFinanciero.objects.all()
+    movimientos_qs = MovimientoFinanciero.objects.filter(activo=True)
     if establecimiento is not None:
         movimientos_qs = movimientos_qs.filter(establecimiento=establecimiento)
 
@@ -568,7 +569,7 @@ def finanzas(request):
     mov_egresos_anio = movimientos_qs.filter(tipo='Egreso', fecha__year=anio)
     compra_tipo_por_mov = {
         c.mov_financiero_id: c.tipo
-        for c in Compra.objects.filter(mov_financiero_id__in=mov_egresos_anio.values('id'))
+        for c in Compra.objects.filter(activo=True, mov_financiero_id__in=mov_egresos_anio.values('id'))
     }
     evento_mov_ids = set(
         EventoSanitario.objects.filter(mov_financiero_id__in=mov_egresos_anio.values('id'))
@@ -594,7 +595,7 @@ def finanzas(request):
     establecimientos_ingresos = []
     establecimientos_egresos = []
     for e in establecimientos:
-        qs_e = MovimientoFinanciero.objects.filter(establecimiento=e, fecha__year=anio)
+        qs_e = MovimientoFinanciero.objects.filter(establecimiento=e, activo=True, fecha__year=anio)
         establecimientos_etiquetas.append(e.nombre)
         establecimientos_ingresos.append(float(
             qs_e.filter(tipo='Ingreso').aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
@@ -697,16 +698,17 @@ def actualizar_movimiento_financiero(request, movimiento_id):
 @require_POST
 @rol_requerido(ROL_PROPIETARIO)
 def eliminar_movimiento_financiero(request, movimiento_id):
-    movimiento = get_object_or_404(MovimientoFinanciero, pk=movimiento_id)
-    if (Venta.objects.filter(mov_financiero_id=movimiento.id).exists()
-            or Compra.objects.filter(mov_financiero_id=movimiento.id).exists()
-            or EventoSanitario.objects.filter(mov_financiero_id=movimiento.id).exists()
+    movimiento = get_object_or_404(MovimientoFinanciero, pk=movimiento_id, activo=True)
+    if (Venta.objects.filter(activo=True, mov_financiero_id=movimiento.id).exists()
+            or Compra.objects.filter(activo=True, mov_financiero_id=movimiento.id).exists()
+            or EventoSanitario.objects.filter(activo=True, mov_financiero_id=movimiento.id).exists()
             or LiquidacionSueldo.objects.filter(movimiento_financiero_id=movimiento.id).exists()):
         return JsonResponse({
             'error': 'Este movimiento está vinculado a una venta, compra, evento sanitario o liquidación de sueldo. '
                      'Eliminalo desde el módulo correspondiente para mantener la coherencia del sistema.'
         }, status=400)
-    movimiento.delete()
+    movimiento.activo = False
+    movimiento.save(update_fields=['activo'])
     return JsonResponse({'ok': True})
 
 
@@ -732,10 +734,10 @@ def ventas(request):
     ingresos_anio = ventas_registradas.filter(fecha__year=today.year).aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
     # peso_desbastado es una propiedad (se calcula), por eso se suma en Python.
     kilos_anio = sum((v.peso_desbastado for v in ventas_registradas.filter(fecha__year=today.year)), Decimal('0'))
-    compradores = list(Comprador.objects.order_by('apellido', 'nombre'))
-    # Promedio de ingresos por mes: total histórico repartido entre los meses que registraron ventas.
-    meses_con_ventas = ventas_registradas.dates('fecha', 'month').count()
-    promedio_por_mes = (ganancia_total / meses_con_ventas) if meses_con_ventas else Decimal('0')
+    compradores = list(Comprador.objects.filter(activo=True).order_by('apellido', 'nombre'))
+    # Promedio de ingresos por mes: ingresos del año actual divididos entre los meses
+    # transcurridos desde enero hasta el mes actual.
+    promedio_por_mes = (ingresos_anio / today.month) if ingresos_anio else Decimal('0')
     chart_years = [today.year - i for i in range(4, -1, -1)]
     chart_labels = [str(year) for year in chart_years]
     chart_series = []
@@ -768,7 +770,7 @@ def gastos(request):
     """Módulo de Gastos: compras del negocio y liquidación de sueldos de empleados."""
     establecimiento = _establecimiento_actual(request)
 
-    compras_registradas = Compra.objects.select_related('proveedor').prefetch_related(
+    compras_registradas = Compra.objects.filter(activo=True).select_related('proveedor').prefetch_related(
         'detalles__lote__insumo', 'animal_set'
     ).order_by('-fecha', '-id')
     liquidaciones = LiquidacionSueldo.objects.select_related(
@@ -788,7 +790,7 @@ def gastos(request):
     sueldos_total = liquidaciones.aggregate(total=Sum('sueldo'))['total'] or Decimal('0')
     sueldos_anio = liquidaciones.filter(fecha__year=today.year).aggregate(total=Sum('sueldo'))['total'] or Decimal('0')
 
-    proveedores = list(Proveedor.objects.order_by('apellido', 'nombre'))
+    proveedores = list(Proveedor.objects.filter(activo=True).order_by('apellido', 'nombre'))
     insumos = list(Insumo.objects.order_by('tipo', 'nombre'))
     empleados = _empleados_de(request)
 
@@ -1092,7 +1094,7 @@ def crear_veterinario(request):
 
 @require_POST
 def actualizar_veterinario(request, veterinario_id):
-    veterinario = get_object_or_404(Veterinario, pk=veterinario_id)
+    veterinario = get_object_or_404(Veterinario, pk=veterinario_id, activo=True)
     try:
         _asignar_veterinario(veterinario, request.POST)
         veterinario.full_clean()
@@ -1104,8 +1106,9 @@ def actualizar_veterinario(request, veterinario_id):
 
 @require_POST
 def eliminar_veterinario(request, veterinario_id):
-    veterinario = get_object_or_404(Veterinario, pk=veterinario_id)
-    veterinario.delete()
+    veterinario = get_object_or_404(Veterinario, pk=veterinario_id, activo=True)
+    veterinario.activo = False
+    veterinario.save(update_fields=['activo'])
     return JsonResponse({'ok': True})
 
 
@@ -1134,7 +1137,7 @@ def sanidad(request):
     diagnosticos = Diagnostico.objects.select_related('animal', 'enfermedad').order_by('-fecha_deteccion')
     if establecimiento is not None:
         diagnosticos = diagnosticos.filter(animal__establecimiento=establecimiento)
-    veterinarios = Veterinario.objects.order_by('apellido', 'nombre')
+    veterinarios = Veterinario.objects.filter(activo=True).order_by('apellido', 'nombre')
     lotes = Lote.objects.select_related('insumo').order_by('insumo__nombre', 'fechaVencimiento')
     if establecimiento is not None:
         lotes = lotes.filter(establecimiento=establecimiento)
@@ -1220,24 +1223,28 @@ def _sync_movimiento_evento(evento, establecimiento=None):
                 'fecha': evento.fecha_aplicacion,
                 'detalle': evento.detalle or f'Gasto de {evento.tipo} registrado desde el módulo de Sanidad.',
                 'establecimiento': establecimiento,
+                'activo': True,
             },
         )
         if evento.mov_financiero_id != movimiento.id:
             EventoSanitario.objects.filter(pk=evento.pk).update(mov_financiero=movimiento)
     elif evento.mov_financiero_id:
-        MovimientoFinanciero.objects.filter(pk=evento.mov_financiero_id).delete()
+        MovimientoFinanciero.objects.filter(pk=evento.mov_financiero_id, activo=True).update(activo=False)
         EventoSanitario.objects.filter(pk=evento.pk).update(mov_financiero=None)
 
 
 @require_POST
 def eliminar_evento_sanitario(request, evento_id):
-    evento = get_object_or_404(EventoSanitario, pk=evento_id)
+    """Da de baja (lógicamente) un evento sanitario y su movimiento financiero asociado."""
+    evento = get_object_or_404(EventoSanitario, pk=evento_id, activo=True)
     if evento.tipo == TIPO_INSEMINACION:
         return JsonResponse({'error': 'Las inseminaciones se gestionan desde el módulo de Preñez.'}, status=400)
     movimiento_id = evento.mov_financiero_id
-    evento.delete()
-    if movimiento_id:
-        MovimientoFinanciero.objects.filter(pk=movimiento_id).delete()
+    with transaction.atomic():
+        evento.activo = False
+        evento.save(update_fields=['activo'])
+        if movimiento_id:
+            MovimientoFinanciero.objects.filter(pk=movimiento_id, activo=True).update(activo=False)
     return JsonResponse({'ok': True})
 
 
@@ -1256,10 +1263,10 @@ def alimentacion(request):
 
 @rol_requerido(ROL_PROPIETARIO)
 def usuarios(request):
-    usuarios_data = [_usuario_data(u) for u in Usuario.objects.select_related('persona')]
+    usuarios_data = [_usuario_data(u) for u in Usuario.objects.filter(activo=True).select_related('persona')]
     actual = usuario_actual(request)
     data = {'usuarios': usuarios_data,
-            'establecimientos_data': [{'id': e.id, 'nombre': e.nombre} for e in Establecimiento.objects.order_by('nombre')],
+            'establecimientos_data': [{'id': e.id, 'nombre': e.nombre} for e in Establecimiento.objects.filter(activo=True).order_by('nombre')],
             'usuario_actual_id': actual.id if actual else None}
     return _page(request, 'usuarios.html', 'usuarios', data)
 
@@ -1412,7 +1419,7 @@ def crear_animal(request):
 
 @require_POST
 def actualizar_animal(request, animal_id):
-    animal = get_object_or_404(Animal, pk=animal_id)
+    animal = get_object_or_404(Animal, pk=animal_id, activo=True)
     try:
         _asignar_campos_animal(animal, request.POST)
         _validar_establecimiento_accesible(request, animal.establecimiento_id)
@@ -1430,8 +1437,10 @@ def actualizar_animal(request, animal_id):
 
 @require_POST
 def eliminar_animal(request, animal_id):
-    animal = get_object_or_404(Animal, pk=animal_id)
-    animal.delete()
+    """Da de baja (lógicamente) un animal: se oculta del sistema pero conserva su historia."""
+    animal = get_object_or_404(Animal, pk=animal_id, activo=True)
+    animal.activo = False
+    animal.save(update_fields=['activo'])
     return JsonResponse({'ok': True})
 
 
@@ -1449,7 +1458,7 @@ def crear_potrero(request):
         if not establecimiento_id:
             establecimiento = _establecimiento_actual(request)
             if establecimiento is None:
-                establecimiento = Establecimiento.objects.order_by('id').first()
+                establecimiento = Establecimiento.objects.filter(activo=True).order_by('id').first()
             if establecimiento is None:
                 establecimiento = Establecimiento.objects.create(
                     nombre='Establecimiento principal',
@@ -1490,7 +1499,7 @@ def _registrar_venta(venta, datos):
     if precio_por_kg <= 0 or not animales_ids or len(animales_ids) != len(set(animales_ids)):
         raise ValueError('Indicá un precio por kilo válido y al menos un animal.')
 
-    animales = list(Animal.objects.select_for_update().filter(pk__in=animales_ids, vivo=True, vendido=False))
+    animales = list(Animal.objects.select_for_update().filter(pk__in=animales_ids, activo=True, vivo=True, vendido=False))
     if len(animales) != len(animales_ids):
         raise ValueError('Uno o más animales ya no están disponibles para la venta.')
 
@@ -1535,7 +1544,7 @@ def _registrar_venta(venta, datos):
         defaults={
             'tipo': 'Ingreso', 'nombre': f'Venta #{venta.id}', 'monto_total': monto_total,
             'fecha': venta.fecha, 'detalle': venta.detalle or f'Venta de {len(animales)} animal(es).',
-            'establecimiento': establecimiento,
+            'establecimiento': establecimiento, 'activo': True,
         },
     )
     if venta.mov_financiero_id != movimiento.id:
@@ -1555,8 +1564,8 @@ def _registrar_venta(venta, datos):
 
 
 def _revertir_venta(venta):
-    """Deshace los efectos sobre animales para poder editar o eliminar una venta."""
-    animales = Animal.objects.select_for_update().filter(venta=venta)
+    """Deshace los efectos sobre animales activos para poder editar o eliminar una venta."""
+    animales = Animal.objects.select_for_update().filter(venta=venta, activo=True)
     animales.update(vendido=False, venta=None, precio_venta=None)
 
 
@@ -1585,7 +1594,7 @@ def crear_comprador(request):
 @require_POST
 @rol_requerido(ROL_PROPIETARIO)
 def actualizar_comprador(request, comprador_id):
-    comprador = get_object_or_404(Comprador, pk=comprador_id)
+    comprador = get_object_or_404(Comprador, pk=comprador_id, activo=True)
     try:
         _asignar_comprador(comprador, request.POST)
         comprador.full_clean()
@@ -1598,8 +1607,9 @@ def actualizar_comprador(request, comprador_id):
 @require_POST
 @rol_requerido(ROL_PROPIETARIO)
 def eliminar_comprador(request, comprador_id):
-    comprador = get_object_or_404(Comprador, pk=comprador_id)
-    comprador.delete()
+    comprador = get_object_or_404(Comprador, pk=comprador_id, activo=True)
+    comprador.activo = False
+    comprador.save(update_fields=['activo'])
     return JsonResponse({'ok': True})
 
 
@@ -1620,7 +1630,7 @@ def crear_venta(request):
 def actualizar_venta(request, venta_id):
     try:
         with transaction.atomic():
-            venta = get_object_or_404(Venta.objects.select_for_update(), pk=venta_id)
+            venta = get_object_or_404(Venta.objects.select_for_update(), pk=venta_id, activo=True)
             _revertir_venta(venta)
             _registrar_venta(venta, request.POST)
     except (ValueError, ValidationError, IntegrityError, ArithmeticError) as error:
@@ -1631,13 +1641,15 @@ def actualizar_venta(request, venta_id):
 @require_POST
 @rol_requerido(ROL_PROPIETARIO)
 def eliminar_venta(request, venta_id):
+    """Da de baja (lógicamente) una venta y su movimiento financiero asociado."""
     with transaction.atomic():
-        venta = get_object_or_404(Venta.objects.select_for_update(), pk=venta_id)
+        venta = get_object_or_404(Venta.objects.select_for_update(), pk=venta_id, activo=True)
         movimiento_id = venta.mov_financiero_id
         _revertir_venta(venta)
-        venta.delete()
+        venta.activo = False
+        venta.save(update_fields=['activo'])
         if movimiento_id:
-            MovimientoFinanciero.objects.filter(pk=movimiento_id).delete()
+            MovimientoFinanciero.objects.filter(pk=movimiento_id, activo=True).update(activo=False)
     return JsonResponse({'ok': True})
 
 
@@ -1806,7 +1818,7 @@ def _registrar_compra(compra, datos, establecimiento=None):
             'tipo': 'Egreso', 'nombre': f'Compra #{compra.id} - {tipo}',
             'monto_total': compra.monto_total, 'fecha': compra.fecha,
             'detalle': _detalle_efectos_compra(compra),
-            'establecimiento': establecimiento,
+            'establecimiento': establecimiento, 'activo': True,
         },
     )
     if compra.mov_financiero_id != movimiento.id:
@@ -1831,7 +1843,7 @@ def crear_compra(request):
 def actualizar_compra(request, compra_id):
     try:
         with transaction.atomic():
-            compra = get_object_or_404(Compra.objects.select_for_update(), pk=compra_id)
+            compra = get_object_or_404(Compra.objects.select_for_update(), pk=compra_id, activo=True)
             _registrar_compra(compra, request.POST, establecimiento=_establecimiento_actual(request))
     except (ValueError, ValidationError, IntegrityError, ArithmeticError) as error:
         return JsonResponse({'error': str(error) or 'No se pudo actualizar la compra.'}, status=400)
@@ -1841,13 +1853,16 @@ def actualizar_compra(request, compra_id):
 @require_POST
 @rol_requerido(ROL_PROPIETARIO)
 def eliminar_compra(request, compra_id):
+    """Da de baja (lógicamente) una compra y su movimiento financiero asociado."""
     with transaction.atomic():
-        compra = get_object_or_404(Compra.objects.select_for_update(), pk=compra_id)
+        compra = get_object_or_404(Compra.objects.select_for_update(), pk=compra_id, activo=True)
         movimiento_id = compra.mov_financiero_id
-        _sincronizar_efectos_compra(compra, '')
-        compra.delete()
+        # Se desvincula a los animales de la compra sin borrarlos físicamente.
+        Animal.objects.filter(compra=compra).update(compra=None)
+        compra.activo = False
+        compra.save(update_fields=['activo'])
         if movimiento_id:
-            MovimientoFinanciero.objects.filter(pk=movimiento_id).delete()
+            MovimientoFinanciero.objects.filter(pk=movimiento_id, activo=True).update(activo=False)
     return JsonResponse({'ok': True})
 
 
@@ -1876,7 +1891,7 @@ def crear_proveedor(request):
 @require_POST
 @rol_requerido(ROL_PROPIETARIO)
 def actualizar_proveedor(request, proveedor_id):
-    proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
+    proveedor = get_object_or_404(Proveedor, pk=proveedor_id, activo=True)
     try:
         _asignar_proveedor(proveedor, request.POST)
         proveedor.full_clean()
@@ -1889,8 +1904,9 @@ def actualizar_proveedor(request, proveedor_id):
 @require_POST
 @rol_requerido(ROL_PROPIETARIO)
 def eliminar_proveedor(request, proveedor_id):
-    proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
-    proveedor.delete()
+    proveedor = get_object_or_404(Proveedor, pk=proveedor_id, activo=True)
+    proveedor.activo = False
+    proveedor.save(update_fields=['activo'])
     return JsonResponse({'ok': True})
 
 
@@ -1901,7 +1917,7 @@ def eliminar_proveedor(request, proveedor_id):
 def _empleados_de(request):
     """Usuarios con rol en el establecimiento activo (candidatos a liquidar sueldos)."""
     establecimiento = _establecimiento_actual(request)
-    queryset = Usuario.objects.select_related('persona').order_by('persona__nombre')
+    queryset = Usuario.objects.filter(activo=True).select_related('persona').order_by('persona__nombre')
     if establecimiento is not None:
         queryset = queryset.filter(rolestablecimiento__establecimiento=establecimiento).distinct()
     return list(queryset)
@@ -1947,7 +1963,7 @@ def _registrar_liquidacion(liquidacion, datos, establecimiento=None):
     if not empleado_id:
         raise ValueError('Seleccioná el empleado a liquidar.')
 
-    empleado = Usuario.objects.select_related('persona').filter(pk=empleado_id).first()
+    empleado = Usuario.objects.select_related('persona').filter(pk=empleado_id, activo=True).first()
     if empleado is None:
         raise ValueError('El empleado seleccionado ya no existe.')
     if establecimiento is not None:
@@ -1981,6 +1997,7 @@ def _registrar_liquidacion(liquidacion, datos, establecimiento=None):
             'monto_total': sueldo, 'fecha': fecha,
             'detalle': liquidacion.descripcion,
             'establecimiento': liquidacion.establecimiento,
+            'activo': True,
         },
     )
     if liquidacion.movimiento_financiero_id != movimiento.id:
@@ -2017,10 +2034,13 @@ def actualizar_liquidacion(request, liquidacion_id):
 def eliminar_liquidacion(request, liquidacion_id):
     with transaction.atomic():
         liquidacion = get_object_or_404(LiquidacionSueldo.objects.select_for_update(), pk=liquidacion_id)
-        movimiento = liquidacion.movimiento_financiero
+        movimiento_id = liquidacion.movimiento_financiero_id
+        if movimiento_id:
+            # Se desvincula y se da de baja lógicamente el movimiento asociado.
+            LiquidacionSueldo.objects.filter(pk=liquidacion.pk).update(movimiento_financiero=None)
+            liquidacion.movimiento_financiero = None
+            MovimientoFinanciero.objects.filter(pk=movimiento_id, activo=True).update(activo=False)
         liquidacion.delete()
-        if movimiento is not None:
-            movimiento.delete()
     return JsonResponse({'ok': True})
 
 
@@ -2192,15 +2212,15 @@ def prenieces(request):
         if proximo is None or estimada < proximo[0]:
             proximo = (estimada, p)
 
-    madres = Animal.objects.filter(sexo='Hembra', vivo=True, vendido=False) \
+    madres = Animal.objects.filter(activo=True, sexo='Hembra', vivo=True, vendido=False) \
         .select_related('parcela').order_by('id_senasa')
     madres_preniadas = set(Preniez.objects.filter(estado_actual='Preñada', parto__isnull=True)
                            .values_list('madre_id', flat=True))
-    padres = Animal.objects.filter(sexo='Macho', vivo=True, vendido=False).order_by('id_senasa')
-    veterinarios = Veterinario.objects.order_by('apellido', 'nombre')
+    padres = Animal.objects.filter(activo=True, sexo='Macho', vivo=True, vendido=False).order_by('id_senasa')
+    veterinarios = Veterinario.objects.filter(activo=True).order_by('apellido', 'nombre')
     partos = Parto.objects.select_related('preniez__madre', 'preniez__padre') \
         .prefetch_related('crias').order_by('-fecha', '-id')
-    eventos_inseminacion = EventoSanitario.objects.filter(tipo='Inseminación') \
+    eventos_inseminacion = EventoSanitario.objects.filter(tipo='Inseminación', activo=True) \
         .select_related('padre', 'veterinario') \
         .prefetch_related('detalles__animal', 'prenieces') \
         .order_by('-fecha_aplicacion', '-id')
@@ -2249,7 +2269,7 @@ def _asignar_preniez(preniez, datos):
     preniez.padre_id = int(datos['padre_id']) if datos.get('padre_id') else None
     preniez.padre_donante = datos.get('padre_donante', '').strip() or None
 
-    madre = Animal.objects.select_related('parcela').filter(pk=preniez.madre_id).first()
+    madre = Animal.objects.select_related('parcela').filter(pk=preniez.madre_id, activo=True).first()
     if madre is None or madre.sexo != 'Hembra':
         raise ValueError('Seleccioná un animal hembra para cargar la preñez.')
     if not madre.vivo or madre.vendido:
@@ -2349,14 +2369,14 @@ def _validar_inseminacion(evento, animal_ids, tipo_animal=''):
         raise ValueError('Seleccioná el tipo de animal para la inseminación.')
     if not evento.padre_id:
         raise ValueError('Seleccioná el padre (macho) para la inseminación.')
-    padre = Animal.objects.filter(pk=evento.padre_id).first()
+    padre = Animal.objects.filter(pk=evento.padre_id, activo=True).first()
     if padre is None or padre.sexo != 'Macho':
         raise ValueError('El padre seleccionado debe ser macho.')
     if padre.tipo_animal != tipo_animal:
         raise ValueError('El padre debe ser del mismo tipo de animal que las hembras a inseminar.')
-    if Animal.objects.filter(pk__in=animal_ids, sexo='Hembra').count() != len(animal_ids):
+    if Animal.objects.filter(activo=True, pk__in=animal_ids, sexo='Hembra').count() != len(animal_ids):
         raise ValueError('Solo se pueden inseminar animales hembra.')
-    if Animal.objects.filter(pk__in=animal_ids).exclude(tipo_animal=tipo_animal).exists():
+    if Animal.objects.filter(activo=True, pk__in=animal_ids).exclude(tipo_animal=tipo_animal).exists():
         raise ValueError('Todas las hembras deben ser del mismo tipo de animal que el seleccionado.')
 
 
@@ -2384,7 +2404,8 @@ def actualizar_evento_inseminacion(request, evento_id):
 
 @require_POST
 def eliminar_evento_inseminacion(request, evento_id):
-    evento = get_object_or_404(EventoSanitario, pk=evento_id)
+    """Da de baja (lógicamente) un evento de inseminación y su movimiento financiero asociado."""
+    evento = get_object_or_404(EventoSanitario, pk=evento_id, activo=True)
     if evento.tipo != 'Inseminación':
         return JsonResponse({'error': 'El evento no es una inseminación.'}, status=400)
     if evento.prenieces.exists():
@@ -2393,9 +2414,10 @@ def eliminar_evento_inseminacion(request, evento_id):
         }, status=400)
     with transaction.atomic():
         movimiento_id = evento.mov_financiero_id
-        evento.delete()
+        evento.activo = False
+        evento.save(update_fields=['activo'])
         if movimiento_id:
-            MovimientoFinanciero.objects.filter(pk=movimiento_id).delete()
+            MovimientoFinanciero.objects.filter(pk=movimiento_id, activo=True).update(activo=False)
     return JsonResponse({'ok': True})
 
 

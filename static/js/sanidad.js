@@ -509,7 +509,7 @@ function bindVeterinariosTable() {
   });
   tbody.querySelectorAll('.btn-eliminar-veterinario').forEach((btn) => {
     btn.addEventListener('click', () => {
-      if (confirm('¿Eliminar este veterinario?')) {
+      if (confirm('¿Dar de baja este veterinario? Dejará de estar disponible.')) {
         eliminarVeterinario(btn.dataset.id);
       }
     });
@@ -1222,7 +1222,7 @@ async function guardarEvento() {
 }
 
 async function eliminarEvento(id) {
-  if (!confirm('¿Eliminar este evento sanitario?')) {
+  if (!confirm('¿Dar de baja este evento sanitario?')) {
     return;
   }
 

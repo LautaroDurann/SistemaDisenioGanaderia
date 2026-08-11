@@ -26,8 +26,9 @@ class Animal(models.Model):
     # ni las relaciones existentes.
     idAnimal = models.BigAutoField(db_column='id', primary_key=True, serialize=False, verbose_name='ID')
 
-    # Caravana SENASA (Clave Única). Admite letras y números, sin símbolos.
-    id_senasa = models.CharField(max_length=50, unique=True, null=True, blank=True)
+    # Caravana SENASA. Admite letras y números, sin símbolos.
+    # La unicidad se aplica solo entre animales activos (baja lógica mediante 'activo').
+    id_senasa = models.CharField(max_length=50, null=True, blank=True)
     nombre = models.CharField(max_length=100, blank=True, default='')
     descripcion = models.TextField(blank=True, null=True)
     foto = models.ImageField(upload_to='animales/', blank=True, null=True)
@@ -74,6 +75,18 @@ class Animal(models.Model):
     compra = models.ForeignKey('finanzas.Compra', on_delete=models.SET_NULL, null=True, blank=True)
     venta = models.ForeignKey('finanzas.Venta', on_delete=models.SET_NULL, null=True, blank=True)
     parto = models.ForeignKey('animales.Parto', on_delete=models.SET_NULL, null=True, blank=True, related_name='crias')
+
+    # Baja lógica: activo=False oculta al animal del sistema pero conserva su historia.
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['id_senasa'],
+                condition=models.Q(activo=True),
+                name='animal_id_senasa_activo_uniq',
+            ),
+        ]
 
     def __str__(self):
         caravana = self.id_senasa if self.id_senasa is not None else 'Sin caravana'

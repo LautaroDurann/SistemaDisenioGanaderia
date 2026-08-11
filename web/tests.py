@@ -130,7 +130,7 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         evento.refresh_from_db()
         self.assertIsNone(evento.mov_financiero)
-        self.assertEqual(MovimientoFinanciero.objects.count(), 0)
+        self.assertEqual(MovimientoFinanciero.objects.filter(activo=True).count(), 0)
 
     def test_eliminar_evento_con_costo_elimina_el_movimiento_financiero(self):
         response = self.client.post(reverse('crear_evento_sanitario'), {
@@ -142,8 +142,8 @@ class WebIntegrationTests(TestCase):
 
         response = self.client.post(reverse('eliminar_evento_sanitario', args=[evento.id]))
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(EventoSanitario.objects.filter(pk=evento.id).exists())
-        self.assertEqual(MovimientoFinanciero.objects.count(), 0)
+        self.assertFalse(EventoSanitario.objects.filter(pk=evento.id, activo=True).exists())
+        self.assertEqual(MovimientoFinanciero.objects.filter(activo=True).count(), 0)
 
     def test_crear_y_editar_movimiento_financiero(self):
         response = self.client.post(reverse('api_finanzas_movimientos'), {
@@ -317,7 +317,7 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(str(self.animal.peso_actual), '412.00')
         response = self.client.post(reverse('eliminar_animal', args=[self.animal.idAnimal]))
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Animal.objects.filter(pk=self.animal.idAnimal).exists())
+        self.assertFalse(Animal.objects.filter(pk=self.animal.idAnimal, activo=True).exists())
 
     def test_crear_animal_con_caravana_alfanumerica(self):
         response = self.client.post(reverse('crear_animal'), {
@@ -454,8 +454,8 @@ class WebIntegrationTests(TestCase):
         self.animal.refresh_from_db()
         self.assertFalse(self.animal.vendido)
         self.assertIsNone(self.animal.venta)
-        self.assertFalse(Venta.objects.exists())
-        self.assertFalse(MovimientoFinanciero.objects.exists())
+        self.assertFalse(Venta.objects.filter(activo=True).exists())
+        self.assertFalse(MovimientoFinanciero.objects.filter(activo=True).exists())
 
     def test_actualizar_venta_recalcula_montos_y_conserva_animales(self):
         self.animal.peso_actual = Decimal('300.00')
@@ -625,7 +625,7 @@ class WebIntegrationTests(TestCase):
 
         response = self.client.post(reverse('eliminar_comprador', args=[comprador.id]))
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Comprador.objects.filter(pk=comprador.id).exists())
+        self.assertFalse(Comprador.objects.filter(pk=comprador.id, activo=True).exists())
 
 
 class CompraModuleTests(TestCase):
@@ -800,9 +800,9 @@ class CompraModuleTests(TestCase):
 
         response = self.client.post(reverse('eliminar_compra', args=[compra.id]))
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Compra.objects.filter(pk=compra.id).exists())
-        self.assertFalse(MovimientoFinanciero.objects.filter(pk=movimiento_id).exists())
-        self.assertFalse(Lote.objects.filter(pk=lote_id).exists())
+        self.assertFalse(Compra.objects.filter(pk=compra.id, activo=True).exists())
+        self.assertFalse(MovimientoFinanciero.objects.filter(pk=movimiento_id, activo=True).exists())
+        self.assertTrue(Lote.objects.filter(pk=lote_id).exists())
 
     def test_compra_de_insumos_sin_cantidad_da_error(self):
         response = self.crear_compra({
@@ -861,7 +861,7 @@ class FinanzasSyncTests(TestCase):
 
         response = self.client.post(reverse('eliminar_movimiento_financiero', args=[movimiento_id]))
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(MovimientoFinanciero.objects.filter(pk=movimiento_id).exists())
+        self.assertFalse(MovimientoFinanciero.objects.filter(pk=movimiento_id, activo=True).exists())
 
     def test_eliminar_movimiento_vinculado_a_venta_bloqueado(self):
         animal = Animal.objects.create(
@@ -1554,7 +1554,7 @@ class SueldosModuleTests(TestCase):
         response = self.client.post(reverse('eliminar_liquidacion', args=[liquidacion_id]))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(LiquidacionSueldo.objects.filter(pk=liquidacion_id).exists())
-        self.assertFalse(MovimientoFinanciero.objects.filter(pk=movimiento_id).exists())
+        self.assertFalse(MovimientoFinanciero.objects.filter(pk=movimiento_id, activo=True).exists())
 
 
 class PreniezModuleTests(TestCase):
@@ -2015,7 +2015,7 @@ class InseminacionModuleTests(TestCase):
         })
         self.assertEqual(response.status_code, 400)
 
-    def test_eliminar_establecimiento_borra_dependencias(self):
+    def test_eliminar_establecimiento_oculta_y_conserva_dependencias(self):
         segundo = Establecimiento.objects.create(
             nombre='Campo Chico', fecha_inicio=date.today(), ubicacion='Salta'
         )
@@ -2034,12 +2034,12 @@ class InseminacionModuleTests(TestCase):
         response = self.client.post(reverse('eliminar_establecimiento', args=[segundo.id]))
         self.assertEqual(response.status_code, 200)
 
-        self.assertFalse(Establecimiento.objects.filter(pk=segundo.id).exists())
-        self.assertFalse(Parcela.objects.filter(pk=parcela_segunda.id).exists())
-        self.assertFalse(RolEstablecimiento.objects.filter(pk=rol.id).exists())
+        self.assertFalse(Establecimiento.objects.filter(pk=segundo.id, activo=True).exists())
+        self.assertTrue(Parcela.objects.filter(pk=parcela_segunda.id).exists())
+        self.assertTrue(RolEstablecimiento.objects.filter(pk=rol.id).exists())
         animal.refresh_from_db()
-        self.assertIsNone(animal.establecimiento)
-        self.assertIsNone(animal.parcela)
+        self.assertEqual(animal.establecimiento, segundo)
+        self.assertEqual(animal.parcela, parcela_segunda)
         self.assertNotIn('establecimiento_id', self.client.session)
 
     def test_no_se_elimina_el_unico_establecimiento(self):

@@ -72,6 +72,9 @@ class EventoSanitario(models.Model):
     # Solo se usa para el tipo 'Inseminación': características del padre donante de semen.
     padre_donante = models.CharField(max_length=255, blank=True, null=True)
 
+    # Baja lógica: activo=False oculta al evento del sistema pero conserva su historia.
+    activo = models.BooleanField(default=True)
+
     # ATENCIÓN: El campo 'animal' fue removido de aquí.
 
     def __str__(self):

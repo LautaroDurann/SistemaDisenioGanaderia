@@ -455,7 +455,7 @@
           if (botonEliminar) {
             ev.stopPropagation();
             const animal = ANIMALES.find((item) => item.id === Number(botonEliminar.dataset.id));
-            if (!animal || !window.confirm(`¿Eliminar definitivamente a #${animal.caravana} ${animal.nombre}?`)) return;
+            if (!animal || !window.confirm(`¿Dar de baja a #${animal.caravana} ${animal.nombre}? Dejará de mostrarse en el stock.`)) return;
             const csrf = document.cookie.split('; ').find((row) => row.startsWith('csrftoken='))?.split('=')[1];
             fetch(`/api/animales/${animal.id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf || '' } })
               .then((response) => {

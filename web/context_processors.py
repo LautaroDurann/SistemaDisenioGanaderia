@@ -21,7 +21,7 @@ def establecimientos_globales(request):
     selecciona el primero disponible (no existe la vista de "todos los establecimientos").
     """
     usuario = usuario_actual(request)
-    todos = list(Establecimiento.objects.order_by('nombre'))
+    todos = list(Establecimiento.objects.filter(activo=True).order_by('nombre'))
     if usuario is not None and not es_propietario(request):
         permitidos = set(
             RolEstablecimiento.objects.filter(usuario=usuario).values_list('establecimiento_id', flat=True)

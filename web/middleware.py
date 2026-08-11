@@ -30,8 +30,13 @@ class RequerirLoginMiddleware:
                 return JsonResponse({'error': 'Debés iniciar sesión para continuar.'}, status=401)
             return HttpResponseRedirect(reverse('login') + '?next=' + quote(request.get_full_path()))
         if not es_publica and request.session.get('usuario_id') is not None:
-            # Un usuario desactivado (sin ningún acceso activo) pierde la sesión.
+            # Un usuario desactivado (baja lógica o sin ningún acceso activo) pierde la sesión.
             usuario_id = request.session['usuario_id']
+            if Usuario.objects.filter(pk=usuario_id, activo=False).exists():
+                request.session.flush()
+                if es_ajax:
+                    return JsonResponse({'error': 'Tu usuario fue desactivado.'}, status=401)
+                return HttpResponseRedirect(reverse('login') + '?next=' + quote(request.get_full_path()))
             filas = RolEstablecimiento.objects.filter(usuario_id=usuario_id)
             if filas.exists() and not filas.filter(estado_acceso=True).exists():
                 request.session.flush()

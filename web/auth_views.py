@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.core.validators import validate_email
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -212,6 +213,8 @@ def _usuario_por_token(token):
 
 
 def _usuario_puede_acceder(usuario):
+    if not usuario.activo:
+        return False
     roles = RolEstablecimiento.objects.filter(usuario=usuario)
     if not roles.exists():
         return True
@@ -240,8 +243,8 @@ def _resolver_establecimiento(request, establecimiento_id):
             return None
     if request.session.get('establecimiento_id'):
         return request.session['establecimiento_id']
-    if Establecimiento.objects.count() == 1:
-        return Establecimiento.objects.first().id
+    if Establecimiento.objects.filter(activo=True).count() == 1:
+        return Establecimiento.objects.filter(activo=True).first().id
     return None
 
 
@@ -313,9 +316,9 @@ def crear_usuario_api(request):
             raise ValueError('Nombre, usuario y contraseña son obligatorios.')
         if len(clave) < 6:
             raise ValueError('La contraseña debe tener al menos 6 caracteres.')
-        if Usuario.objects.filter(nombre_usuario=nombre_usuario).exists():
+        if Usuario.objects.filter(nombre_usuario=nombre_usuario, activo=True).exists():
             raise ValueError('Ese nombre de usuario ya está en uso.')
-        if correo and Persona.objects.filter(correo_electronico=correo).exists():
+        if correo and Persona.objects.filter(correo_electronico=correo, activo=True).exists():
             raise ValueError('Ese correo electrónico ya está registrado.')
 
         rol = request.POST.get('rol', ROL_OPERARIO).strip()
@@ -390,7 +393,7 @@ def actualizar_usuario_api(request, usuario_id):
                     validate_email(correo_nuevo)
                 except ValidationError:
                     raise ValueError('El correo electrónico no es válido.')
-                if Persona.objects.filter(correo_electronico=correo_nuevo).exclude(pk=persona.pk).exists():
+                if Persona.objects.filter(correo_electronico=correo_nuevo, activo=True).exclude(pk=persona.pk).exists():
                     raise ValueError('Ese correo electrónico ya está registrado.')
             persona.correo_electronico = correo_nuevo or None
         telefono = request.POST.get('telefono')
@@ -496,12 +499,16 @@ def _verificar_no_quitar_ultimo_propietario(usuario):
 @rol_requerido(ROL_PROPIETARIO)
 @require_POST
 def eliminar_usuario_api(request, usuario_id):
-    usuario = get_object_or_404(Usuario, pk=usuario_id)
+    """Da de baja (lógicamente) un usuario: no puede acceder más y se oculta del sistema."""
+    usuario = get_object_or_404(Usuario, pk=usuario_id, activo=True)
     if usuario.id == request.session.get('usuario_id'):
-        return JsonResponse({'error': 'No podés eliminar tu propio usuario.'}, status=400)
+        return JsonResponse({'error': 'No podés dar de baja tu propio usuario.'}, status=400)
     if _es_ultimo_propietario(usuario):
-        return JsonResponse({'error': 'No podés eliminar al último propietario activo.'}, status=400)
-    usuario.delete()
+        return JsonResponse({'error': 'No podés dar de baja al último propietario activo.'}, status=400)
+    with transaction.atomic():
+        usuario.activo = False
+        usuario.save(update_fields=['activo'])
+        RolEstablecimiento.objects.filter(usuario=usuario).update(estado_acceso=False)
     return JsonResponse({'ok': True})
 
 

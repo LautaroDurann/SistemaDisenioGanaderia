@@ -296,7 +296,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const btn = e.target.closest('.btn-eliminar');
       if (!btn) return;
       const id = btn.dataset.id;
-      if (!confirm('Confirma eliminar este movimiento financiero?')) return;
+      if (!confirm('¿Dar de baja este movimiento financiero? Dejará de contabilizarse.')) return;
       fetch(`/api/finanzas/movimientos/${id}/eliminar/`, {
         method: 'POST',
         headers: { 'X-CSRFToken': getCookie('csrftoken') },

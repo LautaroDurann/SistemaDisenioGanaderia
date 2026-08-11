@@ -300,7 +300,7 @@ function renderTabla() {
       e.preventDefault();
       const u = USUARIOS.find((x) => x.id === Number(btn.dataset.id));
       if (!u) return;
-      if (!confirm(`¿Eliminar al usuario ${nombreCompleto(u) || u.usuario}? Esta acción no se puede deshacer.`)) return;
+      if (!confirm(`¿Dar de baja al usuario ${nombreCompleto(u) || u.usuario}? Perderá el acceso al sistema.`)) return;
       try {
         await apiFetch(`/api/usuarios/${btn.dataset.id}/eliminar/`, {});
         await cargarUsuarios();
