@@ -12,10 +12,6 @@ from django.urls import reverse
 
 from animales.models import Animal, Parto, Preniez
 from establecimientos.models import Establecimiento, Parcela
-from finanzas.models import Compra, MovimientoFinanciero, Venta
-from sanidad.models import DetalleEvento, EventoSanitario
-from web.views import _evento_inseminacion_data
-from usuarios.models import Comprador, Persona, RolEstablecimiento, Usuario
 from finanzas.models import Compra, LiquidacionSueldo, MovimientoFinanciero, Venta
 from inventario.models import Consumo, DetalleCompra, Insumo, Lote
 from sanidad.models import DetalleEvento, EventoSanitario, Enfermedad, Diagnostico

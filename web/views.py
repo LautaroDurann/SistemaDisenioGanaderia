@@ -14,12 +14,6 @@ from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from animales.models import Animal, MovimientoAnimal, Parto, Pesaje, Preniez
-from establecimientos.models import Parcela
-from animales.models import Animal, MovimientoAnimal, Pesaje
-from establecimientos.models import Establecimiento, Parcela
-from finanzas.models import Compra, MovimientoFinanciero, Venta
-from inventario.models import Dieta, Insumo, Lote, Consumo
 from .models import Notificacion
 from animales.models import Animal, Parto, Preniez
 from establecimientos.models import Establecimiento, Parcela
@@ -1411,12 +1405,6 @@ def sanidad(request):
     eventos = _eventos_sanitarios_de(request).exclude(tipo=TIPO_INSEMINACION) \
         .select_related('veterinario', 'diagnostico', 'lote').prefetch_related('detalles__animal__parcela') \
         .order_by('-fecha_aplicacion', '-id')
-    eventos_aplicados_mes = EventoSanitario.objects.exclude(tipo=TIPO_INSEMINACION).filter(
-        estado=True,
-        fecha_aplicacion__year=today.year, fecha_aplicacion__month=today.month,
-    ).count()
-    proximas_aplicaciones = EventoSanitario.objects.exclude(tipo=TIPO_INSEMINACION).filter
-    eventos = _eventos_sanitarios_de(request).select_related('veterinario', 'diagnostico', 'lote').prefetch_related('detalles__animal__parcela').order_by('-fecha_aplicacion', '-id')
     eventos_aplicados_mes = eventos.filter(
         estado=True,
         fecha_aplicacion__year=today.year, fecha_aplicacion__month=today.month,
@@ -1539,15 +1527,6 @@ def eliminar_evento_sanitario(request, evento_id):
 
 def vacunacion(request):
     return sanidad(request)
-
-
-def pesajes(request):
-    animales = list(Animal.objects.select_related('parcela').all())
-    historial = {str(a.idAnimal): [{'fecha': p.fecha.strftime('%d/%m/%Y'), 'peso': float(p.peso)} for p in a.pesajes.all()] for a in animales}
-    animales = list(_animales_de(request).select_related('parcela').all())
-    historial = {str(a.id_senasa): [{'fecha': p.fecha.strftime('%d/%m/%Y'), 'peso': float(p.peso)} for p in a.pesajes.all()] for a in animales}
-    data = {'animales_pesaje': [_animal_data(a) | {'responsable': 'Sistema'} for a in animales], 'historial': historial}
-    return _page(request, 'pesajes.html', 'pesajes', data)
 
 
 def alimentacion(request):
