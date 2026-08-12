@@ -573,7 +573,9 @@ def inicio(request):
             f for f in os.listdir(galeria_dir)
             if f.lower().endswith(('.jpg', '.jpeg', '.png'))
         )
-    return render(request, 'inicio.html', {'fotos_galeria': fotos})
+    usadas_arriba = {'Establecimiento.jpg', 'Campo.jpg', 'Duenios.jpg'}
+    fotos_galeria = [f for f in fotos if f not in usadas_arriba]
+    return render(request, 'inicio.html', {'fotos_galeria': fotos_galeria})
 
 
 def dashboard(request):
