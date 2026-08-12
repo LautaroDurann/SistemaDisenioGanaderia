@@ -24,6 +24,7 @@
   let paginaActual = 1;
   let paginaPartosActual = 1;
   let paginaInsemActual = 1;
+  let inseminacionEnEdicion = null;
 
   const $ = (id) => document.getElementById(id);
   const csrf = () => document.cookie.split('; ').find((v) => v.startsWith('csrftoken='))?.split('=')[1] || '';
@@ -338,18 +339,28 @@
         ? idsPreMarcadas.map(Number)
         : Array.from($('insem-animales').querySelectorAll('input:checked')).map((i) => Number(i.value)),
     );
+    // Las hembras del evento en edición que ya no están activas (baja lógica)
+    // se conservan en la lista para que sigan perteneciendo al evento.
+    const extras = (inseminacionEnEdicion && Array.isArray(inseminacionEnEdicion.animales))
+      ? inseminacionEnEdicion.animales
+        .filter((a) => a.tipo === tipo && !MADRES.some((m) => String(m.id) === String(a.id)))
+        .map((a) => ({ id: a.id, caravana: a.caravana, nombre: a.nombre, tipo: a.tipo, preniada: a.preniada, baja: true }))
+      : [];
     // Al editar, las hembras ya seleccionadas aparecen primero.
-    const opciones = MADRES
-      // Las preñadas no se ofrecen para agendar; al editar se mantienen las ya elegidas.
-      .filter((m) => m.tipo === tipo &&
-        (!m.preniada || seleccionadas.has(m.id)) &&
-        (!termino || `#${m.caravana} ${m.nombre} ${m.tipo}`.toLowerCase().includes(termino)))
+    const opciones = [
+      ...MADRES
+        .map((m) => ({ ...m, baja: false }))
+        .filter((m) => m.tipo === tipo &&
+          (!m.preniada || seleccionadas.has(m.id)) &&
+          (!termino || `#${m.caravana} ${m.nombre} ${m.tipo}`.toLowerCase().includes(termino))),
+      ...extras,
+    ].filter((m) => !termino || `#${m.caravana} ${m.nombre} ${m.tipo}`.toLowerCase().includes(termino))
       .sort((a, b) => Number(seleccionadas.has(b.id)) - Number(seleccionadas.has(a.id)));
     $('insem-animales').innerHTML = opciones.length
       ? opciones.map((m) => `
         <label class="list-group-item d-flex align-items-center gap-2 py-1">
           <input class="form-check-input m-0 insem-animal-check" type="checkbox" value="${m.id}" ${seleccionadas.has(m.id) ? 'checked' : ''}>
-          <span class="flex-grow-1 small">#${escapeHtml(m.caravana)} ${escapeHtml(m.nombre)} <span class="text-secondary">(${m.tipo})</span></span>
+          <span class="flex-grow-1 small">#${escapeHtml(m.caravana)} ${escapeHtml(m.nombre)} <span class="text-secondary">(${m.tipo})</span>${m.baja ? ' <span class="badge text-bg-danger">Baja</span>' : ''}</span>
           ${m.preniada ? '<span class="badge text-bg-warning">Preñada</span>' : ''}
         </label>`).join('')
       : '<li class="list-group-item text-secondary small">Sin animales hembra disponibles.</li>';
@@ -361,6 +372,7 @@
   }
 
   function resetFormInseminacion() {
+    inseminacionEnEdicion = null;
     $('insem-evento-id').value = '';
     $('modalInseminacionTitle').textContent = 'Agendar Inseminación';
     $('form-inseminacion').reset();
@@ -374,6 +386,7 @@
 
   function abrirEdicionInseminacion(e) {
     if (!e) return;
+    inseminacionEnEdicion = e;
     $('insem-evento-id').value = e.id;
     $('modalInseminacionTitle').textContent = 'Editar Inseminación';
     $('form-inseminacion').reset();

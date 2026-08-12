@@ -1831,6 +1831,29 @@ class InseminacionModuleTests(TestCase):
         self.assertEqual(evento.detalles.count(), 2)
         self.assertEqual(response.json()['evento']['total_hembras'], 2)
 
+    def test_editar_inseminacion_conserva_hembras_dadas_de_baja(self):
+        response = self.crear_evento()
+        self.assertEqual(response.status_code, 201)
+        evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
+
+        self.vaca2.activo = False
+        self.vaca2.save(update_fields=['activo'])
+
+        response = self.client.post(reverse('actualizar_evento_inseminacion', args=[evento.id]), {
+            'fecha_aplicacion': '2026-08-06',
+            'estado': 'true',
+            'tipo_animal': 'Bovino',
+            'padre_id': self.toro.idAnimal,
+            'animales': [self.vaca1.idAnimal, self.vaca2.idAnimal],
+        })
+        self.assertEqual(response.status_code, 200)
+        evento.refresh_from_db()
+        self.assertEqual(evento.detalles.count(), 2)
+        self.assertTrue(evento.detalles.filter(animal=self.vaca2).exists())
+        data = response.json()['evento']
+        self.assertEqual(len(data['animales']), 2)
+        self.assertEqual({a['id'] for a in data['animales']}, {self.vaca1.idAnimal, self.vaca2.idAnimal})
+
     def test_solo_hembras_y_padre_macho(self):
         response = self.client.post(reverse('crear_evento_inseminacion'), {
             'fecha_aplicacion': '2026-08-06', 'estado': 'true', 'tipo_animal': 'Bovino',
@@ -2132,6 +2155,119 @@ class InseminacionModuleTests(TestCase):
         response = self.client.post(reverse('eliminar_establecimiento', args=[Establecimiento.objects.get().id]))
         self.assertEqual(response.status_code, 403)
         self.assertTrue(Establecimiento.objects.exists())
+
+
+class SanidadInventarioTests(TestCase):
+    def setUp(self):
+        self.establecimiento = Establecimiento.objects.create(
+            nombre='Campo inventario', fecha_inicio=date.today(), ubicacion='Córdoba'
+        )
+        self.animal = Animal.objects.create(
+            id_senasa=50001, nombre='Pampa', tipo_animal='Bovino', sexo='Hembra', vivo=True,
+        )
+        self.insumo = Insumo.objects.create(nombre='Ivermectina', tipo='Medicamento', unidadDeMedida='cc')
+        self.lote = Lote.objects.create(
+            nombre='Lote Ivomec', insumo=self.insumo, stockActual=Decimal('100'),
+            establecimiento=self.establecimiento,
+        )
+        persona = Persona.objects.create(nombre='Admin', apellido='Inventario')
+        usuario = Usuario.objects.create(
+            nombre_usuario='admin', clave=make_password('clave123'), persona=persona,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=usuario, establecimiento=self.establecimiento,
+            nombre='Propietario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        session = self.client.session
+        session['usuario_id'] = usuario.id
+        session.save()
+
+    def crear_evento(self, cantidad='20', estado='true'):
+        return self.client.post(reverse('crear_evento_sanitario'), {
+            'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': estado,
+            'animal_id': self.animal.idAnimal, 'lote_id': self.lote.id, 'cantidad': cantidad,
+        })
+
+    def test_evento_aplicado_descuenta_stock_del_lote(self):
+        response = self.crear_evento()
+        self.assertEqual(response.status_code, 201)
+        evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
+        self.lote.refresh_from_db()
+        self.assertEqual(self.lote.stockActual, Decimal('80'))
+        self.assertTrue(Consumo.objects.filter(
+            evento_sanitario=evento, lote=self.lote, cantidad=Decimal('20')).exists())
+
+    def test_evento_pendiente_no_descuenta_stock(self):
+        response = self.crear_evento(estado='false')
+        self.assertEqual(response.status_code, 201)
+        self.lote.refresh_from_db()
+        self.assertEqual(self.lote.stockActual, Decimal('100'))
+        self.assertEqual(Consumo.objects.count(), 0)
+
+    def test_cambiar_evento_a_pendiente_repone_stock(self):
+        response = self.crear_evento()
+        evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
+        self.lote.refresh_from_db()
+        self.assertEqual(self.lote.stockActual, Decimal('80'))
+
+        response = self.client.post(reverse('actualizar_evento_sanitario', args=[evento.id]), {
+            'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'false',
+            'animal_id': self.animal.idAnimal, 'lote_id': self.lote.id, 'cantidad': '20',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.lote.refresh_from_db()
+        self.assertEqual(self.lote.stockActual, Decimal('100'))
+        self.assertEqual(Consumo.objects.count(), 0)
+
+    def test_editar_cantidad_ajusta_stock_del_lote(self):
+        response = self.crear_evento()
+        evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
+        self.lote.refresh_from_db()
+        self.assertEqual(self.lote.stockActual, Decimal('80'))
+
+        response = self.client.post(reverse('actualizar_evento_sanitario', args=[evento.id]), {
+            'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
+            'animal_id': self.animal.idAnimal, 'lote_id': self.lote.id, 'cantidad': '30',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.lote.refresh_from_db()
+        self.assertEqual(self.lote.stockActual, Decimal('70'))
+
+    def test_cantidad_sin_lote_o_al_reves_da_error(self):
+        response = self.client.post(reverse('crear_evento_sanitario'), {
+            'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
+            'animal_id': self.animal.idAnimal, 'cantidad': '20',
+        })
+        self.assertEqual(response.status_code, 400)
+
+        response = self.client.post(reverse('crear_evento_sanitario'), {
+            'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
+            'animal_id': self.animal.idAnimal, 'lote_id': self.lote.id,
+        })
+        self.assertEqual(response.status_code, 400)
+
+    def test_editar_evento_conserva_animales_dados_de_baja(self):
+        response = self.client.post(reverse('crear_evento_sanitario'), {
+            'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
+            'animales': [self.animal.idAnimal],
+        })
+        self.assertEqual(response.status_code, 201)
+        evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
+
+        self.animal.activo = False
+        self.animal.save(update_fields=['activo'])
+
+        response = self.client.post(reverse('actualizar_evento_sanitario', args=[evento.id]), {
+            'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
+            'animales': [self.animal.idAnimal],
+        })
+        self.assertEqual(response.status_code, 200)
+        evento.refresh_from_db()
+        self.assertEqual(evento.detalles.count(), 1)
+        self.assertTrue(evento.detalles.filter(animal=self.animal).exists())
+        data = response.json()['evento']
+        self.assertEqual(len(data['animales']), 1)
+        self.assertIs(data['animales'][0]['activo'], False)
 
 
 class AuthTests(TestCase):

@@ -1226,9 +1226,11 @@ def _evento_sanitario_data(evento):
             'id': animal.idAnimal,
             'nombre': animal.nombre or 'S/N',
             'caravana': str(animal.id_senasa) if animal.id_senasa is not None else 'S/N',
+            'tipo_animal': animal.tipo_animal,
             'categoria': _categoria(animal),
             'edad': _edad(animal),
             'parcela': str(animal.parcela) if animal.parcela else 'Sin asignar',
+            'activo': animal.activo,
             'cantidad_dosis': str(detalle.cantidad_dosis or ''),
         })
 
@@ -1484,6 +1486,18 @@ def sanidad(request):
     return _page(request, 'sanidad.html', 'sanidad', data)
 
 
+def _sync_detalles(evento, animal_ids):
+    """Sincroniza los DetalleEvento del evento con la lista de animales recibida.
+
+    Solo agrega los animales nuevos y elimina los que ya no están; los detalles
+    existentes se conservan (no se revalidan ni se pierde la dosis cargada)."""
+    actuales = set(evento.detalles.values_list('animal_id', flat=True))
+    nuevos = set(animal_ids)
+    evento.detalles.exclude(animal_id__in=nuevos).delete()
+    for animal_id in nuevos - actuales:
+        DetalleEvento.objects.create(evento=evento, animal_id=animal_id)
+
+
 @require_POST
 def crear_evento_sanitario(request):
     if request.POST.get('tipo') == TIPO_INSEMINACION:
@@ -1494,9 +1508,7 @@ def crear_evento_sanitario(request):
         evento.full_clean()
         with transaction.atomic():
             evento.save()
-            evento.detalles.all().delete()
-            for animal_id in animal_ids:
-                DetalleEvento.objects.create(evento=evento, animal_id=animal_id)
+            _sync_detalles(evento, animal_ids)
             _sync_movimiento_evento(evento, _establecimiento_actual(request))
     except (KeyError, ValueError, ValidationError) as error:
         return JsonResponse({'error': str(error)}, status=400)
@@ -1513,9 +1525,7 @@ def actualizar_evento_sanitario(request, evento_id):
         evento.full_clean()
         with transaction.atomic():
             evento.save()
-            evento.detalles.all().delete()
-            for animal_id in animal_ids:
-                DetalleEvento.objects.create(evento=evento, animal_id=animal_id)
+            _sync_detalles(evento, animal_ids)
             _sync_movimiento_evento(evento, _establecimiento_actual(request))
     except (KeyError, ValueError, ValidationError) as error:
         return JsonResponse({'error': str(error)}, status=400)
@@ -2688,16 +2698,14 @@ def crear_evento_inseminacion(request):
         evento.full_clean()
         with transaction.atomic():
             evento.save()
-            evento.detalles.all().delete()
-            for animal_id in animal_ids:
-                DetalleEvento.objects.create(evento=evento, animal_id=animal_id)
+            _sync_detalles(evento, animal_ids)
             _sync_movimiento_evento(evento)
     except (KeyError, ValueError, ValidationError) as error:
         return JsonResponse({'error': str(error)}, status=400)
     return JsonResponse({'evento': _evento_inseminacion_data(evento)}, status=201)
 
 
-def _validar_inseminacion(evento, animal_ids, tipo_animal=''):
+def _validar_inseminacion(evento, animal_ids, tipo_animal='', ids_ya_en_evento=None):
     if not tipo_animal or tipo_animal not in [c[0] for c in Animal.TIPO_CHOICES]:
         raise ValueError('Seleccioná el tipo de animal para la inseminación.')
     if evento.padre_id:
@@ -2706,10 +2714,15 @@ def _validar_inseminacion(evento, animal_ids, tipo_animal=''):
             raise ValueError('El padre seleccionado debe ser macho.')
         if padre.tipo_animal != tipo_animal:
             raise ValueError('El padre debe ser del mismo tipo de animal que las hembras a inseminar.')
-    if Animal.objects.filter(activo=True, pk__in=animal_ids, sexo='Hembra').count() != len(animal_ids):
-        raise ValueError('Solo se pueden inseminar animales hembra.')
-    if Animal.objects.filter(activo=True, pk__in=animal_ids).exclude(tipo_animal=tipo_animal).exists():
-        raise ValueError('Todas las hembras deben ser del mismo tipo de animal que el seleccionado.')
+    # Los animales que ya integraban el evento se conservan aunque estén dados
+    # de baja; solo se validan (hembra, misma especie) los animales nuevos.
+    ya_en_evento = set(ids_ya_en_evento or ())
+    nuevos = [aid for aid in animal_ids if aid not in ya_en_evento]
+    if nuevos:
+        if Animal.objects.filter(activo=True, pk__in=nuevos, sexo='Hembra').count() != len(nuevos):
+            raise ValueError('Solo se pueden inseminar animales hembra.')
+        if Animal.objects.filter(activo=True, pk__in=nuevos).exclude(tipo_animal=tipo_animal).exists():
+            raise ValueError('Todas las hembras deben ser del mismo tipo de animal que el seleccionado.')
 
 
 @require_POST
@@ -2721,13 +2734,14 @@ def actualizar_evento_inseminacion(request, evento_id):
         datos = request.POST.copy()
         datos['tipo'] = 'Inseminación'
         animal_ids = _asignar_evento_sanitario(evento, datos)
-        _validar_inseminacion(evento, animal_ids, datos.get('tipo_animal', ''))
+        _validar_inseminacion(
+            evento, animal_ids, datos.get('tipo_animal', ''),
+            ids_ya_en_evento=evento.detalles.values_list('animal_id', flat=True),
+        )
         evento.full_clean()
         with transaction.atomic():
             evento.save()
-            evento.detalles.all().delete()
-            for animal_id in animal_ids:
-                DetalleEvento.objects.create(evento=evento, animal_id=animal_id)
+            _sync_detalles(evento, animal_ids)
             _sync_movimiento_evento(evento)
     except (KeyError, ValueError, ValidationError) as error:
         return JsonResponse({'error': str(error)}, status=400)

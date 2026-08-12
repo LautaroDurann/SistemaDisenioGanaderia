@@ -6,7 +6,7 @@ const VETERINARIOS = Array.isArray(SANIDAD_DATA.veterinarios) ? SANIDAD_DATA.vet
 const LOTES = Array.isArray(SANIDAD_DATA.lotes) ? SANIDAD_DATA.lotes : [];
 const INSUMOS = Array.isArray(SANIDAD_DATA.insumos) ? SANIDAD_DATA.insumos : [];
 const ANIMALES = Array.isArray(SANIDAD_DATA.animales) ? SANIDAD_DATA.animales : [];
-const defaultTiposEvento = ['Vacunación', 'Desparasitación', 'Antibiótico', 'Suplemento', 'Castración', 'Otro'];
+const defaultTiposEvento = ['Vacunación', 'Desparasitación', 'Antibiótico', 'Medicación', 'Suplemento', 'Castración', 'Otro'];
 const TIPOS_EVENTO = Array.isArray(SANIDAD_DATA.tipos_evento)
   ? [...new Set([...SANIDAD_DATA.tipos_evento, 'Otro'])]
   : defaultTiposEvento;
@@ -37,14 +37,33 @@ function getSelectedLote() {
   return LOTES.find((lote) => String(lote.id) === String(loteId)) || null;
 }
 
+function stockDisponibleParaEventoEn(lote, evento) {
+  if (!lote || lote.stock === undefined) return null;
+  let stock = Number(lote.stock);
+  if (
+    evento && evento.estado &&
+    evento.lote_id != null &&
+    String(evento.lote_id) === String(lote.id) &&
+    evento.cantidad
+  ) {
+    stock += Number(evento.cantidad);
+  }
+  return stock;
+}
+
+function stockDisponibleParaEvento() {
+  return stockDisponibleParaEventoEn(getSelectedLote(), eventoEnEdicion);
+}
+
 function updateStockWarning() {
   const warningEl = document.getElementById('s-stock-warning');
   if (!warningEl) return;
   const lote = getSelectedLote();
   const cantidadValue = document.getElementById('i-cantidad').value;
   const cantidad = parseFloat(cantidadValue);
-  if (lote && !Number.isNaN(cantidad) && cantidad > 0 && lote.stock !== undefined && Number(cantidad) > Number(lote.stock)) {
-    warningEl.textContent = `Stock insuficiente: el lote seleccionado tiene solo ${lote.stock} unidad${lote.stock === 1 ? '' : 'es'} disponibles.`;
+  const stock = stockDisponibleParaEvento();
+  if (lote && !Number.isNaN(cantidad) && cantidad > 0 && stock !== null && cantidad > stock) {
+    warningEl.textContent = `Stock insuficiente: el lote seleccionado tiene solo ${stock} unidad${stock === 1 ? '' : 'es'} disponibles.`;
     warningEl.classList.remove('d-none');
     return;
   }
@@ -258,10 +277,19 @@ function renderCalendar() {
     const fecha = `${year}-${String(month + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
     const eventos = eventosPorDia[fecha] || [];
     const clase = eventos.length ? 'has-events' : '';
+    let etiquetas = '';
+    if (eventos.length) {
+      etiquetas = eventos.slice(0, 2)
+        .map((e) => `<small class="dot-count d-block text-truncate" style="max-width:100%">1 ${escapeHtml(e.tipo || 'Evento')}</small>`)
+        .join('');
+      if (eventos.length > 2) {
+        etiquetas += '<small class="text-muted d-block">...</small>';
+      }
+    }
     html += `
       <button type="button" class="day-cell ${clase}" data-fecha="${fecha}">
         <span>${dia}</span>
-        ${eventos.length ? `<small class="text-muted">${eventos.length} evento${eventos.length > 1 ? 's' : ''}</small>` : ''}
+        ${etiquetas}
       </button>`;
   }
 
@@ -596,18 +624,26 @@ function getSelectedAnimalIds() {
   return Array.from(seleccionAnimalesEvento).filter(Boolean);
 }
 
+function getEventoAnimalesNoDisponibles() {
+  if (!eventoEnEdicion || !Array.isArray(eventoEnEdicion.animales)) return [];
+  return eventoEnEdicion.animales.filter((a) => !ANIMALES.some((x) => String(x.id) === String(a.id)));
+}
+
 function renderSelectedAnimales() {
   const contenedor = document.getElementById('seleccion-animales-evento');
   const contador = document.getElementById('contador-animales-seleccionados');
-  const selected = ANIMALES.filter((a) => seleccionAnimalesEvento.has(String(a.id)));
-  contenedor.innerHTML = selected.length
-    ? selected.map((a) => `
+  const seleccionados = ANIMALES.filter((a) => seleccionAnimalesEvento.has(String(a.id)));
+  const extras = getEventoAnimalesNoDisponibles().filter((a) => seleccionAnimalesEvento.has(String(a.id)));
+  const todos = [...seleccionados, ...extras];
+  contenedor.innerHTML = todos.length
+    ? todos.map((a) => `
         <span class="badge bg-primary text-white d-inline-flex align-items-center" style="min-width: 180px;">
           #${escapeHtml(a.caravana)} ${escapeHtml(a.nombre || 'S/N')} ${a.categoria ? `(${escapeHtml(a.categoria)})` : ''}
+          ${a.activo === false ? ' <span class="badge text-bg-danger">Baja</span>' : ''}
         </span>`).join('')
     : '<span class="text-secondary">No hay animales seleccionados.</span>';
   if (contador) {
-    const texto = selected.length === 1 ? '1 seleccionado' : `${selected.length} seleccionados`;
+    const texto = todos.length === 1 ? '1 seleccionado' : `${todos.length} seleccionados`;
     contador.textContent = texto;
   }
 }
@@ -623,7 +659,10 @@ function renderAnimalSelectionTable() {
   const tipo = document.getElementById('s-animal-tipo').value;
   const categoria = document.getElementById('s-animal-categoria').value;
 
-  const rows = ANIMALES
+  const extras = getEventoAnimalesNoDisponibles().map((a) => ({ ...a, baja: true }));
+  const animales = [...ANIMALES.map((a) => ({ ...a, baja: false })), ...extras];
+
+  const rows = animales
     .filter((a) => {
       const text = `${a.caravana} ${a.nombre || ''} ${a.tipo_animal || ''} ${a.categoria || ''}`.toLowerCase();
       const matchFilter = !filter || text.includes(filter);
@@ -638,7 +677,7 @@ function renderAnimalSelectionTable() {
       return `
       <tr>
         <td><input type="checkbox" class="form-check-input evento-animal-checkbox" value="${a.id}" ${checked ? 'checked' : ''} ${esBloqueado ? 'disabled' : ''}></td>
-        <td>#${a.caravana}</td>
+        <td>#${a.caravana}${a.baja ? ' <span class="badge text-bg-danger">Baja</span>' : ''}</td>
         <td>${a.nombre || 'S/N'}</td>
         <td>${a.tipo_animal || '-'}</td>
         <td>${a.categoria || '-'}</td>
@@ -1003,7 +1042,7 @@ function renderLoteOptions() {
     }
   }
 
-  const loteOptions = [{ value: '', label: insumoId ? 'Sin lote disponible' : 'Seleccioná primero un insumo' }, ...matchingLotes.map((l) => ({ value: l.id, label: `${l.nombre} — ${l.insumo_nombre} (${l.stock} u)` }))];
+  const loteOptions = [{ value: '', label: insumoId ? 'Sin lote disponible' : 'Seleccioná primero un insumo' }, ...matchingLotes.map((l) => ({ value: l.id, label: `${l.nombre} — ${l.insumo_nombre} (${stockDisponibleParaEventoEn(l, eventoEnEdicion)} u)` }))];
   setOptions(selectLote, loteOptions, false);
   if (currentValue) {
     selectLote.value = currentValue;
@@ -1134,8 +1173,9 @@ function abrirDetalleEvento(evento) {
   document.getElementById('detalle-observaciones').textContent = evento.detalle || '-';
 
   if (warningEl) {
-    if (lote && !Number.isNaN(cantidad) && cantidad > 0 && Number(cantidad) > Number(lote.stock || 0)) {
-      warningEl.textContent = `Stock insuficiente: el lote seleccionado tiene solo ${lote.stock} unidad${lote.stock === 1 ? '' : 'es'} disponibles.`;
+    const stock = stockDisponibleParaEventoEn(lote, evento);
+    if (lote && stock !== null && !Number.isNaN(cantidad) && cantidad > 0 && cantidad > stock) {
+      warningEl.textContent = `Stock insuficiente: el lote seleccionado tiene solo ${stock} unidad${stock === 1 ? '' : 'es'} disponibles.`;
       warningEl.classList.remove('d-none');
     } else {
       warningEl.textContent = '';

@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from decimal import Decimal
 
 # 1. Enfermedad
 class Enfermedad(models.Model):
@@ -44,6 +45,7 @@ class EventoSanitario(models.Model):
         ('Vacunación', 'Vacunación'),
         ('Desparasitación', 'Desparasitación'),
         ('Antibiótico', 'Antibiótico'),
+        ('Medicación', 'Medicación'),
         ('Suplemento', 'Suplemento'),
         ('Castración', 'Castración'),
         ('Inseminación', 'Inseminación'),
@@ -84,42 +86,47 @@ class EventoSanitario(models.Model):
     def clean(self):
         # Las validaciones del animal se fueron al DetalleEvento.
         # Aquí solo validamos cosas globales del evento (ej: Inventario)
-        if self.tipo == 'Vacunación' and self.estado and self.lote and (self.cantidad is None or self.cantidad <= 0):
-            raise ValidationError('Si la vacunación se aplicó, debe indicar un lote y la cantidad total consumida.')
+        if self.estado and self.lote and (self.cantidad is None or self.cantidad <= 0):
+            raise ValidationError('Si el evento se aplicó con un lote, debe indicar la cantidad total consumida.')
+        if self.estado and self.cantidad and not self.lote:
+            raise ValidationError('Si se indicó la cantidad consumida, debe seleccionar un lote.')
 
     def save(self, *args, **kwargs):
         from inventario.models import Consumo
 
         self.full_clean()
-        
+
         with transaction.atomic():
             super().save(*args, **kwargs)
 
-            # La lógica de inventario permanece en la cabecera porque se descuenta el total
-            if self.tipo == 'Vacunación' and self.estado and self.lote and self.cantidad:
-                consumo, created = Consumo.objects.get_or_create(
-                    evento_sanitario=self,
-                    defaults={'lote': self.lote, 'cantidad': self.cantidad},
-                )
-                if created:
+            # Cuando el evento está Aplicado con un lote y una cantidad, se descuenta
+            # el insumo del stock del lote respectivo (se registra un Consumo).
+            # Si el evento pasa a Pendiente o deja de tener lote/cantidad, se repone
+            # el stock y se elimina el consumo.
+            if self.estado and self.lote_id and self.cantidad:
+                consumo = Consumo.objects.filter(evento_sanitario=self).first()
+                if consumo is None:
+                    Consumo.objects.create(evento_sanitario=self, lote=self.lote, cantidad=self.cantidad)
                     if self.lote.stockActual is not None:
-                        self.lote.stockActual = max(self.lote.stockActual - self.cantidad, 0)
+                        self.lote.stockActual = max(self.lote.stockActual - self.cantidad, Decimal('0'))
                         self.lote.save(update_fields=['stockActual'])
                 else:
+                    lote_anterior = consumo.lote
+                    cantidad_anterior = consumo.cantidad or Decimal('0')
                     if consumo.lote_id != self.lote_id:
-                        if consumo.lote.stockActual is not None:
-                            consumo.lote.stockActual = max(consumo.lote.stockActual + (consumo.cantidad or 0), 0)
-                            consumo.lote.save(update_fields=['stockActual'])
+                        if lote_anterior.stockActual is not None:
+                            lote_anterior.stockActual = max(lote_anterior.stockActual + cantidad_anterior, Decimal('0'))
+                            lote_anterior.save(update_fields=['stockActual'])
+                        if self.lote.stockActual is not None:
+                            self.lote.stockActual = max(self.lote.stockActual - self.cantidad, Decimal('0'))
+                            self.lote.save(update_fields=['stockActual'])
                         consumo.lote = self.lote
                         consumo.cantidad = self.cantidad
                         consumo.save()
+                    elif self.cantidad != cantidad_anterior:
+                        delta = self.cantidad - cantidad_anterior
                         if self.lote.stockActual is not None:
-                            self.lote.stockActual = max(self.lote.stockActual - self.cantidad, 0)
-                            self.lote.save(update_fields=['stockActual'])
-                    elif self.cantidad != consumo.cantidad:
-                        delta = self.cantidad - (consumo.cantidad or 0)
-                        if self.lote.stockActual is not None:
-                            self.lote.stockActual = max(self.lote.stockActual - delta, 0)
+                            self.lote.stockActual = max(self.lote.stockActual - delta, Decimal('0'))
                             self.lote.save(update_fields=['stockActual'])
                         consumo.cantidad = self.cantidad
                         consumo.save()
@@ -127,7 +134,7 @@ class EventoSanitario(models.Model):
                 consumo = Consumo.objects.filter(evento_sanitario=self).first()
                 if consumo:
                     if consumo.lote.stockActual is not None:
-                        consumo.lote.stockActual = max(consumo.lote.stockActual + (consumo.cantidad or 0), 0)
+                        consumo.lote.stockActual = max(consumo.lote.stockActual + (consumo.cantidad or Decimal('0')), Decimal('0'))
                         consumo.lote.save(update_fields=['stockActual'])
                     consumo.delete()
 
