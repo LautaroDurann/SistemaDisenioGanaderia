@@ -1,9 +1,21 @@
       html {
-        /* Reserva siempre el espacio de la scrollbar vertical, asi el ancho de la pagina
-           no cambia cuando el contenido crece o achica. Evita que los graficos de
-           ApexCharts se redibujen solos al aparecer/desaparecer la scrollbar. */
+        overflow-y: auto;
+      }
+
+      /* El layout AdminLTE viene con "layout-fixed" (ver body en base.html), pero el
+         adminlte.css incluido solo fija min-height:100vh en .app-wrapper: la pagina
+         termina scrolleando sobre la ventana, y al abrir un modal (body pasa a
+         overflow:hidden) el sidebar sticky se despega y se corta. Con altura fija de
+         100vh el scroll queda dentro de .app-main y el panel izquierdo permanece
+         siempre en el mismo lugar, incluso con formularios abiertos. */
+      .layout-fixed .app-wrapper {
+        height: 100vh;
+      }
+      .app-main {
+        overflow-y: auto;
+        /* Reserva el espacio de la scrollbar vertical para que el ancho del contenido
+           no cambie cuando la scrollbar del panel principal aparece/desaparece. */
         scrollbar-gutter: stable;
-        overflow-y: scroll;
       }
 
       body.modal-open {
