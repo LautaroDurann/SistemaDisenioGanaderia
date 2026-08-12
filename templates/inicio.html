@@ -231,7 +231,7 @@
 
   <!-- Portada -->
   <header class="hero">
-    <img class="hero-bg" src="{% static 'assets/img/fotosInicio/entrada-estblecimiento.png' %}" alt="Entrada del Establecimiento Don Hugo">
+    <img class="hero-bg" src="{% static 'assets/img/fotosInicio/Establecimiento.jpg' %}" alt="Entrada del Establecimiento Don Hugo">
     <div class="container">
       <div class="hero-content">
         <span class="hero-badge"><i class="bi bi-geo-alt-fill"></i> Colonia Elisa · Chaco</span>
@@ -270,7 +270,7 @@
         </div>
         <div class="col-lg-6">
           <div class="card card-foto ratio ratio-4x3">
-            <img src="{% static 'assets/img/fotosInicio/campo-1.png' %}" alt="Campo del Establecimiento Don Hugo">
+            <img src="{% static 'assets/img/fotosInicio/Campo.jpg' %}" alt="Campo del Establecimiento Don Hugo">
           </div>
         </div>
       </div>
@@ -292,7 +292,7 @@
         </div>
         <div class="col-lg-6 order-lg-1">
           <div class="card card-foto ratio ratio-4x3">
-            <img src="{% static 'assets/img/fotosInicio/duenos.png' %}" alt="Jorge Daniel Durán y Vilma Beatriz Forlin">
+            <img src="{% static 'assets/img/fotosInicio/Duenios.jpg' %}" alt="Jorge Daniel Durán y Vilma Beatriz Forlin">
           </div>
         </div>
       </div>
@@ -348,24 +348,41 @@
       <div class="row g-4">
         <div class="col-md-6 col-lg-3">
           <div class="galeria-foto">
-            <img src="{% static 'assets/img/fotosInicio/entrada-estblecimiento.png' %}" alt="Entrada del establecimiento">
+            <img src="{% static 'assets/img/fotosInicio/Establecimiento.jpg' %}" alt="Entrada del establecimiento">
           </div>
         </div>
         <div class="col-md-6 col-lg-3">
           <div class="galeria-foto">
-            <img src="{% static 'assets/img/fotosInicio/campo-1.png' %}" alt="Vista del campo">
+            <img src="{% static 'assets/img/fotosInicio/Campo.jpg' %}" alt="Vista del campo">
           </div>
         </div>
         <div class="col-md-6 col-lg-3">
           <div class="galeria-foto">
-            <img src="{% static 'assets/img/fotosInicio/campo-2.png' %}" alt="Vista del campo">
+            <img src="{% static 'assets/img/fotosInicio/Campo 1.jpg' %}" alt="Vista del campo">
           </div>
         </div>
         <div class="col-md-6 col-lg-3">
           <div class="galeria-foto">
-            <img src="{% static 'assets/img/fotosInicio/duenos.png' %}" alt="Jorge y Vilma, propietarios">
+            <img src="{% static 'assets/img/fotosInicio/Duenios.jpg' %}" alt="Jorge y Vilma, propietarios">
           </div>
         </div>
+        <div class="col-md-6 col-lg-3">
+          <div class="galeria-foto">
+            <img src="{% static 'assets/img/fotosInicio/Animales .jpg' %}" alt="Animales del establecimiento">
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <div class="galeria-foto">
+            <img src="{% static 'assets/img/fotosInicio/Animales 2.jpg' %}" alt="Animales del establecimiento">
+          </div>
+        </div>
+        {% for foto in fotos_galeria %}
+        <div class="col-md-6 col-lg-3">
+          <div class="galeria-foto">
+            <img src="{% static 'assets/img/fotosInicio/'|add:foto %}" alt="Fotografía del establecimiento">
+          </div>
+        </div>
+        {% endfor %}
       </div>
     </div>
   </section>

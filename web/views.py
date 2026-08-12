@@ -1,5 +1,6 @@
 import calendar
 import json
+import os
 import re
 from datetime import date, timedelta
 from decimal import Decimal
@@ -8,6 +9,7 @@ from django.db.models import Avg, Count, Sum, Q
 from django.db import transaction
 from django.http import JsonResponse
 from django.db import IntegrityError
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect, render
@@ -564,7 +566,14 @@ def inicio(request):
     interponer la landing entre el login y el sistema."""
     if request.session.get('usuario_id'):
         return redirect('dashboard')
-    return render(request, 'inicio.html')
+    galeria_dir = os.path.join(settings.BASE_DIR, 'static', 'assets', 'img', 'fotosInicio')
+    fotos = []
+    if os.path.isdir(galeria_dir):
+        fotos = sorted(
+            f for f in os.listdir(galeria_dir)
+            if f.lower().endswith(('.jpg', '.jpeg', '.png'))
+        )
+    return render(request, 'inicio.html', {'fotos_galeria': fotos})
 
 
 def dashboard(request):
