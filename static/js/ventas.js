@@ -185,6 +185,17 @@
     chartInstance.render();
   }
 
+  function animalesVendidos() {
+    const set = new Set();
+    ventas.forEach(v => (v.animales || []).forEach(a => set.add(a.id)));
+    return set;
+  }
+
+  function baseDisponibles() {
+    const vendidos = animalesVendidos();
+    return baseAnimales.filter(a => !vendidos.has(a.id));
+  }
+
   function cargarSelectCompradores() {
     const select = $('venta-comprador');
     if (!select) return;
@@ -201,6 +212,7 @@
     $('venta-peso-manual').checked = false;
     $('titulo-venta').textContent = 'Registrar venta';
     seleccionados = new Set();
+    disponibles = baseDisponibles();
     paginaActual = 1;
     actualizarTotales();
     cargarSelectCompradores();
@@ -224,6 +236,7 @@
     $('titulo-venta').textContent = `Editar venta #${id}`;
     const ids = new Set(v.animales.map(a => a.id));
     seleccionados = ids;
+    disponibles = baseDisponibles();
     (v.animales || []).forEach(a => {
       if (!disponibles.some(d => d.id === a.id)) disponibles.push(a);
     });
