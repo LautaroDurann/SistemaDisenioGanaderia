@@ -8,7 +8,7 @@ Este proyecto está planteado como una aplicación web de gestión para un estab
 - seguimiento sanitario y vacunación
 - registro de ventas y compras
 - gestión financiera con ingresos y egresos
-- control de parcelas, pesajes y alimentación
+- control de parcelas y pesajes
 - usuarios y roles del establecimiento
 
 ## 2. Arquitectura actual
@@ -30,7 +30,7 @@ El proyecto principal está definido en [SistemaGanaderia/settings.py](../Sistem
 El núcleo del sistema se encuentra en [animales/models.py](../animales/models.py).
 
 Contiene entidades clave como:
-- Animal: información principal del bovino, incluyendo caravana SENASA, datos de nacimiento, sexo, raza, peso, estado de venta, estado vivo/enfermo, y relaciones con parcela, dieta, madre y padre.
+- Animal: información principal del bovino, incluyendo caravana SENASA, datos de nacimiento, sexo, raza, peso, estado de venta, estado vivo/enfermo, y relaciones con parcela, madre y padre.
 - Preniez: registro de gestaciones.
 - Pesaje: historial de pesos.
 
@@ -59,16 +59,13 @@ En [finanzas/models.py](../finanzas/models.py) se definen:
 
 Este diseño favorece la trazabilidad contable y la integración entre ventas y movimientos de caja.
 
-### 3.5 Módulo de inventario y alimentación
+### 3.5 Módulo de inventario
 En [inventario/models.py](../inventario/models.py) se manejan:
 - Insumo
 - DetalleCompra
 - Consumo
-- Dieta
-- ComposicionDieta
-- RegistroAlimentacion
 
-Esto aporta una base para la gestión de alimentos y de consumo por lote o parcela.
+Esto aporta una base para la gestión de stock de insumos y de consumo por lote en eventos sanitarios.
 
 ### 3.6 Módulo de usuarios
 En [usuarios/models.py](../usuarios/models.py) se registran:

@@ -146,7 +146,6 @@ def insumos(request):
     total_insumos = len(insumos_list)
     vacunas = sum(1 for i in insumos_list if i['tipo'] == 'Vacuna')
     medicamentos = sum(1 for i in insumos_list if i['tipo'] == 'Medicamento')
-    alimentos = sum(1 for i in insumos_list if i['tipo'] == 'Alimento')
     stock_total = sum(stock_por_insumo.values())
 
     return render(request, 'insumos.html', {
@@ -155,7 +154,6 @@ def insumos(request):
             'total_insumos': total_insumos,
             'vacunas': vacunas,
             'medicamentos': medicamentos,
-            'alimentos': alimentos,
             'stock_total': float(stock_total),
         },
     })

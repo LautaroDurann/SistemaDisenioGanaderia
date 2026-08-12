@@ -21,7 +21,7 @@ from .models import Notificacion
 from animales.models import Animal, Parto, Preniez
 from establecimientos.models import Establecimiento, Parcela
 from finanzas.models import Compra, LiquidacionSueldo, MovimientoFinanciero, Venta
-from inventario.models import ComposicionDieta, Consumo, DetalleCompra, Dieta, Insumo, Lote
+from inventario.models import Consumo, DetalleCompra, Insumo, Lote
 from sanidad.models import DetalleEvento, EventoSanitario, Enfermedad, Diagnostico
 from usuarios.models import Comprador, Proveedor, RolEstablecimiento, Usuario, Veterinario
 
@@ -102,7 +102,6 @@ def _animal_data(animal):
         'vendido': animal.vendido, 'vivo': animal.vivo, 'enfermo': animal.enfermo, 'castrado': animal.castrado,
         'costo_adquisicion': str(animal.costo_adquisicion or ''), 'precio_venta': str(animal.precio_venta or ''),
         'color': animal.color or '', 'diametro_escrotal': str(animal.diametro_escrotal or ''),
-        'dieta_id': animal.dieta_id, 'dieta': str(animal.dieta) if animal.dieta else 'Sin dieta',
         'madre_id': animal.madre_id, 'madre': str(animal.madre) if animal.madre else 'No registrada',
         'padre_id': animal.padre_id, 'padre': str(animal.padre) if animal.padre else 'No registrado',
         'compra_id': animal.compra_id, 'venta_id': animal.venta_id,
@@ -433,7 +432,7 @@ def _alertas_dashboard(request, animales=None):
             'icono': 'bi-graph-down',
             'color': 'text-bg-dark',
             'titulo': f"{len(bajo_peso)} {'animal con bajo peso' if len(bajo_peso) == 1 else 'animales con bajo peso'}",
-            'detalle': ', '.join(parcelas) or 'Revisar dieta',
+            'detalle': ', '.join(parcelas) or 'Sin parcela asignada',
             'url': reverse('stock'),
         })
 
@@ -690,7 +689,7 @@ def eliminar_todas_notificaciones(request):
 
 
 def stock(request):
-    animales = _animales_de(request).select_related('parcela', 'dieta', 'madre', 'padre', 'compra', 'venta')
+    animales = _animales_de(request).select_related('parcela', 'madre', 'padre', 'compra', 'venta')
     establecimiento = _establecimiento_actual(request)
     permitidos = _establecimientos_permitidos(request)
     return _page(request, 'stock.html', 'stock', {
@@ -700,7 +699,6 @@ def stock(request):
             {'id': p.id, 'nombre': str(p), 'establecimiento_id': p.establecimiento_id}
             for p in Parcela.objects.filter(establecimiento_id__in=[e.id for e in permitidos]).select_related('establecimiento')
         ],
-        'dietas': [{'id': d.id, 'nombre': str(d)} for d in Dieta.objects.all()],
         'progenitores': [
             {'id': a.idAnimal, 'nombre': f'#{a.id_senasa if a.id_senasa is not None else "S/C"} — {a.nombre or "S/N"}', 'sexo': a.sexo, 'tipo_animal': a.tipo_animal}
             for a in animales
@@ -1575,15 +1573,6 @@ def vacunacion(request):
     return sanidad(request)
 
 
-def alimentacion(request):
-    data = {'alimentos': [{'id': str(i.id), 'nombre': i.nombre, 'categoria': 'Insumo',
-                           'stock': float(i.lotes.filter(activo=True).aggregate(total=Sum('stockActual'))['total'] or Decimal('0')),
-                           'unidad': i.unidadDeMedida,
-                           'consumoMensual': 0, 'stockMinimo': 0, 'ultimaCompra': '-', 'precioUnitario': 0}
-                          for i in Insumo.objects.filter(activo=True)]}
-    return _page(request, 'alimentacion.html', 'alimentacion', data)
-
-
 @rol_requerido(ROL_PROPIETARIO, ROL_OPERARIO)
 def usuarios(request):
     actual = usuario_actual(request)
@@ -1793,7 +1782,7 @@ def configuracion(request):
 
 
 def stock_api(request):
-    return JsonResponse({'animales': [_animal_data(a) for a in _animales_de(request).select_related('parcela', 'dieta', 'madre', 'padre', 'compra', 'venta')]})
+    return JsonResponse({'animales': [_animal_data(a) for a in _animales_de(request).select_related('parcela', 'madre', 'padre', 'compra', 'venta')]})
 
 
 def _validar_parcela_del_establecimiento(request, parcela_id, establecimiento_id=None):
@@ -1877,7 +1866,6 @@ def _asignar_campos_animal(animal, datos, es_alta=False):
         if parcela is not None:
             establecimiento_id = parcela.establecimiento_id
     animal.establecimiento_id = establecimiento_id
-    animal.dieta_id = datos.get('dieta_id') or None
     animal.madre_id = datos.get('madre_id') or None
     animal.padre_id = datos.get('padre_id') or None
     # La compra/venta asociada se define solo desde sus módulos; acá solo se
@@ -2254,8 +2242,7 @@ def _sincronizar_efectos_compra(compra, tipo):
             lote = detalle.lote
             detalle.delete()
             if lote is not None and not DetalleCompra.objects.filter(lote=lote).exists():
-                if not (Consumo.objects.filter(lote=lote).exists()
-                        or ComposicionDieta.objects.filter(lote=lote).exists()):
+                if not Consumo.objects.filter(lote=lote).exists():
                     lote.delete()
     if tipo != 'Animales':
         for animal in Animal.objects.filter(compra=compra):

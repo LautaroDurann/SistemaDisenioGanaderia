@@ -62,7 +62,6 @@ class Animal(models.Model):
     # --- RELACIONES (Claves Foráneas) ---
     # Usamos on_delete=models.SET_NULL para que si borras una parcela, el animal no muera, solo quede "sin parcela"
     parcela = models.ForeignKey('establecimientos.Parcela', on_delete=models.SET_NULL, null=True, blank=True)
-    dieta = models.ForeignKey('inventario.Dieta', on_delete=models.SET_NULL, null=True, blank=True)
 
     # Establecimiento al que pertenece el animal (independiente de su parcela).
     # Se mantiene sincronizado al asignar una parcela o al crear/trasladar el animal.

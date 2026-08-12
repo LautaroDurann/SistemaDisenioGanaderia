@@ -47,7 +47,7 @@ class WebIntegrationTests(TestCase):
         session.save()
 
     def test_paginas_principales_responden(self):
-        for url_name in ('dashboard', 'stock', 'movimientos', 'parcelas', 'vacunacion', 'sanidad', 'alimentacion', 'usuarios', 'configuracion', 'prenieces'):
+        for url_name in ('dashboard', 'stock', 'movimientos', 'parcelas', 'vacunacion', 'sanidad', 'usuarios', 'configuracion', 'prenieces'):
             with self.subTest(url_name=url_name):
                 self.assertEqual(self.client.get(reverse(url_name)).status_code, 200)
 

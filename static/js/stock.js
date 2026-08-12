@@ -245,7 +245,6 @@
         document.getElementById('ficha-notas').textContent = a.notas || 'Sin notas cargadas.';
         document.getElementById('ficha-tipo').textContent = a.tipo_animal;
         document.getElementById('ficha-pesos-iniciales').textContent = `${a.peso_al_nacer || '-'} / ${a.peso_al_destete || '-'} kg`;
-        document.getElementById('ficha-dieta').textContent = a.dieta;
         const madre = ANIMALES.find((x) => x.id === a.madre_id);
         const padre = ANIMALES.find((x) => x.id === a.padre_id);
         const etiquetaProgenitor = (x) => `${x.nombre} (SENASA: ${x.caravana})`;
@@ -280,7 +279,6 @@
         document.getElementById('animal-peso-destete').value = animal.peso_al_destete;
         document.getElementById('animal-diametro').value = animal.diametro_escrotal;
         document.getElementById('animal-color').value = animal.color;
-        document.getElementById('animal-dieta').value = animal.dieta_id || '';
         document.getElementById('animal-madre').value = animal.madre_id || '';
         document.getElementById('animal-padre').value = animal.padre_id || '';
         const tieneCompra = Boolean(animal.compra_id) && animal.compra && animal.compra !== 'Sin compra asociada';
@@ -345,11 +343,6 @@
         const vivo = document.getElementById('animal-vivo').checked;
         document.getElementById('grupo-fecha-muerte').classList.toggle('d-none', vivo);
         if (vivo) document.getElementById('animal-fecha-muerte').value = '';
-      }
-
-      function agregarOpciones(selectId, datos, texto, filtro = () => true) {
-        const select = document.getElementById(selectId);
-        datos.filter(filtro).forEach((dato) => select.add(new Option(texto(dato), dato.id)));
       }
 
       // Fuentes dinámicas de progenitores y madres: se derivan de ANIMALES para
@@ -540,7 +533,6 @@
           .forEach((parcela) => {
             filtroParcela.add(new Option(parcela.nombre, parcela.id));
           });
-        agregarOpciones('animal-dieta', window.HUACAPP_DATA?.dietas || [], (dieta) => dieta.nombre);
         seleccionarProgenitores();
         cargarFiltroMadres();
         document.getElementById('animal-tipo').addEventListener('change', seleccionarProgenitores);

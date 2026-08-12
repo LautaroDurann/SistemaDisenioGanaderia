@@ -72,7 +72,7 @@
       <div class="border rounded p-3 mb-3 d-none" id="panel-insumos">
         <h6 class="text-secondary text-uppercase small mb-2">Detalle de insumos</h6>
         <div class="row g-3">
-          <div class="col-md-3"><label class="form-label">Tipo de insumo</label><select class="form-select" id="compra-tipo-insumo"><option value="">Todos</option><option>Vacuna</option><option>Medicamento</option><option>Alimento</option><option>Otros</option></select></div>
+          <div class="col-md-3"><label class="form-label">Tipo de insumo</label><select class="form-select" id="compra-tipo-insumo"><option value="">Todos</option><option>Vacuna</option><option>Medicamento</option><option>Otros</option></select></div>
           <div class="col-md-3"><label class="form-label">Insumo</label><select class="form-select" id="compra-insumo"><option value="">— Elegí un insumo —</option>{% for insumo in page_data.insumos %}<option value="{{ insumo.id }}" data-tipo="{{ insumo.tipo }}">{{ insumo.nombre }}</option>{% endfor %}</select></div>
           <div class="col-md-3"><div class="form-check mt-4"><input class="form-check-input" type="checkbox" id="compra-nuevo-insumo"><label class="form-check-label" for="compra-nuevo-insumo">Crear insumo nuevo</label></div></div>
           <div class="col-md-3 d-none" id="grupo-nuevo-insumo"><label class="form-label">Nombre del nuevo insumo</label><input class="form-control" id="compra-nuevo-insumo-nombre" placeholder="Ej: Vacuna aftosa"></div>

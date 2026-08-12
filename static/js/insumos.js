@@ -172,11 +172,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const total = state.items.length;
     const vacunas = state.items.filter((item) => item.tipo === 'Vacuna').length;
     const medicamentos = state.items.filter((item) => item.tipo === 'Medicamento').length;
-    const alimentos = state.items.filter((item) => item.tipo === 'Alimento').length;
     document.getElementById('kpi-total-insumos').textContent = total;
     document.getElementById('kpi-vacunas').textContent = vacunas;
     document.getElementById('kpi-medicamentos').textContent = medicamentos;
-    document.getElementById('kpi-alimentos').textContent = alimentos;
   };
 
   const toggleDetailRow = async (insumoId, row) => {

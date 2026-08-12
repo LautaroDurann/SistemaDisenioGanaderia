@@ -1029,7 +1029,7 @@ function renderLoteOptions() {
     if (showOnlyVacuna) {
       return lote.insumo_tipo === 'Vacuna';
     }
-    return lote.insumo_tipo !== 'Vacuna' && lote.insumo_tipo !== 'Alimento';
+    return lote.insumo_tipo !== 'Vacuna';
   };
 
   const filtered = LOTES.filter(loteFilter);
@@ -1061,7 +1061,7 @@ function renderInsumoOptions() {
       const text = `${i.nombre || ''} ${i.tipo || ''}`.toLowerCase();
       if (filtroTexto && !text.includes(filtroTexto)) return false;
       if (showOnlyVacuna) return i.tipo === 'Vacuna';
-      return i.tipo !== 'Vacuna' && i.tipo !== 'Alimento';
+      return i.tipo !== 'Vacuna';
     })
     .map((i) => ({ value: i.id, label: `${i.nombre} (${i.tipo})` }))];
 

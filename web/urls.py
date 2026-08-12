@@ -39,7 +39,6 @@ urlpatterns = [
     path('api/prenieces/inseminaciones/<int:evento_id>/', views.actualizar_evento_inseminacion, name='actualizar_evento_inseminacion'),
     path('api/prenieces/inseminaciones/<int:evento_id>/eliminar/', views.eliminar_evento_inseminacion, name='eliminar_evento_inseminacion'),
     path('api/prenieces/inseminaciones/<int:evento_id>/preniadas/', views.registrar_preniadas, name='registrar_preniadas'),
-    path('alimentacion/', views.alimentacion, name='alimentacion'),
     path('insumos/', insumos, name='insumos'),
     path('api/insumos/', insumos_api, name='insumos_api'),
     path('api/insumos/<int:insumo_id>/', insumo_detalle, name='insumo_detalle'),

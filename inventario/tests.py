@@ -8,7 +8,7 @@ from django.urls import reverse
 from animales.models import Animal
 from establecimientos.models import Establecimiento
 from finanzas.models import Compra
-from inventario.models import ComposicionDieta, Consumo, DetalleCompra, Dieta, Insumo, Lote
+from inventario.models import Consumo, DetalleCompra, Insumo, Lote
 from sanidad.models import DetalleEvento, EventoSanitario
 from usuarios.models import Persona, RolEstablecimiento, Usuario, Veterinario
 
@@ -53,7 +53,7 @@ class InsumoCrudTests(TestCase):
         with self.assertRaises(AttributeError):
             getattr(insumo, 'stockActual')
 
-    def test_lote_is_used_in_detalle_compra_consumo_and_dieta(self):
+    def test_lote_is_used_in_detalle_compra_and_consumo(self):
         insumo = Insumo.objects.create(nombre='Medicamento A', tipo='Medicamento', unidadDeMedida='ml')
         lote = Lote.objects.create(insumo=insumo, fechaVencimiento=date(2027, 1, 15), stockActual=Decimal('50.00'))
         compra = Compra.objects.create(tipo='Insumos', fecha=date(2026, 1, 1), monto_total=Decimal('100.00'))
@@ -81,12 +81,9 @@ class InsumoCrudTests(TestCase):
         )
         DetalleEvento.objects.create(evento=evento, animal=animal)
         consumo = Consumo.objects.create(lote=lote, evento_sanitario=evento, cantidad=Decimal('5.00'))
-        dieta = Dieta.objects.create(nombre='Dieta prueba')
-        composicion = ComposicionDieta.objects.create(lote=lote, dieta=dieta, cantidadPorPorcion=Decimal('2.00'))
 
         self.assertEqual(detalle.lote, lote)
         self.assertEqual(consumo.lote, lote)
-        self.assertEqual(composicion.lote, lote)
 
     def test_api_can_create_and_update_insumos(self):
         create_response = self.client.post(
@@ -124,7 +121,7 @@ class InsumoCrudTests(TestCase):
         self.assertNotIn(insumo_id, [i['id'] for i in self.client.get(reverse('insumos_api')).json()['insumos']])
 
     def test_api_insumo_detail_returns_lotes(self):
-        insumo = Insumo.objects.create(nombre='Alimento B', tipo='Alimento', unidadDeMedida='kg')
+        insumo = Insumo.objects.create(nombre='Otro insumo', tipo='Otros', unidadDeMedida='kg')
         Lote.objects.create(insumo=insumo, nombre='Lote 1', fechaVencimiento=date(2026, 12, 1),
                             stockActual=Decimal('50.00'), establecimiento=self.establecimiento)
         Lote.objects.create(insumo=insumo, nombre='Lote 2', fechaVencimiento=date(2026, 12, 15),
@@ -138,7 +135,7 @@ class InsumoCrudTests(TestCase):
         self.assertEqual(payload['lotes'][0]['nombre'], 'Lote 1')
 
     def _crear_historial(self, insumo, lote):
-        """Crea compra, evento sanitario (con consumo) y dieta asociados al lote."""
+        """Crea compra y evento sanitario (con consumo) asociados al lote."""
         compra = Compra.objects.create(
             tipo='Insumos', fecha=date(2026, 1, 1), monto_total=Decimal('100.00'),
         )
@@ -159,12 +156,8 @@ class InsumoCrudTests(TestCase):
         consumo = Consumo.objects.create(lote=lote, evento_sanitario=evento, cantidad=Decimal('5.00'))
         EventoSanitario.objects.filter(pk=evento.pk).update(lote=lote)
         evento.refresh_from_db()
-        dieta = Dieta.objects.create(nombre='Dieta historial')
-        composicion = ComposicionDieta.objects.create(
-            lote=lote, dieta=dieta, cantidadPorPorcion=Decimal('2.00'),
-        )
         return {'compra': compra, 'detalle': detalle, 'evento': evento,
-                'consumo': consumo, 'composicion': composicion}
+                'consumo': consumo}
 
     def test_baja_logica_insumo_conserva_historial(self):
         insumo = Insumo.objects.create(nombre='Vacuna historica', tipo='Vacuna', unidadDeMedida='dosis')
@@ -181,7 +174,6 @@ class InsumoCrudTests(TestCase):
         self.assertTrue(Lote.objects.filter(pk=lote.pk, activo=True).exists())
         self.assertTrue(DetalleCompra.objects.filter(pk=historial['detalle'].pk).exists())
         self.assertTrue(Consumo.objects.filter(pk=historial['consumo'].pk).exists())
-        self.assertTrue(ComposicionDieta.objects.filter(pk=historial['composicion'].pk).exists())
         self.assertEqual(historial['evento'].lote_id, lote.id)
         # No aparece en los listados activos.
         self.assertNotIn(insumo.id, [i['id'] for i in self.client.get(reverse('insumos_api')).json()['insumos']])
@@ -201,7 +193,6 @@ class InsumoCrudTests(TestCase):
         # Su historial queda intacto.
         self.assertTrue(DetalleCompra.objects.filter(pk=historial['detalle'].pk).exists())
         self.assertTrue(Consumo.objects.filter(pk=historial['consumo'].pk).exists())
-        self.assertTrue(ComposicionDieta.objects.filter(pk=historial['composicion'].pk).exists())
         self.assertEqual(historial['evento'].lote_id, lote.id)
         # No aparece en el detalle del insumo ni se puede acceder.
         payload = self.client.get(reverse('insumo_detalle', args=[insumo.id])).json()['insumo']
