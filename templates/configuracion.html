@@ -42,14 +42,8 @@
                       <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-notificaciones" type="button">
                         <i class="bi bi-bell"></i> Notificaciones
                       </button>
-                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-seguridad" type="button">
-                        <i class="bi bi-lock"></i> Seguridad
-                      </button>
-                      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-apariencia" type="button">
-                        <i class="bi bi-palette"></i> Apariencia
-                      </button>
                       <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-basededatos" type="button">
-                        <i class="bi bi-hdd-stack"></i> Base de datos
+                        <i class="bi bi-hdd-stack"></i> Copia de seguridad
                       </button>
                     </div>
                   </div>
@@ -188,148 +182,7 @@
                   </div>
                   <!--end::Notificaciones-->
 
-                  <!--begin::Seguridad-->
-                  <div class="tab-pane fade" id="tab-seguridad">
-                    <div class="card vacapp-card mb-3">
-                      <div class="card-header bg-transparent border-0 pb-0">
-                        <h3 class="card-title">Cambiar contraseña</h3>
-                      </div>
-                      <div class="card-body">
-                        <form id="form-password" class="row g-3">
-                          <div class="col-md-4">
-                            <label class="form-label">Contraseña actual</label>
-                            <input type="password" class="form-control" required />
-                          </div>
-                          <div class="col-md-4">
-                            <label class="form-label">Nueva contraseña</label>
-                            <input type="password" class="form-control" id="seg-nueva-pass" required />
-                          </div>
-                          <div class="col-md-4">
-                            <label class="form-label">Confirmar contraseña</label>
-                            <input type="password" class="form-control" id="seg-confirmar-pass" required />
-                            <div class="invalid-feedback" id="seg-pass-feedback">Las contraseñas no coinciden.</div>
-                          </div>
-                          <div class="col-12">
-                            <button type="submit" class="btn btn-success">
-                              <i class="bi bi-check2 me-1"></i> Actualizar contraseña
-                            </button>
-                          </div>
-                        </form>
-                      </div>
-                    </div>
-                    <div class="card vacapp-card">
-                      <div class="card-header bg-transparent border-0 pb-0">
-                        <h3 class="card-title">Preferencias de seguridad</h3>
-                      </div>
-                      <div class="card-body">
-                        <div class="row g-3 mb-3">
-                          <div class="col-md-6">
-                            <label class="form-label">Tiempo de sesión</label>
-                            <select class="form-select">
-                              <option>15 minutos</option>
-                              <option selected>30 minutos</option>
-                              <option>1 hora</option>
-                              <option>4 horas</option>
-                              <option>No cerrar sesión automáticamente</option>
-                            </select>
-                          </div>
-                          <div class="col-md-6 d-flex align-items-end">
-                            <div class="form-check form-switch mb-2">
-                              <input class="form-check-input" type="checkbox" role="switch" disabled />
-                              <label class="form-check-label">
-                                Autenticación en dos pasos
-                                <span class="badge text-bg-secondary ms-1">Próximamente</span>
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                        <hr />
-                        <h6 class="mb-2">Política de contraseñas</h6>
-                        <div class="list-group list-group-flush">
-                          <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span>Mínimo 8 caracteres</span>
-                            <div class="form-check form-switch">
-                              <input class="form-check-input" type="checkbox" role="switch" checked disabled />
-                            </div>
-                          </div>
-                          <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span>Requerir mayúsculas y minúsculas</span>
-                            <div class="form-check form-switch">
-                              <input class="form-check-input" type="checkbox" role="switch" checked />
-                            </div>
-                          </div>
-                          <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span>Requerir al menos un número</span>
-                            <div class="form-check form-switch">
-                              <input class="form-check-input" type="checkbox" role="switch" checked />
-                            </div>
-                          </div>
-                          <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span>Requerir al menos un símbolo</span>
-                            <div class="form-check form-switch">
-                              <input class="form-check-input" type="checkbox" role="switch" />
-                            </div>
-                          </div>
-                        </div>
-                        <button type="button" class="btn btn-success mt-3" id="btn-guardar-seguridad">
-                          <i class="bi bi-check2 me-1"></i> Guardar cambios
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <!--end::Seguridad-->
-
-                  <!--begin::Apariencia-->
-                  <div class="tab-pane fade" id="tab-apariencia">
-                    <div class="card vacapp-card">
-                      <div class="card-header bg-transparent border-0 pb-0">
-                        <h3 class="card-title">Apariencia</h3>
-                      </div>
-                      <div class="card-body">
-                        <label class="form-label">Tema</label>
-                        <div class="d-flex gap-3 mb-4">
-                          <div class="vacapp-theme-option" id="tema-opcion-light" onclick="elegirTema('light')">
-                            <i class="bi bi-sun fs-3"></i>
-                            <div class="mt-1">Tema claro</div>
-                          </div>
-                          <div class="vacapp-theme-option" id="tema-opcion-dark" onclick="elegirTema('dark')">
-                            <i class="bi bi-moon-stars fs-3"></i>
-                            <div class="mt-1">Tema oscuro</div>
-                          </div>
-                        </div>
-
-                        <label class="form-label">Color principal</label>
-                        <div class="d-flex gap-2 mb-4" id="apariencia-colores">
-                          <span class="vacapp-color-swatch active" style="background:#0d6efd" data-color="#0d6efd" onclick="elegirColor(this)"></span>
-                          <span class="vacapp-color-swatch" style="background:#198754" data-color="#198754" onclick="elegirColor(this)"></span>
-                          <span class="vacapp-color-swatch" style="background:#dc3545" data-color="#dc3545" onclick="elegirColor(this)"></span>
-                          <span class="vacapp-color-swatch" style="background:#6f42c1" data-color="#6f42c1" onclick="elegirColor(this)"></span>
-                          <span class="vacapp-color-swatch" style="background:#fd7e14" data-color="#fd7e14" onclick="elegirColor(this)"></span>
-                        </div>
-
-                        <label class="form-label">Idioma</label>
-                        <select class="form-select mb-4" style="max-width: 320px">
-                          <option selected>Español</option>
-                          <option disabled>Inglés (próximamente)</option>
-                          <option disabled>Portugués (próximamente)</option>
-                        </select>
-
-                        <label class="form-label d-block">Vista previa</label>
-                        <div class="border rounded-3 p-3">
-                          <div class="d-flex align-items-center gap-2 mb-2">
-                            <button type="button" class="btn btn-sm" id="preview-btn" style="background:#0d6efd;color:#fff">Boton principal</button>
-                            <span class="badge" id="preview-badge" style="background:#0d6efd">Badge</span>
-                          </div>
-                          <p class="mb-0 small text-secondary">
-                            Asi se veran los botones y elementos destacados de VacApp con el color y tema elegidos.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <!--end::Apariencia-->
-
-                  <!--begin::Base de datos-->
+                  <!--begin::Copia de seguridad-->
                   <div class="tab-pane fade" id="tab-basededatos">
                     <div class="card vacapp-card">
                       <div class="card-header bg-transparent border-0 pb-0">
@@ -338,44 +191,75 @@
                       <div class="card-body">
                         <ul class="list-group list-group-flush mb-3">
                           <li class="list-group-item d-flex justify-content-between">
-                            <span class="text-secondary">Motor de base de datos</span><span>PostgreSQL 16.2</span>
+                            <span class="text-secondary">Motor de base de datos</span><span id="db-motor">{{ page_data.info_base_de_datos.motor }}</span>
                           </li>
                           <li class="list-group-item d-flex justify-content-between">
-                            <span class="text-secondary">Tamaño de la base</span><span>238 MB</span>
+                            <span class="text-secondary">Tamaño de la base</span><span id="db-tamano">{{ page_data.info_base_de_datos.tamano }}</span>
                           </li>
                           <li class="list-group-item d-flex justify-content-between">
-                            <span class="text-secondary">Último respaldo</span><span>14/07/2026 03:00</span>
+                            <span class="text-secondary">Último respaldo</span><span id="db-ultimo-respaldo">{{ page_data.info_base_de_datos.ultimo_respaldo|default:'Sin respaldos' }}</span>
                           </li>
                           <li class="list-group-item d-flex justify-content-between">
                             <span class="text-secondary">Estado del sistema</span>
-                            <span class="badge text-bg-success">Operativo</span>
+                            <span class="badge text-bg-success" id="db-estado">{{ page_data.info_base_de_datos.estado }}</span>
                           </li>
                         </ul>
                         <div class="d-flex flex-wrap gap-2">
-                          <button type="button" class="btn btn-outline-primary" id="btn-crear-respaldo">
+                          <button type="button" class="btn btn-primary" id="btn-crear-respaldo">
                             <i class="bi bi-cloud-arrow-up me-1"></i> Crear respaldo
                           </button>
-                          <button
-                            type="button"
-                            class="btn btn-outline-warning"
-                            onclick="confirmarAccion('Restaurar respaldo', 'Esto reemplazará los datos actuales por los del último respaldo. Esta acción no se puede deshacer. ¿Deseas continuar?', () => mostrarExito('btn-restaurar-respaldo', 'Respaldo restaurado'))"
-                            id="btn-restaurar-respaldo"
-                          >
-                            <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar respaldo
-                          </button>
-                          <button
-                            type="button"
-                            class="btn btn-outline-secondary"
-                            onclick="confirmarAccion('Optimizar base de datos', 'El sistema puede quedar lento por unos minutos mientras se optimiza la base de datos. ¿Deseas continuar?', () => mostrarExito('btn-optimizar-db', 'Base optimizada'))"
-                            id="btn-optimizar-db"
-                          >
+                          <button type="button" class="btn btn-outline-secondary" id="btn-optimizar-db">
                             <i class="bi bi-speedometer me-1"></i> Optimizar base de datos
                           </button>
                         </div>
                       </div>
                     </div>
+
+                    <div class="card vacapp-card mt-3">
+                      <div class="card-header bg-transparent border-0 pb-0">
+                        <h3 class="card-title">Respaldos guardados</h3>
+                      </div>
+                      <div class="card-body">
+                        <div class="table-responsive">
+                          <table class="table table-vacapp align-middle mb-0">
+                            <thead>
+                              <tr>
+                                <th>Archivo</th>
+                                <th>Fecha</th>
+                                <th>Tamaño</th>
+                                <th class="text-end">Acciones</th>
+                              </tr>
+                            </thead>
+                            <tbody id="tabla-respaldos">
+                              {% for respaldo in page_data.respaldos %}
+                              <tr>
+                                <td class="font-monospace small">{{ respaldo.nombre }}</td>
+                                <td class="small">{{ respaldo.fecha }}</td>
+                                <td class="small">{{ respaldo.tamano }}</td>
+                                <td class="text-end">
+                                  <button type="button" class="btn btn-sm btn-outline-warning" data-accion="restaurar" data-respaldo="{{ respaldo.nombre }}">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar
+                                  </button>
+                                  <button type="button" class="btn btn-sm btn-outline-danger" data-accion="eliminar" data-respaldo="{{ respaldo.nombre }}">
+                                    <i class="bi bi-trash me-1"></i> Eliminar
+                                  </button>
+                                </td>
+                              </tr>
+                              {% empty %}
+                              <tr id="fila-respaldos-vacia">
+                                <td colspan="4" class="text-secondary small text-center py-3">
+                                  Todavía no se generó ningún respaldo. Usá "Crear respaldo" para guardar una copia de seguridad de la base de datos.
+                                </td>
+                              </tr>
+                              {% endfor %}
+                            </tbody>
+                          </table>
+                        </div>
+                        <div class="text-danger small mt-2" id="db-error" style="display:none"></div>
+                      </div>
+                    </div>
                   </div>
-                  <!--end::Base de datos-->
+                  <!--end::Copia de seguridad-->
                 </div>
               </div>
               <!--end::Contenido de pestañas-->

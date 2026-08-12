@@ -2,11 +2,12 @@ import calendar
 import json
 import os
 import re
-from datetime import date, timedelta
+import sqlite3
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.db.models import Avg, Count, Sum, Q
-from django.db import transaction
+from django.db import connection, transaction
 from django.http import JsonResponse
 from django.db import IntegrityError
 from django.conf import settings
@@ -1599,9 +1600,196 @@ def usuarios(request):
     return _page(request, 'usuarios.html', 'usuarios', data)
 
 
+# ---------------------------------------------------------------------------
+# Módulo de Configuración: base de datos, respaldos y restauración
+# ---------------------------------------------------------------------------
+
+def _directorio_respaldos():
+    """Carpeta donde se guardan las copias de seguridad de la base de datos."""
+    directorio = settings.BASE_DIR / 'backups'
+    directorio.mkdir(parents=True, exist_ok=True)
+    return directorio
+
+
+def _tamano_legible(cantidad):
+    """Formatea un tamaño en bytes como texto legible (ej: '1,2 MB')."""
+    if cantidad is None:
+        return '—'
+    for unidad in ('B', 'KB', 'MB', 'GB'):
+        if cantidad < 1024:
+            return f'{cantidad:.0f} {unidad}' if unidad == 'B' else f'{cantidad:.1f} {unidad}'
+        cantidad /= 1024
+    return f'{cantidad:.2f} TB'
+
+
+def _motor_base_de_datos():
+    """Devuelve el nombre del motor real de la base de datos y su tamaño."""
+    motor = settings.DATABASES['default']['ENGINE']
+    if motor.endswith('sqlite3'):
+        nombre_archivo = connection.settings_dict.get('NAME')
+        tamano = '—'
+        if nombre_archivo and 'memory' not in str(nombre_archivo):
+            try:
+                tamano = _tamano_legible(os.path.getsize(nombre_archivo))
+            except OSError:
+                tamano = '—'
+        return f'SQLite {sqlite3.sqlite_version}', tamano
+    if motor.endswith('postgresql'):
+        version = '—'
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('SHOW server_version')
+                version = cursor.fetchone()[0]
+        except Exception:
+            version = '—'
+        return f'PostgreSQL {version}', '—'
+    return motor.rsplit('.', 1)[-1], '—'
+
+
+def _listar_respaldos():
+    """Lista las copias de seguridad guardadas, de la más reciente a la más antigua."""
+    respaldos = []
+    archivos = sorted(
+        _directorio_respaldos().glob('*.sqlite3'),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    for archivo in archivos:
+        try:
+            stats = archivo.stat()
+        except OSError:
+            continue
+        respaldos.append({
+            'nombre': archivo.name,
+            'fecha': datetime.fromtimestamp(stats.st_mtime).strftime('%d/%m/%Y %H:%M'),
+            'tamano': _tamano_legible(stats.st_size),
+        })
+    return respaldos
+
+
+def _validar_nombre_respaldo(nombre):
+    """Valida que el nombre corresponda a un archivo dentro de la carpeta de respaldos."""
+    nombre = os.path.basename(nombre or '')
+    if not nombre.endswith('.sqlite3'):
+        raise ValueError('El respaldo indicado no es válido.')
+    ruta = (_directorio_respaldos() / nombre).resolve()
+    if _directorio_respaldos().resolve() not in ruta.parents:
+        raise ValueError('El respaldo indicado no es válido.')
+    if not ruta.is_file():
+        raise FileNotFoundError('El respaldo indicado no existe.')
+    return ruta
+
+
+@rol_requerido(ROL_PROPIETARIO)
+def respaldos_api(request):
+    """Información real de la base de datos y listado de respaldos (JSON)."""
+    motor, tamano = _motor_base_de_datos()
+    respaldos = _listar_respaldos()
+    return JsonResponse({
+        'info': {
+            'motor': motor,
+            'tamano': tamano,
+            'ultimo_respaldo': respaldos[0]['fecha'] if respaldos else None,
+            'estado': 'Operativo',
+        },
+        'respaldos': respaldos,
+    })
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
+def crear_respaldo_db(request):
+    """Genera una copia de seguridad de la base de datos (SQLite)."""
+    if not settings.DATABASES['default']['ENGINE'].endswith('sqlite3'):
+        return JsonResponse({'error': 'El respaldo solo está disponible con una base de datos SQLite.'}, status=400)
+    nombre = f'respaldo_{datetime.now().strftime("%Y%m%d_%H%M%S")}.sqlite3'
+    ruta = _directorio_respaldos() / nombre
+    try:
+        connection.ensure_connection()
+        destino = sqlite3.connect(str(ruta))
+        try:
+            connection.connection.backup(destino)
+        finally:
+            destino.close()
+    except Exception as error:
+        return JsonResponse({'error': f'No se pudo crear el respaldo: {error}'}, status=500)
+    stats = ruta.stat()
+    return JsonResponse({'ok': True, 'respaldo': {
+        'nombre': ruta.name,
+        'fecha': datetime.now().strftime('%d/%m/%Y %H:%M'),
+        'tamano': _tamano_legible(stats.st_size),
+    }}, status=201)
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
+def restaurar_respaldo_db(request):
+    """Restaura una copia de seguridad, reemplazando los datos actuales."""
+    if not settings.DATABASES['default']['ENGINE'].endswith('sqlite3'):
+        return JsonResponse({'error': 'La restauración solo está disponible con una base de datos SQLite.'}, status=400)
+    try:
+        ruta = _validar_nombre_respaldo(request.POST.get('respaldo'))
+    except (ValueError, FileNotFoundError) as error:
+        return JsonResponse({'error': str(error)}, status=404 if isinstance(error, FileNotFoundError) else 400)
+    try:
+        connection.ensure_connection()
+        # Se copia el respaldo directamente sobre la conexión activa de Django, de
+        # modo que las siguientes consultas ya ven los datos restaurados.
+        origen = sqlite3.connect(str(ruta))
+        try:
+            with origen:
+                origen.backup(connection.connection)
+        finally:
+            origen.close()
+    except Exception as error:
+        return JsonResponse({'error': f'No se pudo restaurar el respaldo: {error}'}, status=500)
+    return JsonResponse({'ok': True, 'restaurado': ruta.name})
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
+def eliminar_respaldo_db(request):
+    """Elimina una copia de seguridad guardada."""
+    try:
+        ruta = _validar_nombre_respaldo(request.POST.get('respaldo'))
+    except (ValueError, FileNotFoundError) as error:
+        return JsonResponse({'error': str(error)}, status=404 if isinstance(error, FileNotFoundError) else 400)
+    try:
+        ruta.unlink()
+    except OSError as error:
+        return JsonResponse({'error': f'No se pudo eliminar el respaldo: {error}'}, status=500)
+    return JsonResponse({'ok': True, 'eliminado': ruta.name})
+
+
+@require_POST
+@rol_requerido(ROL_PROPIETARIO)
+def optimizar_base_datos(request):
+    """Optimiza la base de datos SQLite (PRAGMA optimize + VACUUM)."""
+    if not settings.DATABASES['default']['ENGINE'].endswith('sqlite3'):
+        return JsonResponse({'error': 'La optimización solo está disponible con una base de datos SQLite.'}, status=400)
+    try:
+        connection.ensure_connection()
+        conexion = connection.connection
+        conexion.execute('PRAGMA optimize')
+        conexion.execute('VACUUM')
+    except Exception as error:
+        return JsonResponse({'error': f'No se pudo optimizar la base de datos: {error}'}, status=500)
+    return JsonResponse({'ok': True})
+
+
 @rol_requerido(ROL_PROPIETARIO)
 def configuracion(request):
-    return _page(request, 'configuracion.html')
+    motor, tamano = _motor_base_de_datos()
+    respaldos = _listar_respaldos()
+    return _page(request, 'configuracion.html', None, {
+        'info_base_de_datos': {
+            'motor': motor,
+            'tamano': tamano,
+            'ultimo_respaldo': respaldos[0]['fecha'] if respaldos else None,
+            'estado': 'Operativo',
+        },
+        'respaldos': respaldos,
+    })
 
 
 def stock_api(request):

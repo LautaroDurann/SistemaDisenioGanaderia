@@ -1,13 +1,15 @@
 import base64
 import json
+import sqlite3
 from datetime import date
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 
 from animales.models import Animal, Parto, Preniez
@@ -666,6 +668,92 @@ class WebIntegrationTests(TestCase):
         response = self.client.post(reverse('eliminar_comprador', args=[comprador.id]))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Comprador.objects.filter(pk=comprador.id, activo=True).exists())
+
+
+class ConfiguracionRespaldoTests(TransactionTestCase):
+    """Pruebas de respaldo, restauración y optimización de la base de datos.
+
+    Se usa TransactionTestCase porque el respaldo/restauración escribe sobre la
+    conexión viva de SQLite y no debe estar envuelto en una transacción de prueba.
+    """
+
+    def setUp(self):
+        establecimiento = Establecimiento.objects.create(
+            nombre='Campo de prueba', fecha_inicio=date.today(), ubicacion='Córdoba'
+        )
+        parcela = Parcela.objects.create(ancho=10, largo=20, establecimiento=establecimiento)
+        self.animal = Animal.objects.create(
+            id_senasa=12345, nombre='Luna', tipo_animal='Bovino', sexo='Hembra',
+            parcela=parcela, vivo=True,
+        )
+        persona = Persona.objects.create(
+            nombre='Juan', apellido='Fernandez', correo_electronico='juan@test.com',
+        )
+        usuario = Usuario.objects.create(
+            nombre_usuario='propietario', clave=make_password('clave123'), persona=persona,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=usuario, establecimiento=establecimiento,
+            nombre='Propietario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        session = self.client.session
+        session['usuario_id'] = usuario.id
+        session.save()
+        self.respaldos_creados = []
+
+    def tearDown(self):
+        for nombre in self.respaldos_creados:
+            archivo = settings.BASE_DIR / 'backups' / nombre
+            if archivo.exists():
+                archivo.unlink()
+
+    def _crear_respaldo(self):
+        response = self.client.post(reverse('crear_respaldo_db'))
+        self.assertEqual(response.status_code, 201)
+        nombre = response.json()['respaldo']['nombre']
+        self.respaldos_creados.append(nombre)
+        return nombre
+
+    def test_crear_y_listar_respaldos(self):
+        nombre = self._crear_respaldo()
+        archivo = settings.BASE_DIR / 'backups' / nombre
+        self.assertTrue(archivo.is_file())
+        conexion = sqlite3.connect(str(archivo))
+        tablas = conexion.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        conexion.close()
+        self.assertTrue(tablas)
+
+        response = self.client.get(reverse('respaldos_api'))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn('info', data)
+        self.assertIn('SQLite', data['info']['motor'])
+        self.assertTrue(any(r['nombre'] == nombre for r in data['respaldos']))
+
+    def test_restaurar_respaldo_devuelve_los_datos(self):
+        nombre = self._crear_respaldo()
+        Animal.objects.filter(pk=self.animal.idAnimal).delete()
+        self.assertFalse(Animal.objects.filter(pk=self.animal.idAnimal).exists())
+
+        response = self.client.post(reverse('restaurar_respaldo_db'), {'respaldo': nombre})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['restaurado'], nombre)
+        self.assertTrue(Animal.objects.filter(pk=self.animal.idAnimal).exists())
+
+    def test_restaurar_respaldo_inexistente_devuelve_404(self):
+        response = self.client.post(reverse('restaurar_respaldo_db'), {'respaldo': 'inexistente.sqlite3'})
+        self.assertEqual(response.status_code, 404)
+
+    def test_eliminar_respaldo(self):
+        nombre = self._crear_respaldo()
+        response = self.client.post(reverse('eliminar_respaldo_db'), {'respaldo': nombre})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse((settings.BASE_DIR / 'backups' / nombre).exists())
+
+    def test_optimizar_base_de_datos(self):
+        response = self.client.post(reverse('optimizar_base_datos'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['ok'], True)
 
 
 class CompraModuleTests(TestCase):
@@ -2057,8 +2145,20 @@ class InseminacionModuleTests(TestCase):
         self.assertContains(response, 'est-logo-input')
         for seccion in ('tab-empresa', 'tab-categorias', 'tab-razas', 'tab-vacunas',
                         'tab-parcelas', 'tab-usuarios-roles', 'tabla-categorias',
-                        'tabla-vacunas', 'tabla-estados-parcela', 'modalListaSimple'):
+                        'tabla-vacunas', 'tabla-estados-parcela', 'modalListaSimple',
+                        'tab-seguridad', 'tab-apariencia'):
             self.assertNotContains(response, seccion)
+
+    def test_configuracion_muestra_info_real_de_base_de_datos(self):
+        response = self.client.get(reverse('configuracion'))
+        self.assertContains(response, 'SQLite')
+        self.assertNotContains(response, 'PostgreSQL 16.2')
+        self.assertNotContains(response, '238 MB')
+
+    def test_configuracion_no_ofrece_restaurar_sin_respaldos(self):
+        response = self.client.get(reverse('configuracion'))
+        self.assertContains(response, 'fila-respaldos-vacia')
+        self.assertContains(response, 'Sin respaldos')
 
     def test_config_establecimiento_guarda_datos_y_logo(self):
         png = base64.b64decode(

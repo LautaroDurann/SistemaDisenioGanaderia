@@ -1,6 +1,8 @@
 # Base de datos local
 db.sqlite3
 media/ 
+# Copias de seguridad de la base de datos
+backups/
 # Credenciales locales (SMTP, etc.)
 .env
 
