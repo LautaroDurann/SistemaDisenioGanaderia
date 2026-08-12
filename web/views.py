@@ -521,7 +521,7 @@ def _dashboard_data(request):
     ingresos_mes = ventas_mes.aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
     gastos_mes = eventos.filter(estado=True, fecha_aplicacion__year=today.year, fecha_aplicacion__month=today.month).aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
 
-    kpi_total_animales = animales.count()
+    kpi_total_animales = animales.filter(vivo=True, vendido=False).count()
     kpi_ventas_mes = ventas_mes.count()
     kpi_peso_promedio = animales.aggregate(promedio=Avg('peso_actual'))['promedio'] or Decimal('0')
 

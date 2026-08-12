@@ -239,6 +239,13 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['animales'][0]['caravana'], '12345')
 
+    def test_dashboard_total_animales_excluye_muertos_y_vendidos(self):
+        Animal.objects.create(id_senasa='30010', nombre='Muerto', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, vivo=False)
+        Animal.objects.create(id_senasa='30011', nombre='Vendido', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, vivo=True, vendido=True)
+        Animal.objects.create(id_senasa='30012', nombre='Porcino', tipo_animal='Porcino', sexo='Macho', parcela=self.parcela, vivo=True)
+        response = self.client.get(reverse('dashboard'))
+        self.assertEqual(response.context['page_data']['kpis']['total_animales'], 2)
+
     def test_filtro_madre_incluye_todas_las_hembras_con_crias(self):
         # Madre con cría registrada: debe aparecer aunque esté muerta/vendida.
         madre = Animal.objects.create(id_senasa='20001', nombre='Mama', tipo_animal='Bovino', sexo='Hembra', parcela=self.parcela, vivo=False)

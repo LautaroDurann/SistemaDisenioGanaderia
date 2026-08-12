@@ -187,14 +187,16 @@
           });
         });
 
-        actualizarKpis(datos);
+        actualizarKpis();
       }
 
-      function actualizarKpis(datos) {
-        document.getElementById('kpi-total').textContent = ANIMALES.length;
-        document.getElementById('kpi-bovinos').textContent = ANIMALES.filter((a) => a.tipo_animal === 'Bovino').length;
-        document.getElementById('kpi-ovinos').textContent = ANIMALES.filter((a) => a.tipo_animal === 'Ovino').length;
-        document.getElementById('kpi-porcinos').textContent = ANIMALES.filter((a) => a.tipo_animal === 'Porcino').length;
+      function actualizarKpis() {
+        // Solo animales activos en el establecimiento (sin muertos ni vendidos).
+        const activos = ANIMALES.filter((a) => a.estado === 'Activo');
+        document.getElementById('kpi-total').textContent = activos.length;
+        document.getElementById('kpi-bovinos').textContent = activos.filter((a) => a.tipo_animal === 'Bovino').length;
+        document.getElementById('kpi-ovinos').textContent = activos.filter((a) => a.tipo_animal === 'Ovino').length;
+        document.getElementById('kpi-porcinos').textContent = activos.filter((a) => a.tipo_animal === 'Porcino').length;
       }
 
       // ------------------------------------------------------------------
