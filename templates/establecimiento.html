@@ -1,0 +1,121 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Establecimiento | HuacApp{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/configuracion.css' %}?v=3">
+{% endblock %}
+
+{% block content %}
+	<div class="app-content-header">
+		<div class="container-fluid">
+			<h3 class="mb-0">Establecimiento</h3>
+			<p class="text-secondary mb-0">Datos del establecimiento activo.</p>
+		</div>
+	</div>
+
+	<div class="app-content">
+		<div class="container-fluid">
+			<div class="row g-3">
+				<div class="col-lg-9">
+					<div class="card vacapp-card">
+						<div class="card-header bg-transparent border-0 pb-0">
+							<h3 class="card-title">Datos del establecimiento</h3>
+						</div>
+						<div class="card-body">
+							<form id="form-establecimiento">
+								<div class="d-flex align-items-center gap-3 mb-4">
+									<div class="vacapp-logo-preview" id="est-logo-preview">
+										{% if establecimiento_actual and establecimiento_actual.logo %}
+											<img src="{{ establecimiento_actual.logo.url }}" alt="Logo del establecimiento" />
+										{% else %}
+											<i class="bi bi-image"></i>
+										{% endif %}
+									</div>
+									<div class="flex-grow-1">
+										<label class="form-label mb-1">Logo o foto</label>
+										<div class="d-flex flex-wrap align-items-center gap-2">
+											<input type="file" class="form-control form-control-sm" accept="image/*" id="est-logo-input" style="max-width:280px" />
+											<button
+												type="button"
+												class="btn btn-sm btn-outline-danger {% if not establecimiento_actual.logo %}d-none{% endif %}"
+												id="est-logo-eliminar-btn"
+												title="Eliminar el logo actual"
+											>
+												<i class="bi bi-trash me-1"></i> Eliminar logo
+											</button>
+										</div>
+										<small class="text-secondary">PNG o JPG. Es la imagen que se muestra junto al nombre del establecimiento.</small>
+									</div>
+								</div>
+								<div class="row g-3">
+									<div class="col-md-6">
+										<label class="form-label">Nombre del establecimiento</label>
+										<input type="text" class="form-control" id="est-nombre" value="{{ establecimiento_actual.nombre|default:'' }}" required />
+									</div>
+									<div class="col-md-6">
+										<label class="form-label">Fecha de inicio</label>
+										<input type="date" class="form-control" id="est-fecha-inicio" value="{{ establecimiento_actual.fecha_inicio|date:'Y-m-d'|default:'' }}" required />
+									</div>
+									<div class="col-md-6">
+										<label class="form-label">Ubicación</label>
+										<input type="text" class="form-control" id="est-ubicacion" value="{{ establecimiento_actual.ubicacion|default:'' }}" required />
+									</div>
+								</div>
+								<button type="submit" class="btn btn-success mt-4" id="est-guardar-btn">
+									<i class="bi bi-check2 me-1"></i> Guardar cambios
+								</button>
+								<div class="text-danger small mt-2" id="est-guardar-error" style="display:none"></div>
+							</form>
+						</div>
+					</div>
+					{% if establecimiento_actual %}
+					<div class="card vacapp-card mt-3">
+						<div class="card-header bg-transparent border-0 pb-0">
+							<h3 class="card-title text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Zona de peligro</h3>
+						</div>
+						<div class="card-body">
+							<p class="text-secondary small mb-2">
+								Al eliminar <span class="fw-semibold">{{ establecimiento_actual.nombre }}</span> se borrarán
+								también sus parcelas, movimientos y registros asociados. Esta acción no se puede deshacer.
+							</p>
+							<button
+								type="button"
+								class="btn btn-outline-danger"
+								id="btn-eliminar-establecimiento"
+								data-establecimiento-id="{{ establecimiento_actual.id }}"
+								data-establecimiento-nombre="{{ establecimiento_actual.nombre }}"
+							>
+								<i class="bi bi-trash me-1"></i> Eliminar establecimiento
+							</button>
+						</div>
+					</div>
+					{% endif %}
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Modal de confirmacion generico -->
+	<div class="modal fade" id="modalConfirmar" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title" id="confirmar-titulo">Confirmar accion</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body">
+					<p class="mb-0" id="confirmar-mensaje">¿Deseas continuar?</p>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+					<button type="button" class="btn btn-danger" id="confirmar-btn-aceptar">Confirmar</button>
+				</div>
+			</div>
+		</div>
+	</div>
+{% endblock %}
+
+{% block page_js %}
+<script src="{% static 'js/establecimiento.js' %}?v=1"></script>
+{% endblock %}

@@ -102,9 +102,9 @@
         </li>
         {% if es_propietario %}
         <li class="nav-item">
-          <a href="{% url 'configuracion' %}" class="nav-link{% if request.resolver_match.url_name == 'configuracion' %} active{% endif %}" data-page="configuracion.html">
-            <i class="nav-icon bi bi-gear-fill"></i>
-            <p>Configuración</p>
+          <a href="{% url 'establecimiento' %}" class="nav-link{% if request.resolver_match.url_name == 'establecimiento' %} active{% endif %}" data-page="establecimiento.html">
+            <i class="nav-icon bi bi-buildings"></i>
+            <p>Establecimiento</p>
           </a>
         </li>
         {% endif %}

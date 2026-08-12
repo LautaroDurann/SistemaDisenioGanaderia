@@ -292,7 +292,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (modalRegistrar) {
     modalRegistrar.addEventListener('hidden.bs.modal', function () {
       document.getElementById('mov-id').value = '';
-      document.getElementById('titulo-mov-modal').textContent = 'Registrar movimiento financiero';
+      document.getElementById('titulo-mov-modal').textContent = 'Editar movimiento financiero';
       form?.reset();
     });
   }

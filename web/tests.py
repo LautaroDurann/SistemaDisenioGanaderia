@@ -47,7 +47,7 @@ class WebIntegrationTests(TestCase):
         session.save()
 
     def test_paginas_principales_responden(self):
-        for url_name in ('dashboard', 'stock', 'movimientos', 'parcelas', 'vacunacion', 'sanidad', 'usuarios', 'configuracion', 'prenieces'):
+        for url_name in ('dashboard', 'stock', 'movimientos', 'parcelas', 'vacunacion', 'sanidad', 'usuarios', 'configuracion', 'establecimiento', 'prenieces'):
             with self.subTest(url_name=url_name):
                 self.assertEqual(self.client.get(reverse(url_name)).status_code, 200)
 
@@ -1630,6 +1630,28 @@ class SueldosModuleTests(TestCase):
         self.assertEqual(datos['summary']['total_gastos'], 2)
         self.assertAlmostEqual(datos['summary']['egresos_total'], 450000.50, places=2)
         self.assertEqual(datos['summary']['total_liquidaciones'], 1)
+
+    def test_gastos_otros_egresos_se_registran_como_movimientos(self):
+        response = self.client.post(reverse('api_finanzas_movimientos'), {
+            'fecha': '2026-08-01', 'tipo': 'Egreso', 'nombre': 'Flete',
+            'monto_total': '75000', 'detalle': 'Flete de insumos',
+        })
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()['movimiento']['tipo'], 'Egreso')
+
+        response = self.client.get(reverse('gastos'))
+        self.assertEqual(response.status_code, 200)
+        contenido = response.content.decode()
+        inicio = contenido.index('id="huacapp-page-data"')
+        inicio = contenido.index('>', inicio) + 1
+        fin = contenido.index('</script>', inicio)
+        datos = json.loads(contenido[inicio:fin])
+        self.assertEqual(datos['summary']['total_otros'], 1)
+        self.assertEqual(datos['summary']['total_gastos'], 1)
+        self.assertAlmostEqual(datos['summary']['egresos_total'], 75000.00, places=2)
+        otros = json.loads(datos['chart_gastos']['otros_json'])
+        self.assertIn(float(Decimal('75000.00')), otros)
+        self.assertEqual(datos['otros'][0]['nombre'], 'Flete')
 
     def test_crear_liquidacion_crea_egreso_financiero(self):
         response = self.crear_liquidacion({
