@@ -240,8 +240,11 @@
       }
       /* El fondo gris (#424242) que ApexCharts asigna al crear el gráfico en
          modo oscuro no coincide con la tarjeta; se fuerza transparente para
-         que se vea el fondo de la card tanto al cargar como al cambiar el tema. */
-      [data-bs-theme="dark"] .apexcharts-canvas svg {
+         que se vea el fondo de la card tanto al cargar como al cambiar el tema.
+         Se aplica en ambos temas (claro y oscuro): si se limita al oscuro, al
+         pasar a claro el <svg> conserva el fondo inline #424242 y el recuadro
+         queda oscuro hasta recargar. */
+      .apexcharts-canvas svg {
         background: transparent !important;
       }
 

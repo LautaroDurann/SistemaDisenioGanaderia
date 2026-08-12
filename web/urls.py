@@ -10,7 +10,8 @@ urlpatterns = [
     path('recuperar/', auth_views.recuperar_view, name='recuperar'),
     path('recuperar/<str:token>/', auth_views.restablecer_view, name='restablecer'),
 
-    path('', views.dashboard, name='dashboard'),
+    path('', views.inicio, name='inicio'),
+    path('panel/', views.dashboard, name='dashboard'),
     path('api/dashboard/', views.dashboard_api, name='dashboard_api'),
     path('api/notificaciones/', views.notificaciones_api, name='notificaciones_api'),
     path('api/notificaciones/leer-todas/', views.marcar_todas_notificaciones_leidas, name='marcar_todas_notificaciones_leidas'),

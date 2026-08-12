@@ -1,0 +1,428 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Establecimiento Don Hugo · Bienvenidos</title>
+  <link rel="icon" type="image/png" href="{% static 'assets/img/logo_ganaderia.png' %}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.0.12/index.css">
+  <style>
+    :root {
+      --huac-verde: #1d4e43;
+      --huac-verde-oscuro: #0d3b33;
+      --huac-verde-claro: #2f6b5c;
+      --huac-dorado: #d9a441;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Source Sans 3', system-ui, sans-serif;
+      background: #f7f6f2;
+      color: #2b2b2b;
+    }
+    section { scroll-margin-top: 72px; }
+
+    /* Barra superior */
+    .navbar-inicio {
+      background: transparent;
+      transition: background .25s ease, box-shadow .25s ease;
+      padding: 1rem 0;
+    }
+    .navbar-inicio.scrolled {
+      background: rgba(255, 255, 255, .97);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
+      padding: .5rem 0;
+    }
+    .navbar-inicio .brand-logo {
+      width: 46px; height: 46px;
+      border-radius: 50%;
+      object-fit: contain;
+      background: #fff;
+      padding: 3px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .18);
+    }
+    .navbar-inicio .brand-txt { line-height: 1.1; }
+    .navbar-inicio .brand-txt small {
+      display: block;
+      font-size: .78rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      opacity: .85;
+    }
+    .navbar-inicio .navbar-brand {
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: #fff;
+    }
+    .navbar-inicio.scrolled .navbar-brand { color: var(--huac-verde-oscuro); }
+    .navbar-inicio.scrolled .brand-txt small { color: var(--huac-verde); }
+    .btn-huac {
+      background: var(--huac-verde);
+      border: none;
+      color: #fff;
+      font-weight: 600;
+      padding: .55rem 1.15rem;
+      border-radius: .6rem;
+    }
+    .btn-huac:hover { background: var(--huac-verde-claro); color: #fff; }
+
+    /* Portada */
+    .hero {
+      position: relative;
+      min-height: 92vh;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(10, 30, 25, .55) 0%, rgba(10, 30, 25, .35) 45%, rgba(13, 59, 51, .88) 100%);
+    }
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      color: #fff;
+      text-align: center;
+      width: 100%;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .82rem;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, .16);
+      border: 1px solid rgba(255, 255, 255, .35);
+      backdrop-filter: blur(4px);
+      padding: .35rem 1rem;
+      border-radius: 2rem;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 {
+      font-size: clamp(2.4rem, 6vw, 4.2rem);
+      font-weight: 800;
+      text-shadow: 0 3px 18px rgba(0, 0, 0, .35);
+    }
+    .hero .lead {
+      font-size: clamp(1rem, 2.2vw, 1.3rem);
+      max-width: 720px;
+      margin: .75rem auto 2rem;
+      opacity: .95;
+    }
+    .hero-actions .btn {
+      border-radius: 2rem;
+      padding: .7rem 1.6rem;
+      font-weight: 600;
+    }
+    .hero-scroll {
+      margin-top: 2.5rem;
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      color: rgba(255, 255, 255, .85);
+      text-decoration: none;
+      font-size: .95rem;
+      animation: flotar 2.2s ease-in-out infinite;
+    }
+    @keyframes flotar {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(6px); }
+    }
+
+    /* Bloques de contenido */
+    .section-tag {
+      display: inline-block;
+      font-size: .8rem;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--huac-verde);
+      font-weight: 700;
+      margin-bottom: .5rem;
+    }
+    .section-title {
+      font-weight: 800;
+      color: var(--huac-verde-oscuro);
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+    }
+    .card-foto {
+      border: 0;
+      border-radius: 1rem;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .10);
+    }
+    .card-foto img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .card-info {
+      border: 0;
+      border-radius: 1rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
+      height: 100%;
+    }
+    .icono-redondo {
+      width: 56px; height: 56px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: rgba(29, 78, 67, .10);
+      color: var(--huac-verde);
+      font-size: 1.4rem;
+    }
+    .galeria-foto {
+      position: relative;
+      border-radius: 1rem;
+      overflow: hidden;
+      box-shadow: 0 10px 26px rgba(0, 0, 0, .12);
+      aspect-ratio: 4 / 3;
+    }
+    .galeria-foto img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transition: transform .35s ease;
+    }
+    .galeria-foto:hover img { transform: scale(1.05); }
+
+    .seccion-verde {
+      background: linear-gradient(135deg, #1d4e43 0%, #0d3b33 100%);
+      color: #fff;
+    }
+    .seccion-verde .section-title,
+    .seccion-verde .section-tag { color: #fff; }
+    .seccion-verde .section-tag { color: #e6c887; }
+    .pie {
+      background: #0a2822;
+      color: rgba(255, 255, 255, .75);
+    }
+    .pie a { color: #e6c887; text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Barra superior -->
+  <nav class="navbar navbar-inicio fixed-top navbar-expand">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+        <img src="{% static 'assets/img/logo_ganaderia.png' %}" alt="Establecimiento Don Hugo" class="brand-logo">
+        <span class="brand-txt">Establecimiento Don Hugo
+          <small>Producción ganadera</small>
+        </span>
+      </a>
+      <div class="ms-auto">
+        <a href="{% url 'login' %}" class="btn btn-huac">
+          <i class="bi bi-box-arrow-in-right me-1"></i> Iniciar sesión
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Portada -->
+  <header class="hero">
+    <img class="hero-bg" src="{% static 'assets/img/fotosInicio/entrada-estblecimiento.png' %}" alt="Entrada del Establecimiento Don Hugo">
+    <div class="container">
+      <div class="hero-content">
+        <span class="hero-badge"><i class="bi bi-geo-alt-fill"></i> Colonia Elisa · Chaco</span>
+        <h1>Establecimiento Don Hugo</h1>
+        <p class="lead">Cría y recría de ganado bovino en el corazón del Chaco. Tres décadas de trabajo familiar, campo y tradición, hoy gestionadas con tecnología al servicio del productor.</p>
+        <div class="hero-actions d-flex flex-column flex-sm-row justify-content-center gap-3">
+          <a href="{% url 'login' %}" class="btn btn-huac btn-lg">
+            <i class="bi bi-box-arrow-in-right me-1"></i> Ingresar al sistema
+          </a>
+          <a href="#nosotros" class="btn btn-outline-light btn-lg">Conocé el establecimiento</a>
+        </div>
+        <a href="#nosotros" class="hero-scroll"><i class="bi bi-chevron-double-down"></i> Bajá para saber más</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Historia -->
+  <section id="nosotros" class="py-5">
+    <div class="container py-5">
+      <div class="row g-4 align-items-center">
+        <div class="col-lg-6">
+          <span class="section-tag">Nuestra historia</span>
+          <h2 class="section-title mb-3">Un proyecto de familia, hecho a campo</h2>
+          <p class="text-secondary lh-lg">
+            El Establecimiento Don Hugo nació hace más de treinta años como un proyecto
+            familiar dedicado a la cría y recría de ganado bovino en la zona rural de
+            Colonia Elisa, Chaco. Lo que comenzó con unas pocas hectáreas y un pequeño
+            rodeo fue creciendo generación tras generación, apostando al trabajo honesto,
+            al cuidado del campo y a la mejora permanente de la genética y el manejo.
+          </p>
+          <p class="text-secondary lh-lg mb-0">
+            Hoy es un establecimiento en plena actividad que combina la tradición del
+            campo chaqueño con herramientas modernas de gestión, para tomar mejores
+            decisiones en cada etapa de la producción.
+          </p>
+        </div>
+        <div class="col-lg-6">
+          <div class="card card-foto ratio ratio-4x3">
+            <img src="{% static 'assets/img/fotosInicio/campo-1.png' %}" alt="Campo del Establecimiento Don Hugo">
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Dueños -->
+  <section class="seccion-verde py-5">
+    <div class="container py-5">
+      <div class="row g-4 align-items-center">
+        <div class="col-lg-6 order-lg-2">
+          <span class="section-tag">Quiénes somos</span>
+          <h2 class="section-title mb-3">Jorge Daniel Durán y Vilma Beatriz Forlin</h2>
+          <p class="lh-lg mb-0" style="opacity:.92">
+            Propietarios y administradores del establecimiento. Con más de tres décadas
+            de trabajo dedicado, lideran cada decisión de la producción: del cuidado
+            diario del rodeo a la planificación del negocio ganadero.
+          </p>
+        </div>
+        <div class="col-lg-6 order-lg-1">
+          <div class="card card-foto ratio ratio-4x3">
+            <img src="{% static 'assets/img/fotosInicio/duenos.png' %}" alt="Jorge Daniel Durán y Vilma Beatriz Forlin">
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Ubicación -->
+  <section class="py-5">
+    <div class="container py-3">
+      <div class="text-center mb-5">
+        <span class="section-tag">Dónde estamos</span>
+        <h2 class="section-title">Ubicación</h2>
+      </div>
+      <div class="row g-4 justify-content-center">
+        <div class="col-md-4">
+          <div class="card card-info">
+            <div class="card-body text-center p-4">
+              <span class="icono-redondo mb-3"><i class="bi bi-geo-alt"></i></span>
+              <h5 class="fw-bold">Zona rural</h5>
+              <p class="text-secondary mb-0">Colonia Elisa, provincia del Chaco, Argentina.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card card-info">
+            <div class="card-body text-center p-4">
+              <span class="icono-redondo mb-3"><i class="bi bi-water"></i></span>
+              <h5 class="fw-bold">Producción</h5>
+              <p class="text-secondary mb-0">Cría y recría de ganado bovino a campo, con manejo por parcelas.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card card-info">
+            <div class="card-body text-center p-4">
+              <span class="icono-redondo mb-3"><i class="bi bi-graph-up-arrow"></i></span>
+              <h5 class="fw-bold">Gestión digital</h5>
+              <p class="text-secondary mb-0">Todo el establecimiento administrado con el sistema HuacApp.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Galería -->
+  <section class="py-5 bg-white">
+    <div class="container py-3">
+      <div class="text-center mb-5">
+        <span class="section-tag">Galería</span>
+        <h2 class="section-title">El establecimiento en imágenes</h2>
+      </div>
+      <div class="row g-4">
+        <div class="col-md-6 col-lg-3">
+          <div class="galeria-foto">
+            <img src="{% static 'assets/img/fotosInicio/entrada-estblecimiento.png' %}" alt="Entrada del establecimiento">
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <div class="galeria-foto">
+            <img src="{% static 'assets/img/fotosInicio/campo-1.png' %}" alt="Vista del campo">
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <div class="galeria-foto">
+            <img src="{% static 'assets/img/fotosInicio/campo-2.png' %}" alt="Vista del campo">
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <div class="galeria-foto">
+            <img src="{% static 'assets/img/fotosInicio/duenos.png' %}" alt="Jorge y Vilma, propietarios">
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contacto -->
+  <section id="contacto" class="seccion-verde py-5">
+    <div class="container py-4">
+      <div class="text-center mb-5">
+        <span class="section-tag">Contacto</span>
+        <h2 class="section-title">Ponete en contacto</h2>
+        <p class="mx-auto" style="max-width:560px; opacity:.92">
+          Si sos parte del equipo o tenés consultas sobre el establecimiento, escribinos
+          o ingresá al sistema con tu usuario.
+        </p>
+      </div>
+      <div class="row g-4 justify-content-center">
+        <div class="col-md-5">
+          <div class="card card-info">
+            <div class="card-body d-flex align-items-center gap-3 p-4">
+              <span class="icono-redondo flex-shrink-0"><i class="bi bi-envelope"></i></span>
+              <div>
+                <h6 class="fw-bold mb-1">Correo electrónico</h6>
+                <p class="text-secondary mb-0">contacto@establecimientodonhugo.com.ar</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-5">
+          <div class="card card-info">
+            <div class="card-body d-flex align-items-center gap-3 p-4">
+              <span class="icono-redondo flex-shrink-0"><i class="bi bi-telephone"></i></span>
+              <div>
+                <h6 class="fw-bold mb-1">Teléfono</h6>
+                <p class="text-secondary mb-0">+54 9 3735 00-0000</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pie -->
+  <footer class="pie py-4">
+    <div class="container d-flex flex-column flex-md-row align-items-center justify-content-between gap-2">
+      <span>© 2026 Establecimiento Don Hugo · Colonia Elisa, Chaco</span>
+      <span>Gestionado con <a href="{% url 'login' %}" class="fw-semibold">HuacApp</a></span>
+    </div>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const nav = document.querySelector('.navbar-inicio');
+      const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 40);
+      onScroll();
+      window.addEventListener('scroll', onScroll, { passive: true });
+    });
+  </script>
+</body>
+</html>

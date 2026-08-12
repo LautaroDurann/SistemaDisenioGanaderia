@@ -65,7 +65,7 @@ def login_view(request):
 @require_POST
 def logout_view(request):
     request.session.flush()
-    return redirect('login')
+    return redirect('inicio')
 
 
 def cambiar_clave_view(request):

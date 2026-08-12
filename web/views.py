@@ -10,7 +10,7 @@ from django.http import JsonResponse
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 from django.middleware.csrf import get_token
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
@@ -555,6 +555,16 @@ def _dashboard_data(request):
         'distribucion': distribucion,
         'alertas': _alertas_dashboard(request, animales),
     }
+
+
+def inicio(request):
+    """Página de bienvenida pública del establecimiento.
+
+    Si el usuario ya inició sesión, se lo envía directo al panel para no
+    interponer la landing entre el login y el sistema."""
+    if request.session.get('usuario_id'):
+        return redirect('dashboard')
+    return render(request, 'inicio.html')
 
 
 def dashboard(request):

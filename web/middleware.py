@@ -17,7 +17,8 @@ class RequerirLoginMiddleware:
     def __call__(self, request):
         ruta = request.path
         es_publica = (
-            ruta.startswith(('/static/', '/media/', '/admin/'))
+            ruta in ('/',)  # página de bienvenida del establecimiento
+            or ruta.startswith(('/static/', '/media/', '/admin/'))
             or ruta.startswith(RUTAS_PUBLICAS_PREFIJOS)
         )
         es_ajax = (
