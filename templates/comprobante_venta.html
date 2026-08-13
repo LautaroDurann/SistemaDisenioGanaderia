@@ -1,0 +1,202 @@
+{% load ganaderia_extras %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Comprobante de Venta Nro {{ venta.id }}</title>
+<style>
+  @page {
+    size: A4;
+    margin: 1.6cm 1.4cm 2cm 1.4cm;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    color: #212529;
+    line-height: 1.45;
+  }
+  .header {
+    width: 100%;
+    border-bottom: 3px solid #1e7e34;
+    padding-bottom: 10px;
+    margin-bottom: 18px;
+  }
+  .header .empresa {
+    font-size: 17pt;
+    font-weight: bold;
+    color: #1e7e34;
+  }
+  .header .subempresa {
+    font-size: 9pt;
+    color: #6c757d;
+    margin-top: 2px;
+  }
+  .header .comprobante {
+    text-align: right;
+  }
+  .header .comprobante .titulo {
+    font-size: 13pt;
+    font-weight: bold;
+    color: #212529;
+  }
+  .header .comprobante .nro {
+    font-size: 15pt;
+    font-weight: bold;
+    color: #1e7e34;
+  }
+  .seccion-titulo {
+    font-size: 8.5pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+    color: #1e7e34;
+    margin-bottom: 6px;
+  }
+  .card {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+  }
+  .datos td { padding: 2px 6px 2px 0; vertical-align: top; }
+  .datos .label { color: #6c757d; font-size: 8.5pt; text-transform: uppercase; }
+  .datos .valor { font-weight: bold; }
+  table.resumen { width: 100%; border-collapse: collapse; }
+  table.resumen td, table.resumen th { padding: 5px 8px; }
+  table.resumen .fila { border-bottom: 1px solid #e9ecef; }
+  table.resumen .fila td { font-size: 9.5pt; }
+  table.resumen .fila td.valor { text-align: right; font-weight: bold; }
+  table.resumen .fila th { text-align: right; font-weight: normal; color: #6c757d; font-size: 8.5pt; }
+  table.resumen .total td {
+    font-size: 12pt;
+    font-weight: bold;
+    background: #1e7e34;
+    color: #ffffff;
+    border-radius: 4px;
+    padding: 7px 8px;
+  }
+  table.resumen .total .monto { text-align: right; }
+  .tabla-animales { width: 100%; border-collapse: collapse; }
+  .tabla-animales th {
+    background: #f1f8f3;
+    color: #1e7e34;
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 2px solid #1e7e34;
+  }
+  .tabla-animales td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 9.5pt;
+  }
+  .tabla-animales .right { text-align: right; }
+  .firmas { width: 100%; margin-top: 34px; }
+  .firmas td { width: 50%; text-align: center; font-size: 9pt; }
+  .firmas .linea { border-top: 1px solid #495057; margin: 0 14px; padding-top: 4px; color: #495057; }
+  .firmas .sub { color: #6c757d; font-size: 8pt; margin-top: 2px; }
+  .detalle { margin-top: 8px; font-size: 9pt; color: #495057; }
+  .detalle .titulo { font-weight: bold; color: #212529; }
+</style>
+</head>
+<body>
+  <pdf:footer>
+    <div style="text-align: center; font-size: 8pt; color: #6c757d; padding-top: 6px;">
+      Comprobante de Venta Nro {{ venta.id }} - Página <pdf:pagenumber> de <pdf:pagecount>
+    </div>
+  </pdf:footer>
+
+  <table class="header">
+    <tr>
+      <td style="width:70%">
+        <div class="empresa">{{ establecimiento.nombre|default:"Establecimiento" }}</div>
+        <div class="subempresa">{{ establecimiento.ubicacion|default:"" }}</div>
+      </td>
+      <td class="comprobante" style="width:30%">
+        <div class="titulo">Comprobante de Venta</div>
+        <div class="nro">Nro {{ venta.id }}</div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="card">
+    <div class="seccion-titulo">Comprador</div>
+    <table class="datos">
+      <tr>
+        <td style="width:40%"><div class="label">Nombre</div><div class="valor">{{ comprador.nombre|default:"-" }} {{ comprador.apellido|default:"" }}</div></td>
+        <td style="width:20%"><div class="label">DNI</div><div class="valor">{{ comprador.dni|default:"-" }}</div></td>
+        <td style="width:40%"><div class="label">Correo</div><div class="valor">{{ comprador.correo_electronico|default:"-" }}</div></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="seccion-titulo">Resumen</div>
+    <table class="resumen">
+      <tr class="fila">
+        <td style="width:25%">Fecha de venta</td>
+        <td style="width:25%">Kilos totales</td>
+        <td style="width:25%">Kilos netos (con desbaste)</td>
+        <td style="width:25%">Precio por kg</td>
+      </tr>
+      <tr class="fila">
+        <td class="valor">{{ venta.fecha|date:"d/m/Y" }}</td>
+        <td class="valor">{{ peso_total|floatformat:"2" }} kg</td>
+        <td class="valor">{{ peso_desbastado|floatformat:"2" }} kg</td>
+        <td class="valor">$ {{ precio_por_kg|floatformat:"2" }}</td>
+      </tr>
+      <tr class="total">
+        <td colspan="3">MONTO TOTAL DE LA VENTA</td>
+        <td class="monto">$ {{ monto_total|floatformat:"2" }}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="seccion-titulo">Animales vendidos ({{ animales|length }})</div>
+  <table class="tabla-animales">
+    <thead>
+      <tr>
+        <th style="width:8%">Nro</th>
+        <th style="width:30%">Caravana (SENASA)</th>
+        <th style="width:30%">Nombre</th>
+        <th style="width:22%">Categoría</th>
+        <th class="right" style="width:10%">Sexo</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for animal in animales %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ animal.id_senasa|default:"Sin caravana" }}</td>
+        <td>{{ animal.nombre|default:"S/N" }}</td>
+        <td>{{ animal|categoria }}</td>
+        <td class="right">{{ animal.sexo }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5">Sin animales registrados en esta venta.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if venta.detalle %}
+  <div class="detalle">
+    <span class="titulo">Detalle: </span>{{ venta.detalle }}
+  </div>
+  {% endif %}
+
+  <table class="firmas">
+    <tr>
+      <td>
+        <div class="linea">Firma del Comprador</div>
+        <div class="sub">{{ comprador.nombre|default:"" }} {{ comprador.apellido|default:"" }}</div>
+      </td>
+      <td>
+        <div class="linea">Firma del Vendedor</div>
+        <div class="sub">{{ establecimiento.nombre|default:"" }}</div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

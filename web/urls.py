@@ -21,6 +21,7 @@ urlpatterns = [
     path('stock/', views.stock, name='stock'),
     path('finanzas/', views.finanzas, name='finanzas'),
     path('finanzas/ventas/', views.ventas, name='ventas'),
+    path('finanzas/ventas/<int:venta_id>/comprobante/', views.generar_comprobante_venta_pdf, name='generar_comprobante_venta_pdf'),
     path('finanzas/gastos/', views.gastos, name='gastos'),
     # Se conservan las URL anteriores como alias para enlaces guardados.
     path('finanzas/compras/', views.gastos, name='compras'),

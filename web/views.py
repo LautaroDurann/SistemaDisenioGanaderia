@@ -1,4 +1,5 @@
 import calendar
+import io
 import json
 import os
 import re
@@ -8,14 +9,17 @@ from decimal import Decimal
 
 from django.db.models import Avg, Count, Sum, Q
 from django.db import connection, transaction
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.db import IntegrityError
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_POST
+
+from xhtml2pdf import pisa
 
 from .models import Notificacion
 from animales.models import Animal, Parto, Preniez
@@ -1089,6 +1093,44 @@ def ventas(request):
             'series_json': json.dumps(chart_series),
         },
     })
+
+
+@rol_requerido(ROL_PROPIETARIO)
+def generar_comprobante_venta_pdf(request, venta_id):
+    """Genera y descarga el comprobante de venta en PDF.
+
+    El comprobante incluye los datos del establecimiento, el comprador, el
+    resumen económico de la venta y la caravana de los animales vendidos.
+    """
+    venta = get_object_or_404(
+        Venta.objects.select_related('comprador'),
+        pk=venta_id, activo=True,
+    )
+    animales = list(venta.animal_set.select_related('establecimiento').order_by('id_senasa'))
+    establecimiento = next(
+        (a.establecimiento for a in animales if a.establecimiento_id is not None),
+        None,
+    ) or _establecimiento_actual(request)
+
+    contexto = {
+        'venta': venta,
+        'comprador': venta.comprador,
+        'establecimiento': establecimiento,
+        'animales': animales,
+        'peso_total': venta.peso_total,
+        'peso_desbastado': venta.peso_desbastado,
+        'precio_por_kg': venta.precio_por_kg,
+        'monto_total': venta.monto_total,
+    }
+    html = render_to_string('comprobante_venta.html', contexto, request=request)
+    pdf_buffer = io.BytesIO()
+    pisa_status = pisa.CreatePDF(html, dest=pdf_buffer, encoding='utf-8')
+    if pisa_status.err:
+        return HttpResponse('Ocurrió un error al generar el comprobante.', status=500)
+
+    respuesta = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+    respuesta['Content-Disposition'] = f'attachment; filename="comprobante_venta_{venta.id}.pdf"'
+    return respuesta
 
 
 @rol_requerido(ROL_PROPIETARIO)

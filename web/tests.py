@@ -1109,6 +1109,53 @@ class FinanzasSyncTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertFalse(Compra.objects.exists())
 
+    def test_genera_comprobante_venta_pdf(self):
+        animal = self.crear_animal_venta(55530)
+        animal.peso_actual = Decimal('300')
+        animal.fecha_nacimiento = date(2023, 1, 15)
+        animal.save()
+        comprador = Comprador.objects.create(
+            nombre='Pedro', apellido='Gomez', dni='30123456',
+            correo_electronico='pedro-comprobante@test.com',
+        )
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-01', 'precio_por_kg': '100', 'animales': [str(animal.idAnimal)],
+            'peso_total': '300', 'peso_manual': 'on', 'comprador_id': comprador.id,
+        })
+        self.assertEqual(response.status_code, 201)
+        venta = Venta.objects.get(pk=response.json()['id'])
+
+        response = self.client.get(reverse('generar_comprobante_venta_pdf', args=[venta.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertIn('attachment', response['Content-Disposition'])
+        self.assertIn(f'comprobante_venta_{venta.id}.pdf', response['Content-Disposition'])
+        self.assertTrue(response.content.startswith(b'%PDF'))
+
+    def test_comprobante_venta_no_visible_para_operarios(self):
+        animal = self.crear_animal_venta(55531)
+        response = self.client.post(reverse('crear_venta'), {
+            'fecha': '2026-08-01', 'precio_por_kg': '100', 'animales': [str(animal.idAnimal)],
+            'peso_total': '300', 'peso_manual': 'on',
+        })
+        self.assertEqual(response.status_code, 201)
+        venta_id = response.json()['id']
+
+        persona = Persona.objects.create(nombre='Operario', correo_electronico='operario-comprobante@test.com')
+        operario = Usuario.objects.create(
+            nombre_usuario='operario-comprobante', clave=make_password('clave123'), persona=persona,
+        )
+        RolEstablecimiento.objects.create(
+            usuario=operario, establecimiento=self.establecimiento,
+            nombre='Operario', fecha_ingreso=date.today(), estado_acceso=True,
+        )
+        session = self.client.session
+        session['usuario_id'] = operario.id
+        session.save()
+
+        response = self.client.get(reverse('generar_comprobante_venta_pdf', args=[venta_id]))
+        self.assertEqual(response.status_code, 302)
+
     def test_pagina_ventas_embebe_estado_y_resumen_del_mes(self):
         animal = self.crear_animal_venta(55523)
         response = self.client.post(reverse('crear_venta'), {

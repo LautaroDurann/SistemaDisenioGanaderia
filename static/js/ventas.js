@@ -116,11 +116,13 @@
         <td><span class="badge ${v.estado_de_cobro === 'Pagada' ? 'text-bg-success' : 'text-bg-warning'}">${escapeHtml(v.estado_de_cobro)}</span></td>
         <td>${escapeHtml(v.metodo_de_pago)}</td>
         <td class="text-end">
+          <button class="btn btn-sm btn-outline-success comprobante" data-id="${v.id}" title="Comprobante PDF"><i class="bi bi-file-earmark-pdf"></i></button>
           <button class="btn btn-sm btn-outline-primary editar" data-id="${v.id}" title="Editar"><i class="bi bi-pencil"></i></button>
           <button class="btn btn-sm btn-outline-danger eliminar" data-id="${v.id}" title="Eliminar"><i class="bi bi-trash"></i></button>
         </td>
       </tr>`).join('') || '<tr><td colspan="11" class="text-center text-secondary py-4">Todavía no hay ventas registradas.</td></tr>';
 
+    document.querySelectorAll('.comprobante').forEach(b => b.onclick = () => descargarComprobante(Number(b.dataset.id)));
     document.querySelectorAll('.editar').forEach(b => b.onclick = () => abrirEdicion(Number(b.dataset.id)));
     document.querySelectorAll('.eliminar').forEach(b => b.onclick = () => eliminarVenta(Number(b.dataset.id)));
   }
@@ -274,6 +276,10 @@
     mostrar('Comprador eliminado.', 'success');
   }
 
+  function descargarComprobante(id) {
+    window.location.href = `/finanzas/ventas/${id}/comprobante/`;
+  }
+
   async function eliminarVenta(id) {
     if (!confirm('¿Dar de baja la venta y restaurar sus animales al stock?')) return;
     const r = await fetch(`/api/ventas/${id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf() } });
@@ -395,6 +401,7 @@
       renderResumenAnio();
       modal.hide();
       mostrar('Venta guardada.', 'success');
+      if (esNueva) descargarComprobante(ventaData.id);
     });
 
     $('form-comprador').addEventListener('submit', async e => {
