@@ -136,16 +136,16 @@
                       </button>
                       <input type="file" id="perfil-foto-input" accept="image/*" class="d-none" />
                     </div>
-                    {% if not es_propietario %}
                     <div class="d-flex justify-content-center gap-2 mb-3">
+                      {% if not es_propietario %}
                       <button type="button" class="btn btn-sm btn-primary" id="btn-editar-mis-datos">
                         <i class="bi bi-pencil me-1"></i>Editar información
                       </button>
+                      {% endif %}
                       <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cambiar-mi-clave">
                         <i class="bi bi-key me-1"></i>Cambiar contraseña
                       </button>
                     </div>
-                    {% endif %}
                     <h5 class="mb-0" id="perfil-nombre">-</h5>
                     <p class="text-secondary small mb-4" id="perfil-cargo">-</p>
                     <ul class="list-group list-group-flush text-start vacapp-perfil-lista">

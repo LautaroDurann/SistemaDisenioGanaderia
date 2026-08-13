@@ -346,20 +346,6 @@ def config_establecimiento_api(request):
     })
 
 
-PESO_MINIMO_POR_TIPO = {'Bovino': Decimal('180'), 'Ovino': Decimal('25'), 'Porcino': Decimal('60')}
-
-
-def _es_bajo_peso(animal):
-    """Un animal está con bajo peso si perdió peso respecto del destete o si
-    no alcanza el peso mínimo de referencia para su especie."""
-    if animal.peso_actual is None:
-        return False
-    if animal.peso_al_destete is not None and animal.peso_actual < animal.peso_al_destete:
-        return True
-    minimo = PESO_MINIMO_POR_TIPO.get(animal.tipo_animal)
-    return minimo is not None and animal.peso_actual < minimo
-
-
 def _tiempo_estimado(faltan):
     """Formatea un faltante en días como texto legible (ej: '2 semanas y 3 días')."""
     if faltan >= 30:
@@ -425,19 +411,6 @@ def _alertas_dashboard(request, animales=None):
             'titulo': f"{len(enfermos)} {'animal enfermo' if len(enfermos) == 1 else 'animales enfermos'}",
             'detalle': ', '.join(parcelas) or 'Sin parcela asignada',
             'url': reverse('sanidad'),
-        })
-
-    # Animales con bajo peso.
-    bajo_peso = [a for a in animales.filter(vivo=True, vendido=False).select_related('parcela') if _es_bajo_peso(a)]
-    if bajo_peso:
-        parcelas = sorted({_nombre_parcela(a.parcela) for a in bajo_peso if a.parcela})
-        alertas.append({
-            'clave': 'bajo_peso',
-            'icono': 'bi-graph-down',
-            'color': 'text-bg-dark',
-            'titulo': f"{len(bajo_peso)} {'animal con bajo peso' if len(bajo_peso) == 1 else 'animales con bajo peso'}",
-            'detalle': ', '.join(parcelas) or 'Sin parcela asignada',
-            'url': reverse('stock'),
         })
 
     # Próximas aplicaciones: eventos sanitarios programados (pendientes) para el futuro.

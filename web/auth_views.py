@@ -368,9 +368,10 @@ def crear_usuario_api(request):
 def actualizar_usuario_api(request, usuario_id):
     """Actualiza datos de un usuario.
 
-    El propietario puede administrar cualquier usuario (datos, clave, rol,
+    El propietario puede administrar cualquier usuario (datos, rol,
     establecimientos y acceso). Un operario solo puede editar sus propios datos
-    personales y su clave; nunca los roles ni el acceso.
+    personales. Ningún rol puede restablecer la contraseña de otro usuario:
+    cada usuario solo cambia la suya y confirmando su contraseña actual.
     """
     usuario = get_object_or_404(Usuario.objects.select_related('persona'), pk=usuario_id)
     es_el_propio = usuario.id == request.session.get('usuario_id')
@@ -416,21 +417,19 @@ def actualizar_usuario_api(request, usuario_id):
 
         nueva_clave = request.POST.get('clave', '')
         if nueva_clave:
+            # Solo se puede cambiar la propia contraseña, y siempre confirmando la actual.
+            # Ni propietarios ni operarios pueden restablecer la de otro usuario.
+            if not es_el_propio:
+                raise ValueError('No podés restablecer la contraseña de otro usuario. Solo podés cambiar la tuya.')
             if len(nueva_clave) < 6:
                 raise ValueError('La contraseña debe tener al menos 6 caracteres.')
-            if es_el_propio:
-                # Quien cambia su propia contraseña debe confirmar la actual.
-                clave_actual = request.POST.get('clave_actual', '')
-                if not verificar_clave(usuario, clave_actual):
-                    raise ValueError('La contraseña actual es incorrecta.')
-                if verificar_clave(usuario, nueva_clave):
-                    raise ValueError('La nueva contraseña no puede ser igual a la anterior.')
-                usuario.clave = make_password(nueva_clave)
-                usuario.debe_cambiar_clave = False
-            else:
-                # Restablecimiento por un propietario: clave temporal, se cambia en el próximo ingreso.
-                usuario.clave = make_password(nueva_clave)
-                usuario.debe_cambiar_clave = True
+            clave_actual = request.POST.get('clave_actual', '')
+            if not verificar_clave(usuario, clave_actual):
+                raise ValueError('La contraseña actual es incorrecta.')
+            if verificar_clave(usuario, nueva_clave):
+                raise ValueError('La nueva contraseña no puede ser igual a la anterior.')
+            usuario.clave = make_password(nueva_clave)
+            usuario.debe_cambiar_clave = False
             usuario.save(update_fields=['clave', 'debe_cambiar_clave'])
 
         rol_nuevo = request.POST.get('rol')

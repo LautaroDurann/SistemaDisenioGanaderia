@@ -2800,7 +2800,7 @@ class AuthTests(TestCase):
         response = self.client.post(reverse('eliminar_usuario_api', args=[usuario.id]))
         self.assertEqual(response.status_code, 403)
 
-    def test_propietario_restablece_clave_de_otro_sin_clave_actual(self):
+    def test_propietario_no_restablece_clave_de_otro_usuario(self):
         persona_prop = Persona.objects.create(nombre='Dueño', correo_electronico='dueno-reset@auth.com')
         propietario = Usuario.objects.create(
             nombre_usuario='dueno', clave=make_password('clave123'), persona=persona_prop,
@@ -2819,21 +2819,31 @@ class AuthTests(TestCase):
         )
         self.login_usuario(propietario)
 
-        # El propietario restablece la clave de otro usuario sin conocer la actual,
-        # y esa clave pasa a ser temporal (se debe cambiar en el próximo ingreso).
+        # El propietario no puede restablecer la contraseña de otro usuario,
+        # ni siquiera conociendo la clave actual de esa cuenta.
+        clave_original = operario.clave
         response = self.client.post(reverse('actualizar_usuario_api', args=[operario.id]), {
+            'clave_actual': 'clave123',
             'clave': 'temporal123',
         })
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         operario.refresh_from_db()
-        self.assertTrue(operario.clave.startswith('pbkdf2'))
-        self.assertTrue(operario.debe_cambiar_clave)
+        self.assertEqual(operario.clave, clave_original)
+        self.assertFalse(operario.debe_cambiar_clave)
 
-        # El propietario que cambia su propia clave sí debe indicar la actual.
+        # Puede cambiar su propia clave, pero siempre confirmando la actual.
         response = self.client.post(reverse('actualizar_usuario_api', args=[propietario.id]), {
             'clave': 'miclavenueva1',
         })
         self.assertEqual(response.status_code, 400)
+        response = self.client.post(reverse('actualizar_usuario_api', args=[propietario.id]), {
+            'clave_actual': 'clave123',
+            'clave': 'miclavenueva1',
+        })
+        self.assertEqual(response.status_code, 200)
+        propietario.refresh_from_db()
+        self.assertTrue(propietario.clave.startswith('pbkdf2'))
+        self.assertFalse(propietario.debe_cambiar_clave)
 
     def test_recuperar_contrasena_envia_correo(self):
         persona = Persona.objects.create(nombre='Juan', correo_electronico='juan@recuperar.com')
@@ -2966,7 +2976,7 @@ class NotificacionesTests(TestCase):
         )
         notificacion_otro = Notificacion.objects.create(
             usuario=usuario_otro, establecimiento=self.establecimiento,
-            clave='bajo_peso', titulo='X', detalle='', url='/stock/',
+            clave='vacunas_vencidas', titulo='X', detalle='', url='/insumos/',
         )
         respuesta = self.client.post(reverse('marcar_notificacion_leida', args=[notificacion_otro.id]))
         self.assertEqual(respuesta.status_code, 404)

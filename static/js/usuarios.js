@@ -91,7 +91,6 @@ const FILAS_POR_PAGINA = 6;
 let paginaActual = 1;
 let usuarioSeleccionado = null;
 let usuarioEdicion = null;
-let usuarioClave = null;
 
 function nombreCompleto(u) {
   return `${u.nombre || ''} ${u.apellido || ''}`.trim();
@@ -221,7 +220,6 @@ function renderTabla() {
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li><a class="dropdown-item btn-editar-rol" href="#" data-id="${u.id}"><i class="bi bi-pencil-square me-2"></i>Editar información</a></li>
-            <li><a class="dropdown-item btn-restablecer-clave" href="#" data-id="${u.id}"><i class="bi bi-key me-2"></i>Restablecer contraseña</a></li>
             <li><a class="dropdown-item btn-cambiar-estado" href="#" data-id="${u.id}"><i class="bi bi-slash-circle me-2"></i>${u.estado === 'Activo' ? 'Desactivar' : 'Activar'}</a></li>
             <li><hr class="dropdown-divider" /></li>
             <li><a class="dropdown-item text-danger btn-eliminar-usuario" href="#" data-id="${u.id}"><i class="bi bi-trash me-2"></i>Eliminar</a></li>
@@ -263,13 +261,6 @@ function renderTabla() {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       abrirModalRol(Number(btn.dataset.id));
-    });
-  });
-
-  document.querySelectorAll('.btn-restablecer-clave').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      abrirModalClave(Number(btn.dataset.id));
     });
   });
 
@@ -432,15 +423,11 @@ function abrirModalRol(usuarioId) {
   bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAsignarRol')).show();
 }
 
-function abrirModalClave(usuarioId) {
-  const u = USUARIOS.find((x) => x.id === usuarioId);
+function abrirModalClave() {
+  const u = USUARIOS.find((x) => x.id === Number(USUARIO_ACTUAL_ID));
   if (!u) return;
-  usuarioClave = usuarioId;
-  const esPropia = usuarioId === Number(USUARIO_ACTUAL_ID);
-  document.getElementById('cc-usuario-nombre').textContent = esPropia
-    ? 'Estás cambiando tu propia contraseña.'
-    : `Vas a restablecer la contraseña de ${nombreCompleto(u) || u.usuario} (@${u.usuario}).`;
-  document.getElementById('cc-zona-actual').classList.toggle('d-none', !esPropia);
+  document.getElementById('cc-usuario-nombre').textContent = 'Estás cambiando tu propia contraseña.';
+  document.getElementById('cc-zona-actual').classList.remove('d-none');
   document.getElementById('cc-clave-actual').value = '';
   document.getElementById('cc-clave').value = '';
   document.getElementById('cc-clave-confirm').value = '';
@@ -582,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Operario: editar mi información y cambiar mi contraseña
+  // Operario: editar mi información
   if (!ES_PROPIETARIO) {
     const btnEditarMisDatos = document.getElementById('btn-editar-mis-datos');
     if (btnEditarMisDatos) {
@@ -591,22 +578,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (u) abrirModalRol(u.id);
       });
     }
-
-    const btnCambiarMiClave = document.getElementById('btn-cambiar-mi-clave');
-    if (btnCambiarMiClave) {
-      btnCambiarMiClave.addEventListener('click', () => {
-        const u = USUARIOS.find((x) => x.id === usuarioSeleccionado) || USUARIOS[0];
-        if (u) abrirModalClave(u.id);
-      });
-    }
   }
 
-  // Cambio de contraseña
+  // Cambio de mi contraseña (todos los roles; siempre pide la contraseña actual).
+  const btnCambiarMiClave = document.getElementById('btn-cambiar-mi-clave');
+  if (btnCambiarMiClave) {
+    btnCambiarMiClave.addEventListener('click', () => abrirModalClave());
+  }
+
+  // Cambio de mi contraseña
   document.getElementById('btn-guardar-clave').addEventListener('click', async () => {
-    if (!usuarioClave) return;
-    const u = USUARIOS.find((x) => x.id === usuarioClave);
-    if (!u) return;
-    const esPropia = usuarioClave === Number(USUARIO_ACTUAL_ID);
     const claveNueva = document.getElementById('cc-clave').value;
     const claveConfirm = document.getElementById('cc-clave-confirm').value;
     if (claveNueva.length < 6) {
@@ -618,16 +599,16 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     document.getElementById('cc-clave-confirm').classList.remove('is-invalid');
-    const datos = { clave: claveNueva };
-    if (esPropia) {
-      datos.clave_actual = document.getElementById('cc-clave-actual').value;
-    }
+    const datos = {
+      clave: claveNueva,
+      clave_actual: document.getElementById('cc-clave-actual').value,
+    };
     try {
-      await apiFetch(`/api/usuarios/${usuarioClave}/`, datos);
+      await apiFetch(`/api/usuarios/${Number(USUARIO_ACTUAL_ID)}/`, datos);
       cerrarModalClave();
       alert('Contraseña actualizada.');
     } catch (error) {
-      if (esPropia && /actual es incorrecta/.test(error.message)) {
+      if (/actual es incorrecta/.test(error.message)) {
         document.getElementById('cc-clave-actual').classList.add('is-invalid');
       }
       alert(error.message);
