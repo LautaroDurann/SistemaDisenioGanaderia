@@ -514,29 +514,37 @@ def _dashboard_data(request):
     today = date.today()
 
     animales = _animales_de(request)
+    animales_activos = animales.filter(vivo=True, vendido=False)
     ventas = _ventas_de(request)
-    eventos = _eventos_sanitarios_de(request)
+
+    # Los movimientos financieros son la fuente única de ingresos y gastos reales:
+    # se generan automáticamente desde ventas, compras, sueldos y eventos sanitarios.
+    movimientos = MovimientoFinanciero.objects.filter(activo=True)
+    if establecimiento is not None:
+        movimientos = movimientos.filter(establecimiento=establecimiento)
 
     ventas_mes = ventas.filter(fecha__year=today.year, fecha__month=today.month)
-    ingresos_mes = ventas_mes.aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
-    gastos_mes = eventos.filter(estado=True, fecha_aplicacion__year=today.year, fecha_aplicacion__month=today.month).aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
+    movimientos_mes = movimientos.filter(fecha__year=today.year, fecha__month=today.month)
+    ingresos_mes = movimientos_mes.filter(tipo='Ingreso').aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
+    gastos_mes = movimientos_mes.filter(tipo='Egreso').aggregate(total=Sum('monto_total'))['total'] or Decimal('0')
 
-    kpi_total_animales = animales.filter(vivo=True, vendido=False).count()
+    kpi_total_animales = animales_activos.count()
     kpi_ventas_mes = ventas_mes.count()
-    kpi_peso_promedio = animales.aggregate(promedio=Avg('peso_actual'))['promedio'] or Decimal('0')
+    kpi_peso_promedio = animales_activos.aggregate(promedio=Avg('peso_actual'))['promedio'] or Decimal('0')
 
-    # Ganancias (ventas) y gastos (eventos aplicados) de los últimos 12 meses
+    # Ganancias y gastos reales de los últimos 12 meses (movimientos financieros)
     meses, ingresos_series, egresos_series = [], [], []
     for i in range(11, -1, -1):
         mes = (today.month - i - 1) % 12 + 1
         anio = today.year + ((today.month - i - 1) // 12)
         meses.append(f'{mes:02d}/{anio}')
-        ingresos_series.append(float(ventas.filter(fecha__year=anio, fecha__month=mes).aggregate(total=Sum('monto_total'))['total'] or 0))
-        egresos_series.append(float(eventos.filter(estado=True, fecha_aplicacion__year=anio, fecha_aplicacion__month=mes).aggregate(total=Sum('costo_total'))['total'] or 0))
+        qs = movimientos.filter(fecha__year=anio, fecha__month=mes)
+        ingresos_series.append(float(qs.filter(tipo='Ingreso').aggregate(total=Sum('monto_total'))['total'] or 0))
+        egresos_series.append(float(qs.filter(tipo='Egreso').aggregate(total=Sum('monto_total'))['total'] or 0))
 
-    # Distribución del rodeo por categoría
+    # Distribución del rodeo activo por categoría
     distribucion = {}
-    for animal in animales:
+    for animal in animales_activos:
         categoria = _categoria(animal) or animal.tipo_animal
         distribucion[categoria] = distribucion.get(categoria, 0) + 1
 
