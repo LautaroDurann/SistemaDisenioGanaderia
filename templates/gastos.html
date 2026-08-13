@@ -19,7 +19,7 @@
       <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-secondary small">Proveedores</div><div class="h4 mb-0" id="kpi-proveedores">0</div></div></div></div>
     </div>
     <div class="row g-3 mb-4">
-      <div class="col-lg-8"><div class="card shadow-sm h-100"><div class="card-header"><h3 class="card-title mb-0">Gastos por año (compras + sueldos)</h3></div><div class="card-body"><div id="chart-gastos" style="height: 320px;"></div></div></div></div>
+      <div class="col-lg-8"><div class="card shadow-sm h-100"><div class="card-header"><h3 class="card-title mb-0">Gastos por año (compras + sueldos + otros)</h3></div><div class="card-body"><div id="chart-gastos" style="height: 320px;"></div></div></div></div>
       <div class="col-lg-4"><div class="card shadow-sm h-100"><div class="card-header"><h3 class="card-title mb-0">Sueldos por año</h3></div><div class="card-body"><div id="chart-sueldos" style="height: 320px;"></div></div></div></div>
     </div>
 
@@ -29,6 +29,9 @@
       </li>
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="tab-sueldos" data-bs-toggle="tab" data-bs-target="#pane-sueldos" type="button" role="tab" aria-controls="pane-sueldos" aria-selected="false"><i class="bi bi-people me-1"></i>Sueldos</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-otros" data-bs-toggle="tab" data-bs-target="#pane-otros" type="button" role="tab" aria-controls="pane-otros" aria-selected="false"><i class="bi bi-three-dots me-1"></i>Otros</button>
       </li>
     </ul>
 
@@ -51,6 +54,28 @@
           </div>
           <div class="col-lg-8">
             <div class="card shadow-sm h-100"><div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title mb-0">Últimas liquidaciones</h3><button class="btn btn-success btn-sm" id="nueva-liquidacion-tabla"><i class="bi bi-plus-lg me-1"></i>Registrar liquidación</button></div><div class="card-body"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Fecha</th><th>Empleado</th><th>Usuario</th><th>Establecimiento</th><th>Descripción</th><th class="text-end">Sueldo</th><th class="text-end"></th></tr></thead><tbody id="liquidaciones-body"></tbody></table></div></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="tab-pane fade" id="pane-otros" role="tabpanel" aria-labelledby="tab-otros">
+        <div class="row g-3">
+          <div class="col-12">
+            <div class="card shadow-sm h-100">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="card-title mb-0">Otros egresos</h3>
+                <button class="btn btn-success btn-sm" id="nuevo-otro-tabla"><i class="bi bi-plus-lg me-1"></i>Registrar egreso</button>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle">
+                    <thead>
+                      <tr><th>Fecha</th><th>Concepto</th><th>Detalle</th><th class="text-end">Monto</th><th class="text-end"></th></tr>
+                    </thead>
+                    <tbody id="otros-body"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -152,5 +177,22 @@
     <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-success">Guardar liquidación</button></div>
   </form>
 </div></div></div>
+
+<div class="modal fade" id="modalOtro" tabindex="-1"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content">
+  <form id="form-otro">
+    <div class="modal-header"><h5 class="modal-title" id="titulo-otro">Registrar egreso</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="otro-id">
+      <div class="row g-3">
+        <div class="col-md-4"><label class="form-label">Fecha</label><input class="form-control" type="date" name="fecha" id="otro-fecha" required></div>
+        <div class="col-md-8"><label class="form-label">Concepto</label><input class="form-control" name="nombre" id="otro-nombre" placeholder="Ej: Flete, impuestos, servicios" required></div>
+        <div class="col-md-4"><label class="form-label">Monto ($)</label><input class="form-control" type="number" min="0.01" step="0.01" name="monto_total" id="otro-monto" required></div>
+        <div class="col-md-8"><label class="form-label">Detalle</label><input class="form-control" name="detalle" id="otro-detalle" placeholder="Opcional"></div>
+      </div>
+      <div class="form-text mt-2">Cada egreso se registra como un movimiento financiero de tipo Egreso y se contabiliza en este módulo y en Finanzas.</div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-success">Guardar egreso</button></div>
+  </form>
+</div></div></div>
 {% endblock %}
-{% block page_js %}<script src="{% static 'js/gastos.js' %}?v=2"></script>{% endblock %}
+{% block page_js %}<script src="{% static 'js/gastos.js' %}?v=3"></script>{% endblock %}

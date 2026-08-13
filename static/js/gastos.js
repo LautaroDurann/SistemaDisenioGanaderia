@@ -5,14 +5,17 @@
   let insumos = data.insumos || [];
   let liquidaciones = data.liquidaciones || [];
   let empleados = data.empleados || [];
+  let otros = data.otros || [];
   let modalCompra;
   let modalProveedor;
   let modalLiquidacion;
+  let modalOtro;
   let chartGastos;
   let chartSueldos;
   let gastosLabels = [];
   let comprasSeries = [];
   let sueldosSeries = [];
+  let otrosSeries = [];
   let sueldosChartLabels = [];
   let sueldosChartSeries = [];
   const $ = (id) => document.getElementById(id);
@@ -147,6 +150,25 @@
       </tr>`).join('') || '<tr><td colspan="2" class="text-center text-secondary py-4">No hay empleados cargados.</td></tr>';
   }
 
+  // ----------------------------- Otros egresos -----------------------------
+
+  function renderOtros() {
+    $('otros-body').innerHTML = otros.map(c => `
+      <tr>
+        <td>${escapeHtml(c.fecha)}</td>
+        <td>${escapeHtml(c.nombre)}</td>
+        <td>${escapeHtml(c.detalle) || '-'}</td>
+        <td class="text-end">${dinero(c.monto_total)}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-primary editar-otro" data-id="${c.id}"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-sm btn-outline-danger eliminar-otro" data-id="${c.id}"><i class="bi bi-trash"></i></button>
+        </td>
+      </tr>`).join('') || '<tr><td colspan="5" class="text-center text-secondary py-4">Todavía no hay otros egresos registrados.</td></tr>';
+
+    document.querySelectorAll('.editar-otro').forEach(b => b.onclick = () => abrirEdicionOtro(Number(b.dataset.id)));
+    document.querySelectorAll('.eliminar-otro').forEach(b => b.onclick = () => eliminarOtro(Number(b.dataset.id)));
+  }
+
   // ----------------------------- KPIs y gráficos -----------------------------
 
   function renderSummary() {
@@ -167,9 +189,10 @@
         series: [
           { name: 'Compras', data: comprasSeries },
           { name: 'Sueldos', data: sueldosSeries },
+          { name: 'Otros', data: otrosSeries },
         ],
         xaxis: { categories: gastosLabels },
-        colors: ['#dc3545', '#fd7e14'],
+        colors: ['#dc3545', '#fd7e14', '#0d6efd'],
         dataLabels: { enabled: false },
         tooltip: { ...temaTooltip(), y: { formatter: value => dinero(value) } },
         legend: { position: 'top' },
@@ -200,6 +223,7 @@
     renderMontosTipo();
     renderEmpleados();
     renderLiquidaciones();
+    renderOtros();
     renderCharts();
   }
 
@@ -421,17 +445,66 @@
     mostrar('Liquidación eliminada.', 'success');
   }
 
+  // ----------------------------- Modal otros -----------------------------
+
+  function abrirNuevoOtro() {
+    $('form-otro').reset();
+    $('otro-id').value = '';
+    $('otro-fecha').value = fechaHoy();
+    $('titulo-otro').textContent = 'Registrar egreso';
+    modalOtro.show();
+  }
+
+  function abrirEdicionOtro(id) {
+    const c = otros.find(x => x.id === id);
+    if (!c) return;
+    $('otro-id').value = id;
+    $('otro-fecha').value = c.fecha;
+    $('otro-nombre').value = c.nombre;
+    $('otro-monto').value = c.monto_total;
+    $('otro-detalle').value = c.detalle || '';
+    $('titulo-otro').textContent = `Editar egreso #${id}`;
+    modalOtro.show();
+  }
+
+  async function eliminarOtro(id) {
+    if (!confirm('¿Dar de baja este egreso? Dejará de contabilizarse en este módulo y en Finanzas.')) return;
+    const r = await fetch(`/api/finanzas/movimientos/${id}/eliminar/`, { method: 'POST', headers: { 'X-CSRFToken': csrf() } });
+    if (!r.ok) return mostrar('No se pudo eliminar el egreso.', 'danger');
+    const egreso = otros.find(c => c.id === id);
+    if (egreso) {
+      otros = otros.filter(c => c.id !== id);
+      const summary = data.summary = data.summary || {};
+      const monto = Number(egreso.monto_total || 0);
+      const esAnioActual = String(egreso.fecha || '').slice(0, 4) === String(new Date().getFullYear());
+      summary.total_otros = Math.max(0, Number(summary.total_otros || 0) - 1);
+      summary.total_gastos = Math.max(0, Number(summary.total_gastos || 0) - 1);
+      summary.otros_total = Math.max(0, Number(summary.otros_total || 0) - monto);
+      summary.egresos_total = Math.max(0, Number(summary.egresos_total || 0) - monto);
+      if (esAnioActual) {
+        summary.egresos_anio_actual = Math.max(0, Number(summary.egresos_anio_actual || 0) - monto);
+      }
+      actualizarSerie(otrosSeries, gastosLabels, egreso.fecha, monto, -1);
+    }
+    renderOtros();
+    renderSummary();
+    renderCharts();
+    mostrar('Egreso eliminado.', 'success');
+  }
+
   // ----------------------------- Init -----------------------------
 
   document.addEventListener('DOMContentLoaded', () => {
     modalCompra = new bootstrap.Modal($('modalCompra'));
     modalProveedor = new bootstrap.Modal($('modalProveedor'));
     modalLiquidacion = new bootstrap.Modal($('modalLiquidacion'));
+    modalOtro = new bootstrap.Modal($('modalOtro'));
 
     const chartGastosData = data.chart_gastos || {};
     gastosLabels = chartGastosData.labels_json ? JSON.parse(chartGastosData.labels_json) : [];
     comprasSeries = chartGastosData.compras_json ? JSON.parse(chartGastosData.compras_json) : [];
     sueldosSeries = chartGastosData.sueldos_json ? JSON.parse(chartGastosData.sueldos_json) : [];
+    otrosSeries = chartGastosData.otros_json ? JSON.parse(chartGastosData.otros_json) : [];
     const chartSueldosData = data.chart_sueldos || {};
     sueldosChartLabels = chartSueldosData.labels_json ? JSON.parse(chartSueldosData.labels_json) : [];
     sueldosChartSeries = chartSueldosData.series_json ? JSON.parse(chartSueldosData.series_json) : [];
@@ -442,6 +515,7 @@
     if ($('nueva-compra-tabla')) $('nueva-compra-tabla').onclick = abrirNuevaCompra;
     if ($('nueva-liquidacion')) $('nueva-liquidacion').onclick = abrirNuevaLiquidacion;
     if ($('nueva-liquidacion-tabla')) $('nueva-liquidacion-tabla').onclick = abrirNuevaLiquidacion;
+    if ($('nuevo-otro-tabla')) $('nuevo-otro-tabla').onclick = abrirNuevoOtro;
     if ($('nuevo-proveedor')) $('nuevo-proveedor').onclick = () => {
       $('form-proveedor').reset();
       $('proveedor-id').value = '';
@@ -605,6 +679,56 @@
       renderCharts();
       modalLiquidacion.hide();
       mostrar('Liquidación guardada.', 'success');
+    });
+
+    $('form-otro').addEventListener('submit', async e => {
+      e.preventDefault();
+      const form = new FormData(e.target);
+      const id = $('otro-id').value;
+      form.set('tipo', 'Egreso');
+
+      const r = await fetch(id ? `/api/finanzas/movimientos/${id}/` : '/api/finanzas/movimientos/', { method: 'POST', headers: { 'X-CSRFToken': csrf() }, body: form });
+      const respuesta = await r.json();
+      if (!r.ok) return alert(respuesta.error || 'No se pudo guardar el egreso.');
+      const egresoData = respuesta.movimiento;
+      const montoNuevo = Number(egresoData.monto_total || 0);
+      const anioActual = String(new Date().getFullYear());
+      const esNuevo = !id;
+      const summary = data.summary = data.summary || {};
+
+      if (esNuevo) {
+        otros.unshift(egresoData);
+        summary.total_otros = Number(summary.total_otros || 0) + 1;
+        summary.total_gastos = Number(summary.total_gastos || 0) + 1;
+        summary.otros_total = Number(summary.otros_total || 0) + montoNuevo;
+        summary.egresos_total = Number(summary.egresos_total || 0) + montoNuevo;
+        if (String(egresoData.fecha || '').slice(0, 4) === anioActual) {
+          summary.egresos_anio_actual = Number(summary.egresos_anio_actual || 0) + montoNuevo;
+        }
+        actualizarSerie(otrosSeries, gastosLabels, egresoData.fecha, montoNuevo, 1);
+      } else {
+        const idx = otros.findIndex(c => c.id === Number(id));
+        const viejo = idx !== -1 ? otros[idx] : null;
+        if (viejo) {
+          const montoViejo = Number(viejo.monto_total || 0);
+          summary.otros_total = Math.max(0, Number(summary.otros_total || 0) - montoViejo + montoNuevo);
+          summary.egresos_total = Math.max(0, Number(summary.egresos_total || 0) - montoViejo + montoNuevo);
+          if (String(viejo.fecha || '').slice(0, 4) === anioActual) {
+            summary.egresos_anio_actual = Math.max(0, Number(summary.egresos_anio_actual || 0) - montoViejo);
+          }
+          actualizarSerie(otrosSeries, gastosLabels, viejo.fecha, montoViejo, -1);
+          otros[idx] = egresoData;
+        }
+        if (String(egresoData.fecha || '').slice(0, 4) === anioActual) {
+          summary.egresos_anio_actual = Number(summary.egresos_anio_actual || 0) + montoNuevo;
+        }
+        actualizarSerie(otrosSeries, gastosLabels, egresoData.fecha, montoNuevo, 1);
+      }
+      renderOtros();
+      renderSummary();
+      renderCharts();
+      modalOtro.hide();
+      mostrar('Egreso guardado.', 'success');
     });
   });
 })();

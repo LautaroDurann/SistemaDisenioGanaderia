@@ -49,6 +49,7 @@ urlpatterns = [
     path('api/usuarios/<int:usuario_id>/', auth_views.actualizar_usuario_api, name='actualizar_usuario_api'),
     path('api/usuarios/<int:usuario_id>/eliminar/', auth_views.eliminar_usuario_api, name='eliminar_usuario_api'),
     path('configuracion/', views.configuracion, name='configuracion'),
+    path('establecimiento/', views.establecimiento, name='establecimiento'),
     path('api/configuracion/respaldos/', views.respaldos_api, name='respaldos_api'),
     path('api/configuracion/respaldos/crear/', views.crear_respaldo_db, name='crear_respaldo_db'),
     path('api/configuracion/respaldos/restaurar/', views.restaurar_respaldo_db, name='restaurar_respaldo_db'),
