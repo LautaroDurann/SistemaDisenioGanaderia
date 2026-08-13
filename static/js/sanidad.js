@@ -1042,7 +1042,7 @@ function renderLoteOptions() {
     }
   }
 
-  const loteOptions = [{ value: '', label: insumoId ? 'Sin lote disponible' : 'Seleccioná primero un insumo' }, ...matchingLotes.map((l) => ({ value: l.id, label: `${l.nombre} — ${l.insumo_nombre} (${stockDisponibleParaEventoEn(l, eventoEnEdicion)} u)` }))];
+  const loteOptions = [{ value: '', label: insumoId ? 'Sin lote disponible' : 'Seleccioná primero un insumo' }, ...matchingLotes.map((l) => ({ value: l.id, label: `${l.nombre} — ${l.insumo_nombre} — Vence: ${formatFecha(l.fecha_vencimiento)} (${stockDisponibleParaEventoEn(l, eventoEnEdicion)} u)` }))];
   setOptions(selectLote, loteOptions, false);
   if (currentValue) {
     selectLote.value = currentValue;

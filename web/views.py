@@ -506,6 +506,11 @@ def _alertas_dashboard(request, animales=None):
             'url': reverse('ventas'),
         })
 
+    # Las notificaciones financieras (compras y ventas pendientes) solo se muestran
+    # a los propietarios; los operarios no reciben información de finanzas.
+    if not es_propietario(request):
+        alertas = [a for a in alertas if a['clave'] not in ('compras_pendientes', 'ventas_pendientes')]
+
     return alertas
 
 
