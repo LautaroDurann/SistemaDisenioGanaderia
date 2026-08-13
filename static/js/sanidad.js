@@ -20,6 +20,7 @@ let eventoEnEdicion = null;
 let guardandoEvento = false;
 let seleccionAnimalesEvento = new Set();
 let diagnosticoBloqueo = null;
+let diagnosticoAnimalFijo = null;
 let fechaSeleccionada = null;
 
 function formatFecha(iso) {
@@ -123,6 +124,9 @@ function buildEventFormData(evento) {
   if (evento.costo_total !== undefined && evento.costo_total !== null && evento.costo_total !== '') {
     formData.append('costo_total', evento.costo_total);
   }
+  if (evento.costo_servicio !== undefined && evento.costo_servicio !== null && evento.costo_servicio !== '') {
+    formData.append('costo_servicio', evento.costo_servicio);
+  }
   return formData;
 }
 
@@ -144,7 +148,8 @@ function setOptions(select, options, includeBlank = false) {
   if (includeBlank) html.push('<option value="">Todos</option>');
   options.forEach((opt) => {
     const selected = opt.selected ? ' selected' : '';
-    html.push(`<option value="${opt.value}"${selected}>${opt.label}</option>`);
+    const disabled = opt.disabled ? ' disabled' : '';
+    html.push(`<option value="${opt.value}"${selected}${disabled}>${opt.label}</option>`);
   });
   select.innerHTML = html.join('');
 }
@@ -625,8 +630,27 @@ function getSelectedAnimalIds() {
 }
 
 function getEventoAnimalesNoDisponibles() {
-  if (!eventoEnEdicion || !Array.isArray(eventoEnEdicion.animales)) return [];
-  return eventoEnEdicion.animales.filter((a) => !ANIMALES.some((x) => String(x.id) === String(a.id)));
+  const animales = [];
+  if (eventoEnEdicion && Array.isArray(eventoEnEdicion.animales)) {
+    animales.push(...eventoEnEdicion.animales);
+  }
+  if (diagnosticoBloqueo !== null) {
+    const diag = DIAGNOSTICOS.find((d) => String(d.animal_id) === String(diagnosticoBloqueo));
+    if (diag) {
+      animales.push({
+        id: diag.animal_id,
+        nombre: diag.animal || 'S/N',
+        caravana: diag.caravana,
+        tipo_animal: '',
+        categoria: '',
+        activo: false,
+        vendido: diag.animal_vendido,
+        vivo: diag.animal_vivo,
+        estado: diag.animal_estado,
+      });
+    }
+  }
+  return animales.filter((a) => !ANIMALES.some((x) => String(x.id) === String(a.id)));
 }
 
 function renderSelectedAnimales() {
@@ -639,7 +663,7 @@ function renderSelectedAnimales() {
     ? todos.map((a) => `
         <span class="badge bg-primary text-white d-inline-flex align-items-center" style="min-width: 180px;">
           #${escapeHtml(a.caravana)} ${escapeHtml(a.nombre || 'S/N')} ${a.categoria ? `(${escapeHtml(a.categoria)})` : ''}
-          ${a.activo === false ? ' <span class="badge text-bg-danger">Baja</span>' : ''}
+          ${badgeEstadoAnimal(a)}
         </span>`).join('')
     : '<span class="text-secondary">No hay animales seleccionados.</span>';
   if (contador) {
@@ -652,6 +676,13 @@ function renderAnimalTipoOptions() {
   const tipos = ['Bovino', 'Ovino', 'Porcino'];
   const options = [{ value: '', label: 'Todos los tipos' }, ...tipos.map((tipo) => ({ value: tipo, label: tipo }))];
   setOptions(document.getElementById('s-animal-tipo'), options, false);
+}
+
+function badgeEstadoAnimal(a) {
+  if (a.estado === 'Vendido') return ' <span class="badge text-bg-secondary">Vendido</span>';
+  if (a.estado === 'Muerto') return ' <span class="badge text-bg-dark">Muerto</span>';
+  if (a.activo === false) return ' <span class="badge text-bg-danger">Baja</span>';
+  return '';
 }
 
 function renderAnimalSelectionTable() {
@@ -672,12 +703,13 @@ function renderAnimalSelectionTable() {
     })
     .sort((a, b) => String(a.caravana).localeCompare(String(b.caravana), undefined, { numeric: true }))
     .map((a) => {
-      const esBloqueado = diagnosticoBloqueo !== null && String(a.id) !== String(diagnosticoBloqueo);
+      const esNoDisponible = a.baja;
+      const esBloqueado = (diagnosticoBloqueo !== null && String(a.id) !== String(diagnosticoBloqueo)) || esNoDisponible;
       const checked = seleccionAnimalesEvento.has(String(a.id));
       return `
       <tr>
         <td><input type="checkbox" class="form-check-input evento-animal-checkbox" value="${a.id}" ${checked ? 'checked' : ''} ${esBloqueado ? 'disabled' : ''}></td>
-        <td>#${a.caravana}${a.baja ? ' <span class="badge text-bg-danger">Baja</span>' : ''}</td>
+        <td>#${a.caravana}${badgeEstadoAnimal(a)}</td>
         <td>${a.nombre || 'S/N'}</td>
         <td>${a.tipo_animal || '-'}</td>
         <td>${a.categoria || '-'}</td>
@@ -748,7 +780,7 @@ function aplicarBloqueoDiagnostico({ limpiarAlDesbloquear = true } = {}) {
   renderAnimalSelectionTable();
 }
 
-function renderAnimalOptions(select, filter = '', selectedIds = []) {
+function renderAnimalOptions(select, filter = '', selectedIds = [], lockDiagnostico = null) {
   const normalizedFilter = filter.trim().toLowerCase();
   const selectedValues = selectedIds.map(String);
   const options = ANIMALES
@@ -762,11 +794,22 @@ function renderAnimalOptions(select, filter = '', selectedIds = []) {
       label: `#${a.caravana} - ${a.nombre || 'S/N'}${a.categoria ? ` (${a.categoria})` : a.tipo_animal ? ` - ${a.tipo_animal}` : ''}`,
       selected: selectedValues.includes(String(a.id)),
     }));
+  if (lockDiagnostico && !options.some((o) => String(o.value) === String(lockDiagnostico.animal_id))) {
+    options.unshift({
+      value: lockDiagnostico.animal_id,
+      label: `#${lockDiagnostico.caravana} - ${lockDiagnostico.animal || 'S/N'} (${lockDiagnostico.animal_estado || 'No disponible'})`,
+      selected: true,
+      disabled: true,
+    });
+  }
   if (!options.length) {
     select.innerHTML = '<option value="">No se encontraron animales</option>';
     return;
   }
   setOptions(select, options, false);
+  if (lockDiagnostico) {
+    select.value = String(lockDiagnostico.animal_id);
+  }
 }
 
 function renderVeterinarioOptions(select, filter = '') {
@@ -783,7 +826,7 @@ function renderVeterinarioOptions(select, filter = '') {
 }
 
 function updateDiagnosticoSelects() {
-  renderAnimalOptions(document.getElementById('d-animal'));
+  renderAnimalOptions(document.getElementById('d-animal'), '', [], diagnosticoAnimalFijo);
   setOptions(document.getElementById('d-enfermedad'), ENFERMEDADES.map((e) => ({ value: e.id, label: e.nombre })), false);
 }
 
@@ -803,6 +846,7 @@ function openEnfermedadModal(enfermedad = null) {
 function openDiagnosticoModal(diagnostico = null) {
   document.getElementById('modal-diagnostico-title').textContent = diagnostico ? 'Editar Diagnóstico' : 'Registrar Diagnóstico';
   document.getElementById('d-animal-search').value = '';
+  diagnosticoAnimalFijo = diagnostico && !ANIMALES.some((a) => String(a.id) === String(diagnostico.animal_id)) ? diagnostico : null;
   updateDiagnosticoSelects();
   if (!diagnostico) {
     resetDiagnosticoForm();
@@ -1100,6 +1144,7 @@ function resetEventoForm() {
   renderLoteOptions();
   document.getElementById('s-lote').value = '';
   document.getElementById('i-cantidad').value = '';
+  document.getElementById('i-costo-total').value = '';
   document.getElementById('i-costo').value = '';
   document.getElementById('t-detalle').value = '';
   updateStockWarning();
@@ -1131,7 +1176,8 @@ function openEventoModal(evento = null) {
     renderLoteOptions();
     document.getElementById('s-lote').value = evento.lote_id || '';
     document.getElementById('i-cantidad').value = evento.cantidad || '';
-    document.getElementById('i-costo').value = evento.costo_total || '';
+    document.getElementById('i-costo-total').value = evento.costo_total || '';
+    document.getElementById('i-costo').value = evento.costo_servicio || '';
     document.getElementById('t-detalle').value = evento.detalle || '';
     updateStockWarning();
     updateEstadoByFecha();
@@ -1170,6 +1216,7 @@ function abrirDetalleEvento(evento) {
   document.getElementById('detalle-lote').textContent = evento.lote;
   document.getElementById('detalle-cantidad').textContent = evento.cantidad || '-';
   document.getElementById('detalle-costo').textContent = evento.costo_total || '-';
+  document.getElementById('detalle-costo-servicio').textContent = evento.costo_servicio || '-';
   document.getElementById('detalle-observaciones').textContent = evento.detalle || '-';
 
   if (warningEl) {
@@ -1197,7 +1244,8 @@ async function guardarEvento() {
   const diagnosticoId = document.getElementById('s-diagnostico').value;
   const loteId = document.getElementById('s-lote').value;
   const cantidad = document.getElementById('i-cantidad').value;
-  const costo_total = document.getElementById('i-costo').value;
+  const costo_total = document.getElementById('i-costo-total').value;
+  const costo_servicio = document.getElementById('i-costo').value;
   const detalle = document.getElementById('t-detalle').value;
 
   if (!tipo || !fecha_aplicacion || !animalIds.length) {
@@ -1219,6 +1267,7 @@ async function guardarEvento() {
     fecha_aplicacion,
     estado: estadoAuto,
     costo_total: costo_total || '0',
+    costo_servicio: costo_servicio || '0',
     animal_ids: animalIds,
     veterinario_id: veterinarioId || null,
     diagnostico_id: diagnosticoId || null,
@@ -1328,7 +1377,7 @@ function setupListeners() {
   document.getElementById('btn-registrar-enfermedad').addEventListener('click', () => openEnfermedadModal());
   document.getElementById('btn-registrar-diagnostico').addEventListener('click', () => openDiagnosticoModal());
   document.getElementById('btn-registrar-veterinario').addEventListener('click', () => openVeterinarioModal());
-  document.getElementById('d-animal-search').addEventListener('input', (event) => renderAnimalOptions(document.getElementById('d-animal'), event.target.value));
+  document.getElementById('d-animal-search').addEventListener('input', (event) => renderAnimalOptions(document.getElementById('d-animal'), event.target.value, [], diagnosticoAnimalFijo));
   document.getElementById('s-animal-search').addEventListener('input', () => renderAnimalSelectionTable());
   document.getElementById('s-animal-tipo').addEventListener('change', () => {
     const categoriaSelect = document.getElementById('s-animal-categoria');

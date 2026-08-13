@@ -343,8 +343,12 @@
                 <input type="number" step="0.01" min="0" id="i-cantidad" class="form-control" />
               </div>
               <div class="col-md-4">
-                <label class="form-label small mb-1">Costo de servicio veterinario</label>
-                <input type="number" step="0.01" min="0" id="i-costo" class="form-control" />
+                <label class="form-label small mb-1">Monto total</label>
+                <input type="number" step="0.01" min="0" id="i-costo-total" class="form-control" placeholder="Opcional" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small mb-1">Servicio del veterinario</label>
+                <input type="number" step="0.01" min="0" id="i-costo" class="form-control" placeholder="Opcional" />
               </div>
             </div>
             <div class="mb-3">
@@ -529,7 +533,10 @@
           <div class="row g-3 mb-3">
             <div class="col-md-4"><small class="text-secondary d-block">Lote</small><strong id="detalle-lote">-</strong></div>
             <div class="col-md-4"><small class="text-secondary d-block">Cantidad</small><strong id="detalle-cantidad">-</strong></div>
-            <div class="col-md-4"><small class="text-secondary d-block">Costo</small><strong id="detalle-costo">-</strong></div>
+            <div class="col-md-4"><small class="text-secondary d-block">Monto total</small><strong id="detalle-costo">-</strong></div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4"><small class="text-secondary d-block">Servicio del veterinario</small><strong id="detalle-costo-servicio">-</strong></div>
           </div>
           <div class="mb-3">
             <small class="text-secondary d-block mb-1">Detalle</small>
@@ -546,5 +553,5 @@
 {% endblock %}
 
 {% block page_js %}
-<script src="{% static 'js/sanidad.js' %}?v=20260813"></script>
+<script src="{% static 'js/sanidad.js' %}?v=20260813b"></script>
 {% endblock %}

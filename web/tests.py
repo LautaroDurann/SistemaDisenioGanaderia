@@ -98,6 +98,40 @@ class WebIntegrationTests(TestCase):
         self.assertEqual(movimiento.nombre, f'Evento sanitario #{evento.id}')
         self.assertIn('Sanidad', movimiento.detalle)
 
+    def test_evento_con_servicio_veterinario_incluye_costo_servicio_y_detalle(self):
+        response = self.client.post(reverse('crear_evento_sanitario'), {
+            'tipo': 'Vacunación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
+            'costo_total': '10000.00', 'costo_servicio': '2500.00',
+            'animal_id': self.animal.idAnimal,
+        })
+        self.assertEqual(response.status_code, 201)
+        evento = EventoSanitario.objects.get(pk=response.json()['evento']['id'])
+        self.assertEqual(evento.costo_servicio, Decimal('2500.00'))
+        self.assertIsNotNone(evento.mov_financiero)
+        self.assertEqual(evento.mov_financiero.monto_total, Decimal('10000.00'))
+        self.assertIn('Servicio del veterinario: $ 2,500.00', evento.mov_financiero.detalle)
+        data = response.json()['evento']
+        self.assertEqual(data['costo_servicio'], '2500.00')
+
+    def test_evento_aplicado_con_costo_aparece_en_gastos_otros(self):
+        self.client.post(reverse('crear_evento_sanitario'), {
+            'tipo': 'Medicación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
+            'costo_total': '8000.00', 'costo_servicio': '1500.00',
+            'animal_id': self.animal.idAnimal,
+        })
+        response = self.client.get(reverse('gastos'))
+        self.assertEqual(response.status_code, 200)
+        contenido = response.content.decode()
+        inicio = contenido.index('id="huacapp-page-data"')
+        inicio = contenido.index('>', inicio) + 1
+        fin = contenido.index('</script>', inicio)
+        datos = json.loads(contenido[inicio:fin])
+        nombres = [otro['nombre'] for otro in datos['otros']]
+        self.assertTrue(any(n.startswith('Evento sanitario') for n in nombres))
+        evento = EventoSanitario.objects.get(tipo='Medicación')
+        self.assertIn(evento.mov_financiero.id, [otro['id'] for otro in datos['otros']])
+        self.assertGreaterEqual(datos['summary']['total_otros'], 1)
+
     def test_evento_aplicado_sin_costo_no_genera_movimiento(self):
         response = self.client.post(reverse('crear_evento_sanitario'), {
             'tipo': 'Desparasitación', 'fecha_aplicacion': '2026-08-01', 'estado': 'true',
@@ -203,6 +237,64 @@ class WebIntegrationTests(TestCase):
         evento.refresh_from_db()
         self.assertEqual(evento.costo_total, Decimal('7500.00'))
         self.assertEqual(evento.mov_financiero.monto_total, Decimal('7500.00'))
+
+    def _page_data(self, response):
+        contenido = response.content.decode()
+        inicio = contenido.index('id="huacapp-page-data"')
+        inicio = contenido.index('>', inicio) + 1
+        fin = contenido.index('</script>', inicio)
+        return json.loads(contenido[inicio:fin])
+
+    def test_sanidad_solo_ofrece_animales_actuales(self):
+        vendida = Animal.objects.create(
+            id_senasa=99999, nombre='Tita', tipo_animal='Bovino', sexo='Hembra',
+            parcela=self.parcela, vivo=True, vendido=True,
+        )
+        muerto = Animal.objects.create(
+            id_senasa=88888, nombre='Mora', tipo_animal='Bovino', sexo='Hembra',
+            parcela=self.parcela, vivo=False,
+        )
+        response = self.client.get(reverse('sanidad'))
+        data = self._page_data(response)
+        ids = [a['id'] for a in data['animales']]
+        self.assertIn(self.animal.idAnimal, ids)
+        self.assertNotIn(vendida.idAnimal, ids)
+        self.assertNotIn(muerto.idAnimal, ids)
+
+    def test_sanidad_evento_con_animal_vendido_lo_incluye_como_ya_seleccionado(self):
+        self.animal.establecimiento = self.parcela.establecimiento
+        self.animal.save(update_fields=['establecimiento'])
+        evento = EventoSanitario.objects.create(
+            tipo='Desparasitación', fecha_aplicacion='2026-07-01', estado=True,
+        )
+        DetalleEvento.objects.create(evento=evento, animal_id=self.animal.idAnimal)
+        self.animal.vendido = True
+        self.animal.save(update_fields=['vendido'])
+
+        response = self.client.get(reverse('sanidad'))
+        data = self._page_data(response)
+        ev = next(e for e in data['eventos'] if e['id'] == evento.id)
+        self.assertEqual(len(ev['animales']), 1)
+        self.assertEqual(ev['animales'][0]['id'], self.animal.idAnimal)
+        self.assertEqual(ev['animales'][0]['estado'], 'Vendido')
+        self.assertNotIn(self.animal.idAnimal, [a['id'] for a in data['animales']])
+
+    def test_sanidad_diagnostico_con_animal_vendido_incluye_estado(self):
+        self.animal.establecimiento = self.parcela.establecimiento
+        self.animal.save(update_fields=['establecimiento'])
+        enfermedad = Enfermedad.objects.create(nombre='Brucelosis')
+        diagnostico = Diagnostico.objects.create(
+            animal=self.animal, enfermedad=enfermedad,
+            fecha_deteccion='2026-07-01', estado_actual='En tratamiento',
+        )
+        self.animal.vendido = True
+        self.animal.save(update_fields=['vendido'])
+
+        response = self.client.get(reverse('sanidad'))
+        data = self._page_data(response)
+        diag = next(d for d in data['diagnosticos'] if d['id'] == diagnostico.id)
+        self.assertEqual(diag['animal_id'], self.animal.idAnimal)
+        self.assertEqual(diag['animal_estado'], 'Vendido')
 
     def test_editar_costo_del_movimiento_sincroniza_la_compra(self):
         movimiento = MovimientoFinanciero.objects.create(

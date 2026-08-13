@@ -271,7 +271,7 @@
           <span class="fw-semibold">${e.preñadas}/${e.total_hembras}</span>
           <small class="text-secondary d-block">${e.animales.map((a) => `<span class="badge text-bg-light border me-1">#${escapeHtml(a.caravana)} ${escapeHtml(a.nombre)}</span>`).join('')}</small>
         </td>
-        <td>${dinero(e.costo_total)}</td>
+        <td>${dinero(e.costo_total)}${e.costo_servicio ? `<small class="text-secondary d-block">Servicio: ${dinero(e.costo_servicio)}</small>` : ''}</td>
         <td class="text-end text-nowrap">
           <button class="btn btn-sm btn-outline-primary btn-preniadas" data-id="${e.id}" title="Registrar preñadas"><i class="bi bi-clipboard2-heart"></i></button>
           <button class="btn btn-sm btn-outline-secondary btn-insem-editar" data-id="${e.id}" title="Editar inseminación"><i class="bi bi-pencil"></i></button>
@@ -380,6 +380,8 @@
     $('insem-estado').value = 'false';
     $('insem-tipo').value = ESPECIES[0];
     $('insem-animales-search').value = '';
+    $('insem-costo').value = '';
+    $('insem-costo-servicio').value = '';
     renderPadresInsem();
     renderInsemAnimales('');
   }
@@ -398,6 +400,7 @@
     $('insem-padre-donante').value = e.padre_donante || '';
     $('insem-veterinario').value = e.veterinario_id || '';
     $('insem-costo').value = e.costo_total || '';
+    $('insem-costo-servicio').value = e.costo_servicio || '';
     $('insem-detalle').value = e.detalle || '';
     $('insem-animales-search').value = '';
     renderInsemAnimales('', e.animales.map((a) => a.id));
@@ -415,6 +418,7 @@
     formData.append('padre_donante', $('insem-padre-donante').value || '');
     formData.append('veterinario_id', $('insem-veterinario').value || '');
     formData.append('costo_total', $('insem-costo').value || '');
+    formData.append('costo_servicio', $('insem-costo-servicio').value || '');
     formData.append('detalle', $('insem-detalle').value || '');
     seleccionadasInsem().forEach((a) => formData.append('animales', a));
     const response = await fetch(id ? `/api/prenieces/inseminaciones/${id}/` : '/api/prenieces/inseminaciones/', {
@@ -506,11 +510,11 @@
   }
 
   function renderPadresPreniez(tipo) {
-    const opciones = PADRES.filter((p) => p.tipo === tipo);
+    const opciones = tipo ? PADRES.filter((p) => p.tipo === tipo) : PADRES;
     const base = '<option value="">No registrado</option>';
     $('p-padre').innerHTML = base + (tipo && !opciones.length
       ? '<option value="" disabled>No hay machos de este tipo</option>'
-      : opciones.map((padre) => `<option value="${padre.id}">${escapeHtml(padre.nombre)}</option>`).join(''));
+      : opciones.map((padre) => `<option value="${padre.id}">${escapeHtml(padre.nombre)} (${escapeHtml(padre.tipo)})</option>`).join(''));
   }
 
   function actualizarEstimacion() {

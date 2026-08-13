@@ -67,6 +67,14 @@ def _caravana_text(animal):
     return str(animal.id_senasa) if animal.id_senasa is not None else 'Sin caravana'
 
 
+def _estado_animal(animal):
+    if animal.vendido:
+        return 'Vendido'
+    if not animal.vivo:
+        return 'Muerto'
+    return 'Activo'
+
+
 def _nombre_parcela(parcela):
     if parcela.descripcion:
         return parcela.descripcion.strip()
@@ -89,7 +97,7 @@ def _parcela_data(parcela, actual=0):
 
 
 def _animal_data(animal):
-    estado = 'Vendido' if animal.vendido else ('Muerto' if not animal.vivo else 'Activo')
+    estado = _estado_animal(animal)
     return {
         'id': animal.idAnimal, 'idAnimal': animal.idAnimal, 'caravana': _caravana_text(animal), 'nombre': animal.nombre or 'S/N',
         'categoria': _categoria(animal), 'sexo': animal.sexo, 'raza': animal.raza or '-',
@@ -1132,13 +1140,13 @@ def gastos(request):
     sueldos_anio = liquidaciones.filter(fecha__year=today.year).aggregate(total=Sum('sueldo'))['total'] or Decimal('0')
 
     # Otros egresos: movimientos financieros de egreso sin entidad asociada
-    # (no provienen de compras, ventas, eventos sanitarios ni liquidaciones).
+    # (no provienen de compras, ventas ni liquidaciones). Los gastos de eventos
+    # sanitarios (vacunación, medicación, inseminación, etc.) también se listan
+    # acá, con su detalle.
     vinculados = set(
         Compra.objects.filter(activo=True, mov_financiero_id__isnull=False).values_list('mov_financiero_id', flat=True)
     ) | set(
         Venta.objects.filter(activo=True, mov_financiero_id__isnull=False).values_list('mov_financiero_id', flat=True)
-    ) | set(
-        EventoSanitario.objects.filter(activo=True, mov_financiero_id__isnull=False).values_list('mov_financiero_id', flat=True)
     ) | set(
         LiquidacionSueldo.objects.filter(movimiento_financiero_id__isnull=False)
         .values_list('movimiento_financiero_id', flat=True)
@@ -1270,6 +1278,7 @@ def _asignar_evento_sanitario(evento, datos):
     evento.fecha_aplicacion = fecha_aplicacion
     evento.estado = datos.get('estado', 'true') in ('true', 'on', '1')
     evento.costo_total = _parse_decimal(datos.get('costo_total'))
+    evento.costo_servicio = _parse_decimal(datos.get('costo_servicio'))
     evento.cantidad = _parse_decimal(datos.get('cantidad'))
     evento.detalle = datos.get('detalle', '').strip() or None
     evento.veterinario_id = int(datos['veterinario_id']) if datos.get('veterinario_id') else None
@@ -1293,6 +1302,9 @@ def _evento_sanitario_data(evento):
             'edad': _edad(animal),
             'parcela': str(animal.parcela) if animal.parcela else 'Sin asignar',
             'activo': animal.activo,
+            'vendido': animal.vendido,
+            'vivo': animal.vivo,
+            'estado': _estado_animal(animal),
             'cantidad_dosis': str(detalle.cantidad_dosis or ''),
         })
 
@@ -1307,6 +1319,7 @@ def _evento_sanitario_data(evento):
         'fecha_aplicacion': evento.fecha_aplicacion.isoformat(),
         'estado': evento.estado,
         'costo_total': str(evento.costo_total or 0),
+        'costo_servicio': str(evento.costo_servicio or 0),
         'mov_financiero_id': evento.mov_financiero_id,
         'animal_ids': [d['id'] for d in detalles],
         'animales': detalles,
@@ -1347,6 +1360,9 @@ def _diagnostico_data(diagnostico):
         'animal_id': diagnostico.animal_id,
         'animal': diagnostico.animal.nombre or 'S/N',
         'caravana': str(diagnostico.animal.id_senasa) if diagnostico.animal.id_senasa is not None else 'S/N',
+        'animal_vendido': diagnostico.animal.vendido,
+        'animal_vivo': diagnostico.animal.vivo,
+        'animal_estado': _estado_animal(diagnostico.animal),
         'enfermedad_id': diagnostico.enfermedad_id,
         'enfermedad': diagnostico.enfermedad.nombre,
     }
@@ -1507,7 +1523,7 @@ def sanidad(request):
     proximas_aplicaciones = eventos.filter(
         estado=False, fecha_aplicacion__gte=today,
     ).count()
-    animales = _animales_de(request).filter(vivo=True).select_related('parcela').order_by('id_senasa')
+    animales = _animales_de(request).filter(vivo=True, vendido=False).select_related('parcela').order_by('id_senasa')
     animales_enfermos = animales.filter(enfermo=True).count()
     enfermedades = Enfermedad.objects.order_by('nombre')
     diagnosticos = Diagnostico.objects.select_related('animal', 'enfermedad').order_by('-fecha_deteccion')
@@ -1517,7 +1533,9 @@ def sanidad(request):
     lotes = Lote.objects.filter(activo=True, insumo__activo=True).select_related('insumo').order_by('insumo__nombre', 'fechaVencimiento')
     if establecimiento is not None:
         lotes = lotes.filter(establecimiento=establecimiento)
-    # Incluir animales vivos aunque ya hayan sido vendidos para permitir registrar eventos y diagnósticos históricos.
+    # Los animales vendidos/muertos solo aparecen como ya seleccionados en eventos
+    # y diagnósticos registrados antes de la venta/muerte; no se ofrecen para
+    # registros nuevos.
 
     data = {
         'kpis': {
@@ -1598,6 +1616,10 @@ def _sync_movimiento_evento(evento, establecimiento=None):
     """Registra en Finanzas el gasto del evento cuando está Aplicado y tiene costo, o lo elimina si ya no corresponde."""
     costo = evento.costo_total or Decimal('0')
     if evento.estado and costo > 0:
+        detalle = evento.detalle or f'Gasto de {evento.tipo} registrado desde el módulo de Sanidad.'
+        servicio = evento.costo_servicio or Decimal('0')
+        if servicio > 0:
+            detalle = f'{detalle}\nServicio del veterinario: $ {servicio:,.2f}'
         movimiento, _ = MovimientoFinanciero.objects.update_or_create(
             pk=evento.mov_financiero_id,
             defaults={
@@ -1605,7 +1627,7 @@ def _sync_movimiento_evento(evento, establecimiento=None):
                 'nombre': f'Evento sanitario #{evento.id}',
                 'monto_total': costo,
                 'fecha': evento.fecha_aplicacion,
-                'detalle': evento.detalle or f'Gasto de {evento.tipo} registrado desde el módulo de Sanidad.',
+                'detalle': detalle,
                 'establecimiento': establecimiento,
                 'activo': True,
             },
@@ -2779,6 +2801,7 @@ def _evento_inseminacion_data(evento):
         'veterinario_id': evento.veterinario_id,
         'veterinario': str(evento.veterinario) if evento.veterinario else '-',
         'costo_total': str(evento.costo_total or ''),
+        'costo_servicio': str(evento.costo_servicio or ''),
         'detalle': evento.detalle or '',
         'animales': animales,
         'total_hembras': len(animales),

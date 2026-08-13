@@ -57,6 +57,7 @@ class EventoSanitario(models.Model):
     fecha_aplicacion = models.DateField()
     estado = models.BooleanField(default=True)
     costo_total = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    costo_servicio = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     
     # Esta cantidad ahora representa la sumatoria total del medicamento utilizado en el evento
     cantidad = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)

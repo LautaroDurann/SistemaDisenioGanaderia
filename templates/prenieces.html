@@ -330,15 +330,19 @@
               <input type="text" id="insem-padre-donante" class="form-control" placeholder="Ej: Toro Angus 2020, circunferencia escrotal 38 cm, EPD destete +18 kg..." />
             </div>
             <div class="row g-2 mb-3">
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <label class="form-label small mb-1">Veterinario</label>
                 <select id="insem-veterinario" class="form-select">
                   <option value="">No registrado</option>
                 </select>
               </div>
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <label class="form-label small mb-1">Costo total</label>
                 <input type="number" step="0.01" min="0" id="insem-costo" class="form-control" placeholder="Opcional" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small mb-1">Servicio del veterinario</label>
+                <input type="number" step="0.01" min="0" id="insem-costo-servicio" class="form-control" placeholder="Opcional" />
               </div>
             </div>
             <div class="mb-3">
@@ -590,5 +594,5 @@
 {% endblock %}
 
 {% block page_js %}
-  <script src="{% static 'js/prenieces.js' %}?v=20260810"></script>
+  <script src="{% static 'js/prenieces.js' %}?v=20260813a"></script>
 {% endblock %}
