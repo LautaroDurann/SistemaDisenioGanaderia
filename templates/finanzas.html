@@ -1,5 +1,6 @@
 {% extends 'dashboard/base.html' %}
 {% load static %}
+{% load ganaderia_extras %}
 
 {% block title %}Finanzas | HuacApp{% endblock %}
 {% block extra_css %}
@@ -32,7 +33,7 @@
 					<div class="card vacapp-card h-100">
 						<div class="card-body">
 							<small class="text-secondary">Ingresos (mes)</small>
-							<h4 class="mb-0" id="kpi-ingresos">$ {{ page_data.kpis.ingresos_mes|floatformat:2 }}</h4>
+							<h4 class="mb-0" id="kpi-ingresos">$ {{ page_data.kpis.ingresos_mes|moneda }}</h4>
 						</div>
 					</div>
 				</div>
@@ -40,7 +41,7 @@
 					<div class="card vacapp-card h-100">
 						<div class="card-body">
 							<small class="text-secondary">Egresos (mes)</small>
-							<h4 class="mb-0" id="kpi-egresos">$ {{ page_data.kpis.egresos_mes|floatformat:2 }}</h4>
+							<h4 class="mb-0" id="kpi-egresos">$ {{ page_data.kpis.egresos_mes|moneda }}</h4>
 						</div>
 					</div>
 				</div>
@@ -48,7 +49,7 @@
 					<div class="card vacapp-card h-100">
 						<div class="card-body">
 							<small class="text-secondary">Balance (mes)</small>
-							<h4 class="mb-0" id="kpi-balance">$ {{ page_data.kpis.balance_mes|floatformat:2 }}</h4>
+							<h4 class="mb-0" id="kpi-balance">$ {{ page_data.kpis.balance_mes|moneda }}</h4>
 						</div>
 					</div>
 				</div>
